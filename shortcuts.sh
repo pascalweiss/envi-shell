@@ -1,3 +1,5 @@
+#! /bin/bash
+
 # tmux preferences
 use_tmux="yes"
 show_tmux_help="yes"
