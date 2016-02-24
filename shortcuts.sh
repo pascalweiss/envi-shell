@@ -67,5 +67,5 @@ sparkRContext() {
 }
 # various
 alias o='gnome-open'
-
+alias o.='gnome-open .'
 
