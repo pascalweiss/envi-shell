@@ -1,0 +1,2 @@
+# scr
+Some shell shortcuts
