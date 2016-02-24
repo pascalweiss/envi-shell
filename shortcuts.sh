@@ -32,9 +32,19 @@ alias loc='vim ~/scr/loc.sh'
 #edit aliases.sh
 alias short='vim ~/scr/shortcuts.sh'
 
-# various aliases
-alias en='dict.cc.py en de'
-alias de='dict.cc.py de en'
+# requests translation from dict.cc and writes request in vocab.log
+en() {
+   vocab=~/vocab.log
+   args1=""
+   args2=""
+   for arg in "$@"
+   do
+      args1="${args1}+$arg"
+      args2="${args2} $arg"
+   done
+   printf "`date` - $args2\n" >> $vocab
+   dict.cc.py en de $args1
+}
 
 # firefox shortcut
 ff() {
@@ -51,6 +61,11 @@ www() {
    firefox $link &
 }
 
+# copies sparkRContext.R to working directory
+sparkRContext() {
+   cp ~/scr/sparkRContext.R `pwd`
+}
+# various
 alias o='gnome-open'
 
 
