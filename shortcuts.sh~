@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # tmux preferences
-use_tmux="yes"
+"use_tmux="yes"
 show_tmux_help="yes"
 if [ "$use_tmux"=yes ]; then 
   [[ $TERM != "screen" ]] && exec tmux;  
@@ -18,7 +18,7 @@ if [ "$show_tmux_help"=yes ]; then
    echo "x kill pane"
    echo "_ -space- toggle between layouts"
 fi;
-
+"
 # avoid duplicates..
 export HISTCONTROL=ignoredups:erasedups
 
@@ -71,12 +71,3 @@ sparkRContext() {
 alias o='gnome-open'
 alias o.='gnome-open .'
 
-# do this later...
-dolater() {
-   args=""
-   for arg in $@
-   do
-      args="$args $arg"
-   done 
-   printf "`date` \n $args\n\n" >> ~/doLater.txt
-}
