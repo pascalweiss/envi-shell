@@ -1,12 +1,16 @@
 #! /bin/bash
 
+# python
+alias ipy='ipython'
+
 # tmux preferences
-use_tmux="yes"
-show_tmux_help="yes"
-if [ "$use_tmux"=yes ]; then 
+use_tmux="no"
+show_tmux_help="no"
+if [ "$use_tmux" = 'yes' ]; then 
+  echo "wat1"
   [[ $TERM != "screen" ]] && exec tmux;  
 fi;
-if [ "$show_tmux_help"=yes ]; then
+if [ "$show_tmux_help" = 'yes' ]; then
    echo "c create window"
    echo "w list window"
    echo "n next window"
@@ -36,7 +40,7 @@ alias short='vim ~/scr/shortcuts.sh'
 
 # requests translation from dict.cc and writes request in vocab.log
 en() {
-   vocab=~/vocab.log
+   vocab=~/docs/logs/vocab.log
    args1=""
    args2=""
    for arg in "$@"
@@ -78,5 +82,10 @@ dolater() {
    do
       args="$args $arg"
    done 
-   printf "`date` \n $args\n\n" >> ~/doLater.txt
+   printf "`date` \n $args\n\n" >> ~/docs/logs/doLater.txt
+}
+
+# campaign search in admin
+cadm() {
+   firefox "https://admin.plista.com/Advertising/campaigns?id=$1"
 }

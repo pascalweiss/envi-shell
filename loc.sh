@@ -1,4 +1,5 @@
 #! /bin/bash
+alias docs='cd ~/docs'
 alias pli='cd ~/plista'
 alias ai='cd /media/psf/Home/Drive/aiCloud'
 alias stu='cd /media/psf/Home/Drive/Studium/5_semester'
