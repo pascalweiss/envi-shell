@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+echo "--------------- Network Information ---------------"
+LANIP=`/sbin/ifconfig en0 | awk /'inet / {print $2}'`
+LANBC=`/sbin/ifconfig en0 | awk /'broadcast/ {print $6}'`
+MAC=`/sbin/ifconfig en0 | awk /'ether/ {print $2}'`
+WANIP=`lynx -dump -hiddenlinks=ignore -nolist http://checkip.dyndns.org:8245/ | awk '/Address: /{print $4}'`
+echo "IP:   $LANIP"
+echo "BCST: $LANBC"
+echo "MAC:  $MAC"
+echo "WAN:  ${WANIP}"
+echo "---------------------------------------------------"

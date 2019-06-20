@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+open $MEGA_HOME sbin/fkeytoggle.app

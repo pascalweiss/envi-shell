@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+DIR=$HOME/var/log
+if [ ! -d "$DIR" ]; then
+    mkdir -p $DIR
+fi
+
+TODOS=""
+for TODO in $@
+   do
+      args="$LOG $ARG"
+done 
+LOG="$(date +'%Y-%m-%d %H:%M:%S') - $TODOS"
+echo  $LOG >> $DIR/todos.log

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+alias dl='~/Downloads'
+alias loc='vim ~/scripts/loc_alias.sh'

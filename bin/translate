@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+if (( $# == 3 )); then
+    FROM=$1
+    TO=$2
+    WORD=$3
+else 
+    FROM=en
+    TO=de
+    WORD=$1
+fi
+
+DIR=$HOME/var/log
+if [ ! -d "$DIR" ]; then
+    mkdir -p $DIR
+fi
+
+LOG="$(date +'%Y-%m-%d %H:%M:%S') - $WORD"
+echo $LOG >> $DIR/translate.log
+dict.cc.py $TO $FROM $WORD

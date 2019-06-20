@@ -1,0 +1,25 @@
+if (( $TMUX_ENAMBED = 1 )); then
+  [[ $TERM != "screen" ]] && exec tmux;  
+fi;
+if (( $TMUX_SHOW_HELP" = 1 )); then
+   echo "c create window"
+   echo "w list window"
+   echo "n next window"
+   echo "p previous window"
+   echo "% vertical split"
+   echo "\" horizontal split"
+   echo "o swap panes"
+   echo "q show pane numbers"    
+   echo "x kill pane"
+   echo "_ -space- toggle between layouts"
+fi;
+
+# avoid duplicates..
+export HISTCONTROL=ignoredups:erasedups
+
+# append history entries..
+shopt -s histappend
+
+# After each command, save and reload history
+export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
+
