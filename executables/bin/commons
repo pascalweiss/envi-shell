@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+contains () {
+    local e match="$1"
+    shift
+    for e; do 
+        [[ "$e" == "$match" ]] && return 0
+    done
+    return 1
+}
+
+
+function add_symlink () {
+    if [ -L $2 ]; then
+        rm $2
+    fi
+    ln -s $1 $2
+}

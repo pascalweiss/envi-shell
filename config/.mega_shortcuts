@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-alias loc='vim ~/.shell_mods/aliases/loc.sh'
-alias short='vim ~/.shell_mods/aliases/shortcuts.sh'
+alias loc='vim ~/.mega_locations'
+alias short='vim ~/.mega_shortcuts'
 alias pingg="ping -i 0.2 1.1.1.1"
 alias py2="python2"
 alias py3="python3"

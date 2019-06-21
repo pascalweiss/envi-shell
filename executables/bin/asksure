@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+function ask () {
+    if (( $#  > 1 )); then
+        echo $@
+    else 
+        echo "Are you sure?"
+    fi
+    echo -n "Type (y/n): "
+    while read -r -n 1 -s ANSWER; do
+        if [[ $ANSWER = [YyNn] ]]; then
+        [[ $ANSWER = [Yy] ]] && exit 0
+        [[ $ANSWER = [Nn] ]] && exit 1
+        break
+        fi
+    done
+}
+
+

@@ -1,8 +1,0 @@
-six
-pytest
-pytest-cache
-python-dateutil
-requests
-flask
-ipython
-dict.cc.py

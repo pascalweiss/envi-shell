@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 
 alias dl='~/Downloads'
+alias odl="open ~/Downloads"
 alias loc='vim ~/scripts/loc_alias.sh'

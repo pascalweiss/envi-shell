@@ -1,0 +1,4 @@
+uname
+wget
+curl
+git-core
