@@ -3,6 +3,6 @@
 ##Installation
 Execute the following: 
 ```bash
-wget https://raw.githubusercontent.com/pascalweiss/mega-shell-env/master/setup/install.sh -O - | bash || true
+sh -c "$(wget -O- https://raw.githubusercontent.com/pascalweiss/mega-shell-env/master/setup/install.sh)"
 ```
 
