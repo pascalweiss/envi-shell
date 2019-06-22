@@ -73,7 +73,9 @@ for BIN in "${BIN_DIRS[@]}"; do
 done
 
 if contains "--install-oh-my-zsh=no" "${ARGS[@]}"; then
-    sudo chsh $(/usr/bin/env bash)
+    chsh -s $(command -v bash)
+    exec bash
 else 
-    sudo chsh $(/usr/bin/env zsh)
+    sudo -s chsh $(command -v zsh)
+    exec zsh
 fi
