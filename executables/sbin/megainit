@@ -1,5 +1,4 @@
 # export paths
-source commons
 
 if [[ "$uname" = *Darwin* ]]; then 
     export PATH=$PATH:$MEGA_HOME/macbin
@@ -15,6 +14,7 @@ export PATH="$PATH:\
 /usr/sbin:\
 /sbin"
 
+source commons
 source $MEGA_HOME/defaults/default_shortcuts.sh
 
 # Apply user settings
