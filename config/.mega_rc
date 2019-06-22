@@ -11,7 +11,10 @@ MEGA_SHORTCUTS=true
 MEGA_ENV=true
 
 # Enable 256 colors
-256_COLORS=true
+MEGA_256_COLORS=true
+
+# Enable debug outputs
+MEGA_DEBUG=false 
 
 # Do not delete the following command unless you don't want to use your .bashrc / .zshrc
 source $MEGA_HOME/executables/sbin/megainit
