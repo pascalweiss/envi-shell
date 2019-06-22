@@ -1,3 +1,6 @@
 [submodule "submodules/dotfiles"]
 	path = submodules/dotfiles
 	url = https://github.com/pascalweiss/dotfiles.git
+[submodule "submodules/mega-vim"]
+	path = submodules/mega-vim
+	url = https://github.com/pascalweiss/mega-vim.git
