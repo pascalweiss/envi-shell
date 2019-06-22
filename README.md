@@ -1,5 +1,10 @@
 # Mega Shell
 
+A clean shell environment that can be deployed with a single command. 
+
+### Warning
+The installation will require root rights. If you don't trust this system don't use it. 
+
 ## Installation
 Execute the following: 
 ```bash
