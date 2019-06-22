@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-source $DIR/setup/console_output.sh
+source $DIR/setup/_func_console_output.sh
 
 
 #              _     _ _

@@ -3,13 +3,13 @@
 set +e
 
 DIR="$( cd "$(dirname "$0")/.." ; pwd -P )"
-SETUP_OS=$DIR/setup/install_packages_os.sh
-SETUP_PY=$DIR/setup/install_packages_python.sh
-SETUP_OH_MY_ZSH=$DIR/setup/install_oh_my_zsh.sh
-SETUP_DOTFILES=$DIR/setup/replace_dotfiles.sh
+SETUP_OS=$DIR/setup/_func_packages_os.sh
+SETUP_PY=$DIR/setup/_func_packages_python.sh
+SETUP_OH_MY_ZSH=$DIR/setup/_func_oh_my_zsh.sh
+SETUP_DOTFILES=$DIR/setup/_func_dotfiles.sh
 ARGS=("${@}")
 
-source $DIR/setup/preparation.sh
+source $DIR/setup/_func_preparation.sh
 source $DIR/executables/bin/commons
 
 # Install dependencies
