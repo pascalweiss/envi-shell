@@ -72,10 +72,11 @@ for BIN in "${BIN_DIRS[@]}"; do
     chmod u+x "$DIR/executables/$BIN/"*
 done
 
+
 if contains "--install-oh-my-zsh=no" "${ARGS[@]}"; then
-    chsh -s $(command -v bash)
+    chsh --shell $(command -v zsh)
     exec bash
 else 
-    sudo -s chsh $(command -v zsh)
+    chsh --shell $(command -v zsh)
     exec zsh
 fi
