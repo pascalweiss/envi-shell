@@ -85,7 +85,7 @@ function exec_install () {
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq $1 < /dev/null &> /dev/null
             ERROR=$?
         elif [ -d "/System" ]; then
-            HOMEBREW_NO_AUTO_UPDATE=1 brew install $1 
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install $1 < /dev/null &> /dev/null
             ERROR=$?
         fi
         install_error_print $1 $ERROR
