@@ -1,9 +1,12 @@
 # export paths
+source commons
+
 if [[ "$uname" = *Darwin* ]]; then 
     export PATH=$PATH:$MEGA_HOME/macbin
 elif [[ "$uname" = *Linux* ]]; then 
     export PATH=$PATH:$MEGA_HOME/linuxbin
 fi
+export PATH=$PATH:$MEGA_HOME/executables/bin
 
 export PATH="$PATH:\
 /usr/local/bin:\
@@ -12,11 +15,9 @@ export PATH="$PATH:\
 /usr/sbin:\
 /sbin"
 
-export PATH=$PATH:$MEGA_HOME/executables/bin
+source $MEGA_HOME/defaults/default_shortcuts.sh
 
-source commons
-
-# execute user mega_shell files
+# Apply user settings
 if $MEGA_ENV; then source $MEGA_HOME/config/.mega_env; fi
 
 if $MEGA_LOCATIONS; then source $MEGA_HOME/config/.mega_locations; fi
