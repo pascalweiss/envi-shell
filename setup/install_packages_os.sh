@@ -64,7 +64,8 @@ function check_installation () {
     fi
     if [ `command -v $P` ]; then return 1; 
     else
-        return $(echo "${INSTALLED_PACKAGES[@]}" | grep -c "^$P$");
+        installed=$(echo "${INSTALLED_PACKAGES[@]}" | grep -c '^$P$')
+        return $installed;
     fi
 }
 
