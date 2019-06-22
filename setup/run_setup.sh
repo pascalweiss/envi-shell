@@ -72,9 +72,8 @@ for BIN in "${BIN_DIRS[@]}"; do
     chmod u+x "$DIR/executables/$BIN/"*
 done
 
-# if [[ "$SHELL" = *bash* ]]; then
-#     exec bash
-# elif [[ "$SHELL" = *zsh* ]]; then
-#     exec zsh
-# fi
-
+if contains "--install-oh-my-zsh=no" "${ARGS[@]}"; then
+    sudo chsh $(/usr/bin/env bash)
+else 
+    sudo chsh $(/usr/bin/env zsh)
+fi
