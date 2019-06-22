@@ -12,8 +12,14 @@ ARGS=("${@}")
 source $DIR/setup/_func_preparation.sh
 source $DIR/executables/bin/commons
 
+# Add files to config folder
+FILES=($(ls $DIR/setup/templates))
+for FILE in "${FILES[@]}"; do 
+    cp "$DIR/setup/templates/$FILE" "$DIR/config/.$FILE"; 
+done
+
 # Install dependencies
-if ! contains "--update_package_manager=no" "${ARGS[@]}"; then 
+if ! contains "--update-package-manager=no" "${ARGS[@]}"; then 
     source $SETUP_OS && update_package_manager
 fi
 
@@ -60,8 +66,6 @@ function lambda_replace_vim () {
 }
 install_dialog "--replace-vim" "--replace-vim=no" "The next step will backup your .vimrc and .vim in ~/dotfiles_backup and replace them with a new ones. Do you want this? Type (Y/n): " "lambda_replace_vim" "${ARGS[@]}"
 
-# Add files to config folder
-for TEMPLATE in "$(ls $DIR/setup/templates)"; do cp $TEMPLATE "$DIR/config";
 
 # Add files to home folder
 add_symlink "$DIR/config/.mega_env" "$HOME/.mega_env"
