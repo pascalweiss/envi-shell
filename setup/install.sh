@@ -5,4 +5,4 @@ git clone --recurse-submodules https://github.com/pascalweiss/mega-shell-env.git
 mv $HOME/tmp/mega $HOME/.mega
 rm -rf $HOME/tmp/mega
 
-$HOME/.mega/setup/setup.sh
+$HOME/.mega/setup/run_setup.sh
