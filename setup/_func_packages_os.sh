@@ -25,7 +25,7 @@ function install_dependencies () {
 }
 
 function install_packages () {
-    readarray PACKAGES < "$DIR/config/packages_os.txt"
+    readarray PACKAGES < "$DIR/defaults/packages_os.txt"
     print_packages "OS packages" "${PACKAGES[@]}"
     install_all "${PACKAGES[@]}"
 }
