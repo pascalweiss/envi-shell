@@ -1,0 +1,23 @@
+
+export MEGA_HOME=~/.mega
+
+# Enable location (.mega_locations)
+MEGA_LOCATIONS=true
+
+# Enable shortcuts (.mega_shortcuts)
+MEGA_SHORTCUTS=true
+
+# Enable environment variables (.mega_env)
+MEGA_ENV=true
+
+# Enable 256 colors
+MEGA_256_COLORS=true
+
+# Enable debug outputs
+MEGA_DEBUG=false 
+
+MEGA_UTF_8=true
+
+# Do not delete the following command unless you don't want to use your .bashrc / .zshrc
+source $MEGA_HOME/executables/sbin/megainit
+
