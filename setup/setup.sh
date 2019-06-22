@@ -50,7 +50,7 @@ install_dialog "--replace-bashrc" "--replace-bashrc=no" "The next step will back
 
 # Replace Shell zshrc
 function lambda_replace_zshrc () {
-    source $SETUP_DOTFILES && replace_bashrc
+    source $SETUP_DOTFILES && replace_zshrc
 }
 install_dialog "--replace-zshrc" "--replace-zshrc=no" "The next step will backup your .zshrc in ~/dotfiles_backup and replace it with a new one. Do you want this? Type (Y/n): " "lambda_replace_zshrc" "${ARGS[@]}"
 
