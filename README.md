@@ -1,8 +1,10 @@
 # Mega Shell
 
-##Installation
+## Installation
 Execute the following: 
 ```bash
-wget https://raw.githubusercontent.com/pascalweiss/mega-shell-env/master/setup/install.sh -O - | bash || true
+sh -c "$(wget -O- https://raw.githubusercontent.com/pascalweiss/mega-shell-env/master/setup/install.sh)"
 ```
 
+## TODO
+- New setup procedure: First collect all answers from user input, thereby generate array with all packages. Then do all installation procedures in one step at the end
