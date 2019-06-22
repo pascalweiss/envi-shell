@@ -23,8 +23,8 @@ function replace_zshrc () {
 
 function replace_vim () {
     backup_file "$HOME/.vim" $BACKUP_DIR
-    add_symlink "$DIR/submodules/dotfiles/.vim" "$HOME/.vim"
+    add_symlink "$DIR/submodules/mega-vim/.vim" "$HOME/.vim"
 
     backup_file "$HOME/.vimrc" $BACKUP_DIR
-    add_symlink "$DIR/submodules/dotfiles/.vimrc" "$HOME/.vimrc"
+    add_symlink "$DIR/submodules/mega-vim/.vimrc" "$HOME/.vimrc"
 }
