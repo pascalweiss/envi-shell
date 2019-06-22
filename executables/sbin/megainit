@@ -14,7 +14,13 @@ export PATH="$PATH:\
 
 export PATH=$PATH:$MEGA_HOME/executables/bin
 
+source commons
+
 # execute user mega_shell files
-if $MEGA_ENV ; then source $MEGA_HOME/config/.mega_env; fi
-if $MEGA_LOCATIONS ; then source $MEGA_HOME/config/.mega_locations; fi
-if $MEGA_SHORTCUTS ; then source $MEGA_HOME/config/.mega_shortcuts; fi
+if $MEGA_ENV; then source $MEGA_HOME/config/.mega_env; fi
+
+if $MEGA_LOCATIONS; then source $MEGA_HOME/config/.mega_locations; fi
+
+if $MEGA_SHORTCUTS; then source $MEGA_HOME/config/.mega_shortcuts; fi
+
+if $256_COLORS; then 256colors true; else 256colors false; fi

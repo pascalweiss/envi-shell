@@ -13,3 +13,4 @@ export "PATH=~/.local/bin:\
 /usr/games: \
 ~/.vimpkg/bin:\
 $PATH"
+

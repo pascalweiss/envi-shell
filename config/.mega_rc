@@ -10,5 +10,9 @@ MEGA_SHORTCUTS=true
 # Enable environment variables (.mega_env)
 MEGA_ENV=true
 
+# Enable 256 colors
+256_COLORS=true
+
 # Do not delete the following command unless you don't want to use your .bashrc / .zshrc
 source $MEGA_HOME/executables/sbin/megainit
+

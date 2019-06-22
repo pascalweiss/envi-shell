@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-contains () {
+function contains () {
     local e match="$1"
     shift
     for e in "$@"; do 
@@ -15,4 +15,14 @@ contains () {
 function add_symlink () {
     if [ -L $2 ]; then rm $2; fi
     ln -s $1 $2
+}
+
+function 256colors () {
+    if $1; then 
+        TERM=xterm-256color
+        echo "enabled 256 colors"
+    else 
+        TERM=xterm; 
+        echo "disabled 256 colors"
+    fi    
 }
