@@ -55,24 +55,16 @@ function brew_install () {
 }
 
 function check_installation () {
-
+    P=$1
     if [ "$INSTALLED_PACKAGES" = "" ]; then
-        if [[ "$SYSTEM_NAME" = *Linux* ]]; then INSTALLED_PACKAGES=$(apt list --installed); 
+        if [[ "$SYSTEM_NAME" = *Linux* ]]; then 
+            INSTALLED_PACKAGES=$( apt list --installed | grep -oP "^.*/" | sed 's/.$//')
         elif [[ "$SYSTEM_NAME" = *Darwin* ]]; then INSTALLED_PACKAGES=$(brew list);
         fi
     fi
-    if [ `command -v $1` ]; then return 1; 
+    if [ `command -v $P` ]; then return 1; 
     else
-        if [[ "$SYSTEM_NAME" = *Linux* ]]; then
-            return $(echo $INSTALLED_PACKAGES | grep -c "$1")
-        elif [[ "$SYSTEM_NAME" = *Darwin* ]]; then
-            for item in ${INSTALLED_PACKAGES[@]}; do
-                if [[ "$item" = *$1* ]]; then
-                    return 1
-                fi
-            done
-            return 0
-        fi
+        return $(echo "${INSTALLED_PACKAGES[@]}" | grep -c "^$P$");
     fi
 }
 
