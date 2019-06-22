@@ -3,14 +3,12 @@
 BACKUP_DIR="$HOME/dotfiles_backup"
 
 function backup_file () {
-    if [ ! -d "$2" ]; then
-        mkdir $2
-    fi
-    if [ -L $1 ]; then 
-        rm $1           # if $FILE is a symlink remove it
-    elif [ -f $FILE ]; then
-        mv $1 $2      # if $FILE is a file, create a backup. We will add it later again
-    fi
+    # if the backupfolder doesn't exist, remove it
+    if [ ! -d "$2" ]; then mkdir $2; fi
+    # if $1 is a symlink remove it
+    if [ -L $1 ]; then rm $1; fi
+    # if $1 is a file or directory, create a backup. We will add it later again
+    if [[ -f "$1" || -d "$1" ]]; then mv $1 $2; fi
 }
 
 function replace_bashrc () {

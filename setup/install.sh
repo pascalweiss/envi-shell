@@ -2,7 +2,7 @@
 
 mkdir $HOME/tmp
 git clone https://github.com/pascalweiss/mega-shell-env.git $HOME/tmp/mega
-mv $HOME/tmp/mega .mega
-rm -rf $HOME/tmp
+mv $HOME/tmp/mega $HOME/.mega
+rm -rf $HOME/tmp/mega
 
-source $HOME/.mega/setup/setup.sh
+bash $HOME/.mega/setup/setup.sh

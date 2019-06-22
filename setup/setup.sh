@@ -3,65 +3,68 @@
 set +e
 
 DIR="$( cd "$(dirname "$0")/.." ; pwd -P )"
+SETUP_OS=$DIR/setup/install_packages_os.sh
+SETUP_PY=$DIR/setup/install_packages_python.sh
+SETUP_OH_MY_ZSH=$DIR/setup/install_oh_my_zsh.sh
+SETUP_DOTFILES=$DIR/setup/replace_dotfiles.sh
+ARGS=("${@}")
 
-source $DIR/setup/install_packages.sh
-source $DIR/setup/replace_dotfiles.sh
+source $DIR/setup/preparation.sh
 source $DIR/executables/bin/commons
 
 # Install dependencies
-if ! contains "--install-dependencies=no" "$@"; then os_dependencies_install; fi
-
-# Do some OS specific preparation
-if contains "--install-os-packages" "$@"; then os_packages_install;
-elif contains "--install-os-packages=no" "$@" ; then :
-else 
-    read -ep "Do you want to install the OS packages (config/packages_os.txt)? Type (Y/n): " ANSWER
-    if [[ "$ANSWER" = [Yy] || "$ANSWER" = "" ]]; then os_packages_install; fi
+if ! contains "--update_package_manager=no" "${ARGS[@]}"; then 
+    source $SETUP_OS && update_package_manager
 fi
+
+# Install dependencies
+if ! contains "--install-dependencies=no" "${ARGS[@]}"; then 
+    source $SETUP_OS && install_dependencies
+fi
+
+# Install OS packages
+function lambda_os_install () {
+    source $SETUP_OS && install_packages
+}
+install_dialog "--install-os-packages" "--install-os-packages=no" "Do you want to install the OS packages (config/packages_os.txt)? Type (Y/n): " "lambda_os_install" "${ARGS[@]}"
 
 # Install python packages
-if contains "--install-python-packages" "$@"; then python_packages_install; 
-elif contains "--install-python-packages=no" "$@"; then :
-else 
-    read -ep "Do you want to install the python packages (config/packages_python.txt)? Type (Y/n): " ANSWER
-    if [[ "$ANSWER" = [Yy] || "$ANSWER" = "" ]]; then python_packages_install; fi
-fi
+function lambda_python_install () {
+    source $SETUP_OS && install_python
+    source $SETUP_PY && install_packages
+}
+install_dialog "--install-python-packages" "--install-python-packages=no" "Do you want to install the python packages (config/packages_python.txt)? Type (Y/n): " "lambda_python_install" "${ARGS[@]}"
 
 # Install oh-my-zsh
-if contains "--install-oh-my-zsh" "$@"; then install_oh_my_zsh; 
-elif contains "--install-oh-my-zsh=no" "$@"; then :
-else 
-    read -ep "Do you want to install oh-my-zsh? Type (Y/n): " ANSWER
-    if [[ "$ANSWER" = [Yy] || "$ANSWER" = "" ]]; then  oh_my_zsh_install; fi
-fi
+function lambda_oh_my_zsh_install () {
+    source $SETUP_OS && install_oh_my_zsh
+    source $SETUP_OH_MY_ZSH && install_packages
+}
+install_dialog "--install-oh-my-zsh" "--install-oh-my-zsh=no" "Do you want to install oh-my-zsh? Type (Y/n): " "lambda_oh_my_zsh_install" "${ARGS[@]}"
 
-# Replace Shell rc files
-if contains "--replace-bashrc" "$@"; then replace_bashrc; 
-elif contains "--replace-bashrc=no" "$@"; then :
-else
-    read -ep "The next step will backup your .bashrc in ~/dotfiles_backup and replace it with a new one. Do you want this? Type (Y/n): " ANSWER
-    if [[ "$ANSWER" = [Yy] || "$ANSWER" = "" ]]; then replace_bashrc; fi
-fi
-if contains "--replace-zshrc" "$@"; then replace_bashrc; 
-elif contains "--replace-zshrc=no" "$@"; then :
-else
-    read -ep "The next step will backup your .zshrc in ~/dotfiles_backup and replace it with a new one. Do you want this? Type (Y/n): " ANSWER
-    if [[ "$ANSWER" = [Yy] || "$ANSWER" = "" ]]; then replace_zshrc; fi
-fi
+# Replace Shell bashrc
+function lambda_replace_bashrc () {
+    source $SETUP_DOTFILES && replace_bashrc
+}
+install_dialog "--replace-bashrc" "--replace-bashrc=no" "The next step will backup your .bashrc in ~/dotfiles_backup and replace it with a new one. Do you want this? Type (Y/n): " "lambda_replace_bashrc" "${ARGS[@]}"
+
+# Replace Shell zshrc
+function lambda_replace_zshrc () {
+    source $SETUP_DOTFILES && replace_bashrc
+}
+install_dialog "--replace-zshrc" "--replace-zshrc=no" "The next step will backup your .zshrc in ~/dotfiles_backup and replace it with a new one. Do you want this? Type (Y/n): " "lambda_replace_zshrc" "${ARGS[@]}"
 
 # Replace vim config
-if contains "--replace-vim" "$@"; then replace_bashrc; 
-elif contains "--replace-vim=no" "$@"; then :
-else
-    read -ep "The next step will backup your .vimrc and .vim in ~/dotfiles_backup and replace them with a new ones. Do you want this? Type (Y/n) :" ANSWER
-    if [[ "$ANSWER" = [Yy] || "$ANSWER" = "" ]]; then replace_vim; fi
-fi
+function lambda_replace_vim () {
+    source $SETUP_DOTFILES && replace_vim
+}
+install_dialog "--replace-vim" "--replace-vim=no" "The next step will backup your .vimrc and .vim in ~/dotfiles_backup and replace them with a new ones. Do you want this? Type (Y/n): " "lambda_replace_vim" "${ARGS[@]}"
 
 # Add files to home folder
-add_symlink "$DIR/.mega_env" "$HOME/.mega_env"
-add_symlink "$DIR/.mega_locations" "$HOME/.mega_locations"
-add_symlink "$DIR/.mega_rc" "$HOME/.mega_rc"
-add_symlink "$DIR/.mega_shortcuts" "$HOME/.mega_shortcuts"
+add_symlink "$DIR/config/.mega_env" "$HOME/.mega_env"
+add_symlink "$DIR/config/.mega_locations" "$HOME/.mega_locations"
+add_symlink "$DIR/config/.mega_rc" "$HOME/.mega_rc"
+add_symlink "$DIR/config/.mega_shortcuts" "$HOME/.mega_shortcuts"
 
 # Add execution right
 BIN_DIRS=("bin" "sbin" "lib" "macbin" "linuxbin")
@@ -69,9 +72,9 @@ for BIN in "${BIN_DIRS[@]}"; do
     chmod u+x "$DIR/executables/$BIN/"*
 done
 
-if [[ "$SHELL" = *bash* ]]; then
-    exec bash
-elif [[ "$SHELL" = *zsh* ]]; then
-    exec zsh
-fi
+# if [[ "$SHELL" = *bash* ]]; then
+#     exec bash
+# elif [[ "$SHELL" = *zsh* ]]; then
+#     exec zsh
+# fi
 

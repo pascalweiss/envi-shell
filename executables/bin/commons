@@ -3,16 +3,16 @@
 contains () {
     local e match="$1"
     shift
-    for e; do 
-        [[ "$e" == "$match" ]] && return 0
+    for e in "$@"; do 
+        if [ "$e" = "$match" ]; then
+            return 0;
+        fi
     done
     return 1
 }
 
 
 function add_symlink () {
-    if [ -L $2 ]; then
-        rm $2
-    fi
+    if [ -L $2 ]; then rm $2; fi
     ln -s $1 $2
 }

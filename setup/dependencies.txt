@@ -1,4 +1,5 @@
-uname
 wget
 curl
 git-core
+apt-utils
+grep

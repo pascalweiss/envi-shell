@@ -1,8 +1,3 @@
-# Source the shell rc's
-if [[ "$SHELL" = *bash* ]]; then source $HOME/.bashrc; 
-elif [[ "$SHELL" = *zsh* ]]; then source $HOME/.zshrc;
-fi
-
 # export paths
 if [[ "$uname" = *Darwin* ]]; then 
     export PATH=$PATH:$MEGA_HOME/macbin
@@ -17,9 +12,9 @@ export PATH="$PATH:\
 /usr/sbin:\
 /sbin"
 
-export PATH=$PATH:$MEGA_HOME/bin
+export PATH=$PATH:$MEGA_HOME/executables/bin
 
 # execute user mega_shell files
-if $MEGA_ENV ; then source $MEGA_HOME/.mega_env; fi
-if $MEGA_LOCATIONS ; then source $MEGA_HOME/.mega_locations; fi
-if $MEGA_SHORTCUTS ; then source $MEGA_HOME/.mega_shortcuts; fi
+if $MEGA_ENV ; then source $MEGA_HOME/config/.mega_env; fi
+if $MEGA_LOCATIONS ; then source $MEGA_HOME/config/.mega_locations; fi
+if $MEGA_SHORTCUTS ; then source $MEGA_HOME/config/.mega_shortcuts; fi

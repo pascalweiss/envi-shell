@@ -19,3 +19,8 @@ elif [[ "$string" = *Darwin* ]]; then
     alias pre="qlmanage -p "
 fi
 alias cal='gcal --starting-day=1'
+mkcd ()
+{
+    mkdir -p -- "$1" &&
+      cd -P -- "$1"
+}

@@ -11,4 +11,4 @@ MEGA_SHORTCUTS=true
 MEGA_ENV=true
 
 # Do not delete the following command unless you don't want to use your .bashrc / .zshrc
-source $MEGA_HOME/sbin/megainit
+source $MEGA_HOME/executables/sbin/megainit

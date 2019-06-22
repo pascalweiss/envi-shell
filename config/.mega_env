@@ -10,5 +10,6 @@ export "PATH=~/.local/bin:\
 ~/.pyenv/shims:\
 /Library/TeX/texbin:\
 /usr/local/MacGPG2/bin:\
+/usr/games: \
 ~/.vimpkg/bin:\
 $PATH"
