@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
-alias loc='vim ~/.mega_locations'
-alias short='vim ~/.mega_shortcuts'
+alias mloc="vim ~/.mega_locations"
+alias menv="vim ~/.mega_env"
+alias mshort="vim ~/.mega_shortcuts"
 alias py2="python2"
 alias py3="python3"
-alias ipy='ipython'
+alias ipy="ipython"
 
 if [[ "$uname" = *Linux* ]]; then
     alias o='open'
@@ -21,4 +22,3 @@ mkcd (){
     mkdir -p -- "$1" &&
       cd -P -- "$1"
 }
-alias cal='gcal --starting-day=1'
