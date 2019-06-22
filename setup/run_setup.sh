@@ -13,6 +13,7 @@ source $DIR/setup/_func_preparation.sh
 source $DIR/executables/bin/commons
 
 # Add files to config folder
+mkdir $DIR/config
 FILES=($(ls $DIR/setup/templates))
 for FILE in "${FILES[@]}"; do 
     cp "$DIR/setup/templates/$FILE" "$DIR/config/.$FILE"; 
