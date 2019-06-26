@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+alias mega="cd $MEGA_HOME"
 alias mloc="vim ~/.mega_locations"
 alias menv="vim ~/.mega_env"
 alias mshort="vim ~/.mega_shortcuts"
