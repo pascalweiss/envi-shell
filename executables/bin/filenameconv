@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+rename --nows -c --force $1
+rename "s/\-/\_/g" $1
+rename "s/__/_/g" $1
+rename "s/__/_/g" $1
+rename "s/__/_/g" $1
