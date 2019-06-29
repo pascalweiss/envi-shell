@@ -16,7 +16,6 @@ elif [[ "$(uname)" = *Darwin* ]]; then
             open $1
     }
     alias o=openFile
-    alias o='open'
     alias pre="qlmanage -p "
 fi
 mkcd (){
