@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
 alias mega="cd $MEGA_HOME"
-alias mloc="vim ~/.mega_locations"
-alias menv="vim ~/.mega_env"
-alias mshort="vim ~/.mega_shortcuts"
+alias loc="vim ~/.mega_locations"
+alias environ="vim ~/.mega_env"
+alias short="vim ~/.mega_shortcuts"
 alias py2="python2"
 alias py3="python3"
 alias ipy="ipython"
 
-if [[ "$uname" = *Linux* ]]; then
+if [[ "$(uname)" = *Linux* ]]; then
     alias o='open'
     alias o.='open .'
-elif [[ "$string" = *Darwin* ]]; then
+elif [[ "$(uname)" = *Darwin* ]]; then
     openFile() {
             open $1
     }
