@@ -27,3 +27,11 @@ if $MEGA_SHORTCUTS; then source $MEGA_HOME/config/.mega_shortcuts; fi
 if $MEGA_256_COLORS; then 256colors true; else 256colors false; fi
 
 if $MEGA_UTF_8; then export LC_ALL="en_US.UTF-8"; fi
+
+# Eventually add new theme to .oh_my_zsh/themes
+if [ -e "$ZSH" ] && [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ] && [ -e "$HOME/.mega/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" ]; then
+    ln -s "$HOME/.mega/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" "$ZSH/themes/"
+else
+    ZSH_THEME="robbyrussell"
+fi
+
