@@ -18,6 +18,8 @@ elif [[ "$(uname)" = *Darwin* ]]; then
     alias o=openFile
     alias "o."="open ."
     alias pre="qlmanage -p "
+    alias doc="cd $HOME/Documents"
+    alias odoc="open $HOME/Documents"
 fi
 mkcd (){
     mkdir -p -- "$1" &&
