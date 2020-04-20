@@ -1,131 +1,0 @@
-Script started on Thu Jun 20 17:40:04 2019
-ls [1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/shell_mods/bin]1;..hell_mods/bin[0m[27m[24m[J[01;32m➜  [36mbin[00m [01;34mgit:([31mmaster[34m) [33m✗[00m [K[?1h=[?2004hl sscr[?1l>[?2004l
-]2;~/scripts]1;scr[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hlls[?1l>[?2004l
-]2;ls -G]1;ls[31malias.sh[39;49m[0m     [31mloc_alias.sh[39;49m[0m path.sh      [31msound_off.sh[39;49m[0m
-[1m[36mcdpath[39;49m[0m       [1m[36mold[39;49m[0m          [31mscr.sh[39;49m[0m
-[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hoo loc_alias.sh[1m [0m[0m [?1l>[?2004l
-]2;openFile loc_alias.sh]1;o[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hlls[?1l>[?2004l
-]2;ls -G]1;ls[31malias.sh[39;49m[0m     [31mloc_alias.sh[39;49m[0m path.sh      [31msound_off.sh[39;49m[0m
-[1m[36mcdpath[39;49m[0m       [1m[36mold[39;49m[0m          [31mscr.sh[39;49m[0m
-[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hoo alias.sh[1m [0m[0m [?1l>[?2004l
-]2;openFile alias.sh]1;o[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004htterm[?1l>[?2004l
-]2;osascript ~/scripts/term_normal.applescript]1;termosascript: /Users/pascalweiss/scripts/term_normal.applescript: No such file or directory
-[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;31m➜  [36mscripts[00m [K[?1h=[?2004h[7malias pingg="ping -i 0.2 1.1.1.1"[27m[33D[27ma[27ml[27mi[27ma[27ms[27m [27mp[27mi[27mn[27mg[27mg[27m=[27m"[27mp[27mi[27mn[27mg[27m [27m-[27mi[27m [27m0[27m.[27m2[27m [27m1[27m.[27m1[27m.[27m1[27m.[27m1[27m"[?1l>[?2004l
-]2;alias pingg="ping -i 0.2 1.1.1.1"]1;alias[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hppingg[?1l>[?2004l
-]2;ping -i 0.2 1.1.1.1]1;pinggPING 1.1.1.1 (1.1.1.1): 56 data bytes
-64 bytes from 1.1.1.1: icmp_seq=0 ttl=57 time=21.644 ms
-64 bytes from 1.1.1.1: icmp_seq=1 ttl=57 time=21.003 ms
-64 bytes from 1.1.1.1: icmp_seq=2 ttl=57 time=20.796 ms
-64 bytes from 1.1.1.1: icmp_seq=3 ttl=57 time=21.217 ms
-64 bytes from 1.1.1.1: icmp_seq=4 ttl=57 time=21.069 ms
-64 bytes from 1.1.1.1: icmp_seq=5 ttl=57 time=56.620 ms
-64 bytes from 1.1.1.1: icmp_seq=6 ttl=57 time=21.555 ms
-64 bytes from 1.1.1.1: icmp_seq=7 ttl=57 time=21.117 ms
-^C
---- 1.1.1.1 ping statistics ---
-8 packets transmitted, 8 packets received, 0.0% packet loss
-round-trip min/avg/max/stddev = 20.796/25.628/56.620/11.717 ms
-[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hppre[?1l>[?2004l
-]2;qlmanage -p]1;preqlmanage: p requires at least one file argument
-Usage: qlmanage [OPTIONS] path...
-	-h		Display this help
-	-r		Force reloading Generators list
-	-r cache	Reset thumbnail disk cache
-	-m [name ...]	Display statistics about quicklookd. Stats names:
-			* plugins	Show the generators list
-			* server	Show quicklookd life information
-			* memory	Show quicklookd memory consumption
-			* burst		Show statistics about the last burst
-			* threads	Show concurrent accesses stats
-			* other		Show other information about quicklookd
-	-d debugLevel	Integer between 1-4
-	-p		Compute previews of the documents
-	-t		Compute thumbnails of the documents
-	-x		Use quicklookd (remote computation)
-	-i		Compute thumbnail in icon mode
-	-s size		Size for the thumbnail
-	-f factor	Scale factor for the thumbnail
-	-F factor	Scale factor for the thumbnail, draw downscaled and compare to 1x
-	-z		Display generation performance info (don't display thumbnails)
-	-o dir		Output result in dir (don't display thumbnails or previews)
-	-c contentType	Force the content type used for the documents
-	-g generator	Force the generator to use
-
-[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;31m➜  [36mscripts[00m [K[?1h=[?2004hmman qlmanage[?1l>[?2004l
-]2;man qlmanage]1;man[?1049h[?1h=[m
-qlmanage(1)               BSD General Commands Manual              qlmanage(1)[m
-[m
-[1mNAME[0m[m
-     [1mqlmanage[0m -- Quick Look Server debug and management tool[m
-[m
-[1mSYNOPSIS[0m[m
-     [1mqlmanage[0m [1m-r[0m[m
-[m
-     [1mqlmanage[0m [1m-m[0m [[4mname[24m [4m...[24m][m
-[m
-     [1mqlmanage[0m [1m-t[0m [[1m-d[0m [4mdebugLevel[24m] [[1m-x[0m] [[1m-i[0m] [[1m-s[0m [4msize[24m] [[1m-f[0m [4mfactor[24m][m
-              [[1m-c[0m [4mcontentTypeUTI[24m [[1m-g[0m [4mgenerator[24m]] [[4mfile[24m [4m...[24m][m
-[m
-     [1mqlmanage[0m [1m-p[0m [[1m-d[0m [4mdebugLevel[24m] [[1m-x[0m] [[1m-c[0m [4mcontentTypeUTI[24m [[1m-g[0m [4mgenerator[24m]][m
-              [[4mfile[24m [4m...[24m][m
-[m
-     [1mqlmanage[0m [1m-h[0m[m
-[m
-[1mDESCRIPTION[0m[m
-     [1mqlmanage[0m allows you to test your Quick Look generators and manage Quick[m
-     Look Server.[m
-[m
-     The following usages are available:[m
-[m
-     1.       [1mqlmanage[0m [1m-r[0m resets Quick Look Server and all Quick Look client's[m
-              generator cache.[m
-[m
-     2.       [1mqlmanage[0m [1m-m[0m gets all sort of information on Quick Look server[m
-              including the list of detected generators.[m
-[m
-     3.       [1mqlmanage[0m [1m-t[0m displays the Quick Look generated thumbnails (if[m
-              available) for the specified files.[m
-[m
-     4.       [1mqlmanage[0m [1m-p[0m displays the Quick Look generated previews for the[m
-              specified files.[m
-[m
-     5.       [1mqlmanage[0m [1m-h[0m displays extensive help.[m
-[m
-Mac OS X                        March 29, 2007                        Mac OS X[m
-[7m(END)[27m[K[K[?1l>[?1049l[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hoopo  wwhich open[?1l>[?2004l
-]2;which open]1;which/usr/bin/open
-[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004h[7malias o='open'[27m[14D[27ma[27ml[27mi[27ma[27ms[27m [27mo[27m=[27m'[27mo[27mp[27me[27mn[27m'[?1l>[?2004l
-]2;alias o='open']1;alias[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hoo 
-[1;32malias.sh[0m*      ftp://         https://       path.sh                     
-[1;31mcdpath[0m/        gopher://      [1;32mloc_alias.sh[0m*  [1;32mscr.sh[0m*                     
-[Jfile:          [Jhttp://        [J[1;31mold[0m/           [J[1;32msound_off.sh[0m*  [J             [3A[0m[27m[24m[11Co[K[1Cpath.sh[1m [0m[0m         [?1l>[?2004l
-[J[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004h[?1l>[?2004l
-[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hlls[?1l>[?2004l
-]2;ls -G]1;ls[31malias.sh[39;49m[0m     [31mloc_alias.sh[39;49m[0m path.sh      [31msound_off.sh[39;49m[0m
-[1m[36mcdpath[39;49m[0m       [1m[36mold[39;49m[0m          [31mscr.sh[39;49m[0m
-[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~/scripts]1;~/scripts[0m[27m[24m[J[01;32m➜  [36mscripts[00m [K[?1h=[?2004hccd ..[?1l>[?2004l
-]2;cd ..]1;cd[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~]1;~[0m[27m[24m[J[01;32m➜  [36m~[00m [K[?1h=[?2004hoo 
-[1;31mApplications[0m/                 [1;31medu[0m/                        
-[1;31mApplications\ \(Parallels\)[0m/  file:                       
-[1;31mBuilds[0m/                       ftp://                      
-[1;31mDesktop[0m/                      gopher://                   
-[1;31mDocuments[0m/                    http://                     
-[1;31mDownloads[0m/                    https://                    
-[1;31mINBOX.mbox[0m/                   [1;31miCloud\ Drive\ \(Archive\)[0m/ 
-[1;31mLibrary[0m/                      [1;31mlyrics[0m/                     
-[1;31mMovies[0m/                       [1;31mmongodb[0m/                    
-[1;31mMusic[0m/                        pubring.kbx.backup          
-[1;31mParallels[0m/                    realitymaps_err.log         
-[1;31mPictures[0m/                     realitymaps_out.log         
-[1;31mPublic[0m/                       [1;31msarcasm_data[0m/               
-[1;31mVirtualBox\ VMs[0m/              [1;31mscripts[0m/                    
-[1;31mapps[0m/                         [1;31mshell_mods[0m/                 
-[1;31mci[0m/                           [1;31mtmp[0m/                        
-[1;31mcompose-files[0m/                [1;31muni_stuttgart[0m/              
-[1;31mdev[0m/                          [1;31mvar[0m/                        
-dict_cc.log                   [1;31mvideos[0m/                     
-[1;31mdrive[0m/                        [1;31mvirtual_machines[0m/           
-[J[1;31mdropbox[0m/                      [J[1;31mwat[0m/                        [J[21A[0m[27m[24m[5Co[K[1C[?2004l
-[J[1m[7m%[27m[1m[0m                                                                                         ]2;pascalweiss@mbp111: ~]1;~[0m[27m[24m[J[01;31m➜  [36m~[00m [K[?1h=[?2004hq[?1l>[?2004l
-]2;exit]1;q
-Script done on Thu Jun 20 17:46:59 2019
