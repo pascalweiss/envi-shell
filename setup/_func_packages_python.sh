@@ -4,12 +4,7 @@
 source $DIR/setup/_func_console_output.sh
 
 
-#              _     _ _
-#  _ __  _   _| |__ | (_) ___
-# | '_ \| | | | '_ \| | |/ __|
-# | |_) | |_| | |_) | | | (__
-# | .__/ \__,_|_.__/|_|_|\___|
-# |_|
+# --- public ---
 
 function install_packages () {
     readarray PY_PACKAGES < "$DIR/defaults/packages_python.txt"

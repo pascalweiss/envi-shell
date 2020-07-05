@@ -18,6 +18,6 @@ MEGA_DEBUG=false
 
 MEGA_UTF_8=true
 
-# Do not delete the following command unless you don't want to use your .bashrc / .zshrc
+# Do not delete the following command unless you don't want to use your .bashrc or .zshrc
 source $MEGA_HOME/executables/sbin/megainit
 
