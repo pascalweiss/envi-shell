@@ -3,12 +3,8 @@
 source $DIR/setup/_func_console_output.sh
 INSTALLED_PACKAGES=""
 SYSTEM_NAME=$(uname)
-#              _     _ _
-#  _ __  _   _| |__ | (_) ___
-# | '_ \| | | | '_ \| | |/ __|
-# | |_) | |_| | |_) | | | (__
-# | .__/ \__,_|_.__/|_|_|\___|
-# |_|
+
+# --- public ---
 
 function update_package_manager () {
     if [ -f "/proc/version" ]; then DEBIAN_FRONTEND=noninteractive sudo apt-get update --qq < /dev/null &> /dev/null;
@@ -43,12 +39,7 @@ function install_oh_my_zsh () {
 }
 
 
-#             _            _
-#  _ __  _ __(_)_   ____ _| |_ ___
-# | '_ \| '__| \ \ / / _` | __/ _ \
-# | |_) | |  | |\ V / (_| | ||  __/
-# | .__/|_|  |_| \_/ \__,_|\__\___|
-# |_|
+# --- private ---
 
 function brew_install () {
     /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
