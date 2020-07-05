@@ -2,3 +2,4 @@ uname
 sl
 inetutils-ping
 fonts-powerline
+thefuck
