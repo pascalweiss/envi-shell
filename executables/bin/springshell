@@ -1,15 +1,46 @@
 #!/usr/bin/env bash
 
-PROJ=${1:-$(pwd)}
+EXPLODE_PATH="build/libs/exploded"
 
-EXPLODED="build/libs/exploded"
 
-pushd $PROJ || exit
+unset PROJ
+unset IMPORTS
+
+# read parameters
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -f|--fileimport) IMPORTS="$2"; shift ;;
+        *) PROJ=$1 ;;
+    esac
+    shift
+done
+
+# explode jar and set CLASSPATH
+pushd "$PROJ" || exit
 gradle build -x test
-rm -rf $EXPLODED
-mkdir $EXPLODED
-cd $EXPLODED || exit
+rm -rf $EXPLODE_PATH
+mkdir $EXPLODE_PATH
+cd $EXPLODE_PATH || exit
 jar -xf ../*.jar
-export CLASSPATH="$UMPATH/$EXPLODED/BOOT-INF/classes/:$UMPATH/$EXPLODED/BOOT-INF/lib/*"
+export CLASSPATH="$PROJ/$EXPLODE_PATH/BOOT-INF/classes/:$PROJ/$EXPLODE_PATH/BOOT-INF/lib/*"
 popd || exit
-jshell --startup imports.java
+
+# get main class
+MAINCLASS=$(cat "$PROJ/$EXPLODE_PATH/META-INF/MANIFEST.MF" | grep Start-Class | cut -c 14- | sed "s/.$/.class/")
+GEN_IMPORTS=/tmp/springshell_imports.java
+
+# create imports
+pushd "$PROJ/build/classes/java/main" || exit
+find . | grep class | sed "/\\$/d" | sed "s/\.class/;/" | sed "s/\//\./g" | cut -c 3- | sed "s/^/import /" > $GEN_IMPORTS
+echo "import org.springframework.boot.SpringApplication;" >> $GEN_IMPORTS
+echo "import org.springframework.boot.autoconfigure.SpringBootApplication;" >> $GEN_IMPORTS
+echo "var springContext = SpringApplication.run(${MAINCLASS});" >> $GEN_IMPORTS
+echo "var sc = springContext;" >> $GEN_IMPORTS
+popd || exit
+
+# execude jshell
+if [ -z "$IMPORTS" ]; then
+  jshell --startup $GEN_IMPORTS
+else
+  jshell --startup "$IMPORTS"
+fi
