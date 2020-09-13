@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+PROJ=${1:-$(pwd)}
+
+EXPLODED="build/libs/exploded"
+
+pushd $PROJ || exit
+gradle build -x test
+rm -rf $EXPLODED
+mkdir $EXPLODED
+cd $EXPLODED || exit
+jar -xf ../*.jar
+export CLASSPATH="$UMPATH/$EXPLODED/BOOT-INF/classes/:$UMPATH/$EXPLODED/BOOT-INF/lib/*"
+popd || exit
+jshell --startup imports.java
