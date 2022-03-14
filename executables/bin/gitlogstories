@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+datestr=$1;
+git log --no-merges --all --pretty=format:"%cd %s" --author="Pascal Weiß" | grep "2021" | grep "$datestr" | grep -v 'no-ticket' | grep -v 'Merge branch' | awk -F "UFP-" '{print $2}' | cut -c 1-4 | sort | uniq | xargs | sed -e 's/ /, /g'
