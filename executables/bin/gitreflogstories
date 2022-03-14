@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+# may be used for more recent commits since reflog remains 90 days
+
+datestr=$1;
+git reflog --date=iso --author="Pascal Weiß" --no-merges | grep "$datestr" | grep "commit:" | grep -v 'no-ticket'| awk -F "UFP-" '{print $2}' | cut -c 1-4 | sort | uniq | xargs | sed -e 's/ /, /g' 

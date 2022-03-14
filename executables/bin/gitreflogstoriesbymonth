@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+month=$1;
+year=$2;
+print_date=$3;
+
+for i in {1..31}
+do 
+    if [ $i -lt 10 ] 
+    then 
+        z="0"; 
+    else
+        z="";
+    fi;
+    if $print_date; then 
+        printf "$i.$month: ";
+    fi
+    echo $(gitreflogstories "$year-$month-$z$i"); 
+done;
