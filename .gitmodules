@@ -4,3 +4,6 @@
 [submodule "submodules/mega-vim"]
 	path = submodules/mega-vim
 	url = https://github.com/pascalweiss/mega-vim.git
+[submodule "submodules/fake-server"]
+	path = submodules/fake-server
+	url = git@github.com:pascalweiss/fake-server.git
