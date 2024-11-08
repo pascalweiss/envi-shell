@@ -1,0 +1,15 @@
+#! /usr/bin/env bash
+
+# Check if a port parameter is provided
+if [ -z "$1" ]; then
+  echo "Usage: $0 <port>"
+  exit 1
+fi
+
+# Set the port as an environment variable
+export MY_PORT=$1
+
+echo "
+Listening to port $1...
+"
+docker-compose -f $HOME/.mega/submodules/fake-server/docker-compose.yml up --build --no-log-prefix --remove-orphans
