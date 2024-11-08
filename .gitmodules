@@ -1,9 +1,9 @@
 [submodule "submodules/dotfiles"]
 	path = submodules/dotfiles
 	url = https://github.com/pascalweiss/dotfiles.git
-[submodule "submodules/mega-vim"]
-	path = submodules/mega-vim
-	url = https://github.com/pascalweiss/mega-vim.git
+[submodule "submodules/envi-vim"]
+	path = submodules/envi-vim
+	url = git@github.com:pascalweiss/envi-vim.git
 [submodule "submodules/fake-server"]
 	path = submodules/fake-server
 	url = git@github.com:pascalweiss/fake-server.git
