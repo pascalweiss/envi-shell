@@ -1,11 +1,11 @@
 # export paths
 
 if [[ "$(uname)" = *Darwin* ]]; then 
-    export PATH=$PATH:$MEGA_HOME/executables/macbin
+    export PATH=$PATH:$ENVI_HOME/executables/macbin
 elif [[ "$(uname)" = *Linux* ]]; then 
-    export PATH=$PATH:$MEGA_HOME/executables/linuxbin
+    export PATH=$PATH:$ENVI_HOME/executables/linuxbin
 fi
-export PATH=$PATH:$MEGA_HOME/executables/bin
+export PATH=$PATH:$ENVI_HOME/executables/bin
 
 export PATH="$PATH:\
 /usr/local/bin:\
@@ -15,14 +15,14 @@ export PATH="$PATH:\
 /sbin"
 
 source commons
-source $MEGA_HOME/defaults/default_shortcuts.sh
+source $ENVI_HOME/defaults/default_shortcuts.sh
 
 # Apply user settings
-if $ENVI_ENV; then source $MEGA_HOME/config/.envi_env; fi
+if $ENVI_ENV; then source $ENVI_HOME/config/.envi_env; fi
 
-if $ENVI_LOCATIONS; then source $MEGA_HOME/config/.envi_locations; fi
+if $ENVI_LOCATIONS; then source $ENVI_HOME/config/.envi_locations; fi
 
-if $ENVI_SHORTCUTS; then source $MEGA_HOME/config/.envi_shortcuts; fi
+if $ENVI_SHORTCUTS; then source $ENVI_HOME/config/.envi_shortcuts; fi
 
 if $MEGA_256_COLORS; then 256colors true; else 256colors false; fi
 

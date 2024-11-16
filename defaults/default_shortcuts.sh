@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-alias mega="cd $MEGA_HOME"
+alias envi="cd \$ENVI_HOME"
 alias loc="vim ~/.envi_locations"
 alias environ="vim ~/.envi_env"
 alias short="vim ~/.envi_shortcuts"
@@ -16,16 +16,16 @@ elif [[ "$(uname)" = *Darwin* ]]; then
             open $1
     }
     alias o=openFile
-    alias "o."="open ."
+    alias "o."='open .'
     alias pre="qlmanage -p "
-    alias doc="cd $HOME/Documents"
-    alias odoc="open $HOME/Documents"
+    alias doc="cd \$HOME/Documents"
+    alias odoc="open \$HOME/Documents"
     alias vol="cd /Volumes"
 fi
 mkcd (){
     mkdir -p -- "$1" &&
-      cd -P -- "$1"
+      cd -P -- "$1" || return
 }
 
 # alias creates an alias for 'thefuck'
-eval $(thefuck --alias)
+eval "$(thefuck --alias)"
