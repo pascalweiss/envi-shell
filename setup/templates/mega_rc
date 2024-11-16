@@ -4,8 +4,8 @@ export MEGA_HOME=~/.mega
 # Enable location (.envi_locations)
 ENVI_LOCATIONS=true
 
-# Enable shortcuts (.mega_shortcuts)
-MEGA_SHORTCUTS=true
+# Enable shortcuts (.envi_shortcuts)
+ENVI_SHORTCUTS=true
 
 # Enable environment variables (.envi_env)
 ENVI_ENV=true

@@ -72,7 +72,7 @@ install_dialog "--replace-vim" "--replace-vim=no" "The next step will backup you
 add_symlink "$DIR/config/.envi_env" "$HOME/.envi_env"
 add_symlink "$DIR/config/.envi_locations" "$HOME/.envi_locations"
 add_symlink "$DIR/config/.mega_rc" "$HOME/.mega_rc"
-add_symlink "$DIR/config/.mega_shortcuts" "$HOME/.mega_shortcuts"
+add_symlink "$DIR/config/.envi_shortcuts" "$HOME/.envi_shortcuts"
 
 # Add execution right
 BIN_DIRS=("bin" "sbin" "lib" "macbin" "linuxbin")
