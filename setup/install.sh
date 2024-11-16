@@ -1,8 +1,8 @@
-#/usr/bin/env bash
+#! /usr/bin/env bash
 
 mkdir $HOME/tmp
-git clone --recurse-submodules https://github.com/pascalweiss/mega-shell-env.git $HOME/tmp/mega
-mv $HOME/tmp/mega $HOME/.mega
-rm -rf $HOME/tmp/mega
+git clone --recurse-submodules https://github.com/pascalweiss/mega-shell-env.git $HOME/tmp/envi
+mv $HOME/tmp/envi $HOME/.envi
+rm -rf $HOME/tmp/envi
 
-$HOME/.mega/setup/run_setup.sh
+$HOME/.envi/setup/run_setup.sh

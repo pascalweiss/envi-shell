@@ -1,5 +1,5 @@
 
-export ENVI_HOME=~/.mega
+export ENVI_HOME=~/.envi
 
 # Enable location (.envi_locations)
 ENVI_LOCATIONS=true
