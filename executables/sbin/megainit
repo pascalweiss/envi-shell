@@ -22,7 +22,7 @@ if $ENVI_ENV; then source $MEGA_HOME/config/.envi_env; fi
 
 if $ENVI_LOCATIONS; then source $MEGA_HOME/config/.envi_locations; fi
 
-if $MEGA_SHORTCUTS; then source $MEGA_HOME/config/.mega_shortcuts; fi
+if $ENVI_SHORTCUTS; then source $MEGA_HOME/config/.envi_shortcuts; fi
 
 if $MEGA_256_COLORS; then 256colors true; else 256colors false; fi
 
