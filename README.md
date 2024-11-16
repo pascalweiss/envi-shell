@@ -1,4 +1,4 @@
-# Mega Shell
+# Envi Shell
 
 A clean shell environment that can be deployed with a single command. 
 
