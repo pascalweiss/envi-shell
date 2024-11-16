@@ -2,7 +2,7 @@
 
 alias mega="cd $MEGA_HOME"
 alias loc="vim ~/.envi_locations"
-alias environ="vim ~/.mega_env"
+alias environ="vim ~/.envi_env"
 alias short="vim ~/.mega_shortcuts"
 alias py2="python2"
 alias py3="python3"

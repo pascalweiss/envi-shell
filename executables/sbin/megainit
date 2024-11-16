@@ -18,7 +18,7 @@ source commons
 source $MEGA_HOME/defaults/default_shortcuts.sh
 
 # Apply user settings
-if $MEGA_ENV; then source $MEGA_HOME/config/.mega_env; fi
+if $ENVI_ENV; then source $MEGA_HOME/config/.envi_env; fi
 
 if $ENVI_LOCATIONS; then source $MEGA_HOME/config/.envi_locations; fi
 

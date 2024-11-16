@@ -7,8 +7,8 @@ ENVI_LOCATIONS=true
 # Enable shortcuts (.mega_shortcuts)
 MEGA_SHORTCUTS=true
 
-# Enable environment variables (.mega_env)
-MEGA_ENV=true
+# Enable environment variables (.envi_env)
+ENVI_ENV=true
 
 # Enable 256 colors
 MEGA_256_COLORS=true
