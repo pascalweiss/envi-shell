@@ -20,7 +20,7 @@ source $MEGA_HOME/defaults/default_shortcuts.sh
 # Apply user settings
 if $MEGA_ENV; then source $MEGA_HOME/config/.mega_env; fi
 
-if $MEGA_LOCATIONS; then source $MEGA_HOME/config/.mega_locations; fi
+if $ENVI_LOCATIONS; then source $MEGA_HOME/config/.envi_locations; fi
 
 if $MEGA_SHORTCUTS; then source $MEGA_HOME/config/.mega_shortcuts; fi
 
