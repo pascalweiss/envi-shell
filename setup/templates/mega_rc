@@ -11,7 +11,7 @@ ENVI_SHORTCUTS=true
 ENVI_ENV=true
 
 # Enable 256 colors
-MEGA_256_COLORS=true
+ENVI_256_COLORS=true
 
 # Enable debug outputs
 MEGA_DEBUG=false 
