@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 alias mega="cd $MEGA_HOME"
-alias loc="vim ~/.mega_locations"
+alias loc="vim ~/.envi_locations"
 alias environ="vim ~/.mega_env"
 alias short="vim ~/.mega_shortcuts"
 alias py2="python2"
