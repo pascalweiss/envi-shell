@@ -1,5 +1,5 @@
 
-export MEGA_HOME=~/.mega
+export ENVI_HOME=~/.mega
 
 # Enable location (.envi_locations)
 ENVI_LOCATIONS=true
@@ -19,5 +19,5 @@ MEGA_DEBUG=false
 MEGA_UTF_8=true
 
 # Do not delete the following command unless you don't want to use your .bashrc or .zshrc
-source $MEGA_HOME/executables/sbin/megainit
+source $ENVI_HOME/executables/sbin/megainit
 
