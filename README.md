@@ -1,5 +1,4 @@
 # Envi Shell
-
 A clean shell environment that can be deployed with a single command. 
 
 ### Warning
@@ -10,14 +9,6 @@ Execute the following:
 ```bash
 sh -c "$(wget -O- https://raw.githubusercontent.com/pascalweiss/envi-shell/master/setup/install.sh)"
 ```
-
-## Supported Systems
-- Linux
-  - Debian 
-    - Ubuntu
-    - Mint
-    - ...
-- Darwin (MacOS)
 
 ## TODO
 - New setup procedure: First collect all answers from user input, thereby generate array with all packages. Then do all installation procedures in one step at the end
