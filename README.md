@@ -7,7 +7,7 @@ The installation will require root rights. If you don't trust this system don't 
 ## Installation
 Execute the following: 
 ```bash
-sh -c "$(wget -O- https://raw.githubusercontent.com/pascalweiss/envi-shell/master/setup/install.sh)"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/master/setup/install.sh)"
 ```
 
 ## TODO
