@@ -42,7 +42,7 @@ function install_oh_my_zsh () {
 # --- private ---
 
 function brew_install () {
-    /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 }
 
 function check_installation () {
