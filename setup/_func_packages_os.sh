@@ -88,7 +88,7 @@ function exec_install () {
     INSTALLED=$?
     if [ $INSTALLED = 0 ]; then
         if [ -f "/proc/version" ]; then
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq $1 < /dev/null &> /dev/null
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install $1 < /dev/null &> /dev/null
             ERROR=$?
         elif [ -d "/System" ]; then
             HOMEBREW_NO_AUTO_UPDATE=1 brew install $1 < /dev/null &> /dev/null
