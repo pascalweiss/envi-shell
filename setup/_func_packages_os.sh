@@ -15,6 +15,14 @@ has_sudo() {
     command -v sudo >/dev/null 2>&1
 }
 
+is_linux() {
+    [[ "$SYSTEM_NAME" == "Linux" ]]
+}
+
+is_darwin() {
+    [[ "$SYSTEM_NAME" == "Darwin" ]]
+}
+
 function install_curl () {
     if [[ "$SYSTEM_NAME" == "Linux" ]]; then
       if has_sudo; then
@@ -28,8 +36,16 @@ function install_curl () {
 }
 
 function update_package_manager () {
-    if [ ! `command -v brew` ]; then brew_install; fi
-    brew update
+    if is_linux; then
+      if has_sudo; then
+        sudo sudo apt update
+      else
+        apt update
+      fi
+    elif is_darwin; then
+        if [ ! `command -v brew` ]; then brew_install; fi
+        brew update
+    fi
 }
 
 function install_dependencies () {
