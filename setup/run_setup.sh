@@ -21,7 +21,9 @@ done
 
 # Install dependencies
 if ! contains "--update-package-manager=no" "${ARGS[@]}"; then 
-    source $SETUP_OS && update_package_manager
+    source $SETUP_OS
+    install_curl
+    update_package_manager
 fi
 
 # Install dependencies

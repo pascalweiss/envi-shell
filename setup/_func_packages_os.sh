@@ -4,14 +4,32 @@ source $DIR/setup/_func_console_output.sh
 INSTALLED_PACKAGES=""
 SYSTEM_NAME=$(uname)
 
-# --- public ---
+
+# Function to check if the user is root
+is_root() {
+    [ "$(id -u)" -eq 0 ]
+}
+
+# Function to check if sudo is available
+has_sudo() {
+    command -v sudo >/dev/null 2>&1
+}
+
+function install_curl () {
+    if [[ "$SYSTEM_NAME" == "Linux" ]]; then
+      if has_sudo; then
+        sudo apt update
+        sudo apt install -y curl
+      else
+        apt update
+        apt install -y curl
+      fi
+    fi
+}
 
 function update_package_manager () {
-    if [ -f "/proc/version" ]; then DEBIAN_FRONTEND=noninteractive sudo apt-get update --qq < /dev/null &> /dev/null;
-    elif [ -d "/System" ]; then
-        if [ ! `command -v brew` ]; then brew_install; fi
-        brew update
-    fi
+    if [ ! `command -v brew` ]; then brew_install; fi
+    brew update
 }
 
 function install_dependencies () {
