@@ -1,5 +1,4 @@
 wget
 curl
 git
-apt-utils
 grep
