@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
-function install_error_print () 
+function install_error_print () {
     if (( $2 == 0 )); then echo "Installation successful: $1"; 
     else echo "Installation not successful: $1"
     fi
+}
 
 function print_packages () {
     NAME=$1
