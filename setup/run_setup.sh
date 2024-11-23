@@ -23,7 +23,7 @@ done
 if ! contains "--update-package-manager=no" "${ARGS[@]}"; then 
     source "$SETUP_OS"
 #    install_curl
-#    update_package_manager
+    update_package_manager
 fi
 
 # Install dependencies
