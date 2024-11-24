@@ -25,7 +25,11 @@ is_darwin() {
 
 configure_timezone() {
   if is_linux; then
-    dpkg-reconfigure tzdata
+    if has_sudo; then
+      sudo apt install tzdata
+    else
+      apt install tzdata
+    fi
   fi
 }
 
