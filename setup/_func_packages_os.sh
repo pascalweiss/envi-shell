@@ -53,13 +53,13 @@ function update_package_manager () {
 }
 
 function install_dependencies () {
-    readarray PACKAGES < "$DIR/setup/dependencies.txt"
+    readarray -t PACKAGES < "$DIR/setup/dependencies.txt" # read dependencies and strap away newline
     print_packages "dependencies" "${PACKAGES[@]}"
     install_all "${PACKAGES[@]}"
 }
 
 function install_packages () {
-    readarray PACKAGES < "$DIR/defaults/packages_os.txt"
+    readarray -t PACKAGES < "$DIR/defaults/packages_os.txt" # read dependencies and strap away newline
     print_packages "OS packages" "${PACKAGES[@]}"
     install_all "${PACKAGES[@]}"
 }
