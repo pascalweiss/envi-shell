@@ -20,7 +20,7 @@ function exec_install () {
     check_installation "${1}"
     INSTALLED=$?
     if [ $INSTALLED -ne 0 ]; then
-        pipx install -q "${1}" < /dev/null &> /dev/null
+        pipx install "${1}"
         ERROR=$?
         install_error_print "${1}" "$ERROR"
     else
