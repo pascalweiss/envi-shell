@@ -38,7 +38,7 @@ function install_curl () {
 function update_package_manager () {
     if is_linux; then
       if has_sudo; then
-        sudo sudo apt update
+        sudo apt update
       else
         apt update
       fi
@@ -105,10 +105,10 @@ function exec_install () {
     if [ $INSTALLED = 0 ]; then
         if [ -f "/proc/version" ]; then
             if has_sudo; then
-                sudo apt-get install -y "$1"
+                sudo apt install -y "$1"
                 ERROR=$?
             else
-                apt-get install -y "$1"
+                apt install -y "$1"
                 ERROR=$?
             fi
         elif [ -d "/System" ]; then
