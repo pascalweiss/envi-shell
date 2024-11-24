@@ -65,7 +65,7 @@ function install_packages () {
 }
 
 function install_python () {
-    PACKAGES=("python3" "python3-pip")
+    PACKAGES=("python3" "pipx")
     print_packages "OS packages" "${PACKAGES[@]}"
     install_all "${PACKAGES[@]}"
 }
