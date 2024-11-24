@@ -117,7 +117,6 @@ function exec_install () {
                 ERROR=${?}
             else
                 echo -e "${YELLOW}Install ${1}.${NC}"
-                set -x
                 apt install -y "${1}"
                 ERROR=${?}
             fi
