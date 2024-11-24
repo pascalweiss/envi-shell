@@ -82,7 +82,7 @@ while getopts ":hdpa:n:t:" opt; do
 done
 shift "$((OPTIND-1))"
 
-STOP_NAME="$1"
+STOP_NAME="${1}"
 [ -z "$STOP_NAME" ] && usage
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 function contains () {
-    local e match="$1"
+    local e match="${1}"
     shift
     for e in "$@"; do 
         if [ "$e" = "$match" ]; then

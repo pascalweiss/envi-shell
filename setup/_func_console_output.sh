@@ -13,7 +13,7 @@ function install_error_print () {
 }
 
 function print_packages () {
-    NAME="$1"
+    NAME="${1}"
     shift
     i=0
     printf "\n${YELLOW}Try to install the following ${NAME}: "

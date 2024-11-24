@@ -8,7 +8,7 @@ function backup_file () {
     # if $1 is a symlink remove it
     if [ -L $1 ]; then rm $1; fi
     # if $1 is a file or directory, create a backup. We will add it later again
-    if [[ -f "$1" || -d "$1" ]]; then mv $1 $2; fi
+    if [[ -f "${1}" || -d "${1}" ]]; then mv $1 $2; fi
 }
 
 function replace_bashrc () {
