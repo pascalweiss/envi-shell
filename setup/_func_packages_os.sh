@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -x
 source $DIR/setup/_func_console_output.sh
 INSTALLED_PACKAGES=""
 SYSTEM_NAME=$(uname)
