@@ -62,14 +62,14 @@ function install_packages () {
     readarray -t PACKAGES < "$DIR/defaults/packages_os.txt" # read dependencies and strap away newline
     print_packages "OS packages" "${PACKAGES[@]}"
     install_all "${PACKAGES[@]}"
-    echo -e "${YELLOW}Ensure path for pipx with 'pipx ensurepath'${NC}"
-    pipx ensurepath
 }
 
 function install_python () {
     PACKAGES=("python3" "pipx")
     print_packages "OS packages" "${PACKAGES[@]}"
     install_all "${PACKAGES[@]}"
+    echo -e "${YELLOW}Ensure path for pipx with 'pipx ensurepath'${NC}"
+    pipx ensurepath
 }
 
 function install_oh_my_zsh () {
