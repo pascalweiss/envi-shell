@@ -5,7 +5,7 @@ source "$DIR"/setup/_func_console_output.sh
 
 
 function install_packages () {
-    readarray PY_PACKAGES < "$DIR/defaults/packages_python.txt"
+    readarray -t PY_PACKAGES < "$DIR/defaults/packages_python.txt"
     print_packages "Python packages" "${PY_PACKAGES[@]}"
     install_all "${PY_PACKAGES[@]}"
 }
