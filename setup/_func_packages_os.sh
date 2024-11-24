@@ -88,7 +88,7 @@ function brew_install () {
 }
 
 function check_installation () {
-    P=$1
+    P=${1}
     if [ "$INSTALLED_PACKAGES" = "" ]; then
         if is_linux; then
             INSTALLED_PACKAGES=$( apt list --installed | grep -oP "^.*/" | sed 's/.$//')
@@ -105,33 +105,33 @@ function check_installation () {
 
 function exec_install () {
     local ERROR
-    check_installation "$1"
+    check_installation "${1}"
     INSTALLED=$?
     if [ $INSTALLED = 0 ]; then
         if is_linux; then
             if has_sudo; then
-                echo -e "${YELLOW}Install $1.${NC}"
-                sudo apt install -y "$1"
-                ERROR=$?
+                echo -e "${YELLOW}Install ${1}.${NC}"
+                sudo apt install -y "${1}"
+                ERROR=${?}
             else
-                echo -e "${YELLOW}Install $1.${NC}"
+                echo -e "${YELLOW}Install ${1}.${NC}"
                 set -x
-                apt install -y "$1"
-                ERROR=$?
+                apt install -y "${1}"
+                ERROR=${?}
             fi
         elif is_darwin; then
-            echo -e "${YELLOW}Install $1.${NC}"
-            HOMEBREW_NO_AUTO_UPDATE=1 brew install "$1"
+            echo -e "${YELLOW}Install ${1}.${NC}"
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install "${1}"
             ERROR=$?
         fi
-        install_error_print "$1" "$ERROR"
+        install_error_print "${1}" "$ERROR"
     else 
-        echo -e "${GREEN}Already installed: $1${NC}"
+        echo -e "${GREEN}Already installed: ${1}${NC}"
     fi
 }
 
 function install_all () {
-    for P in "$@"; do
-        exec_install "$P"
+    for P in "${@}"; do
+        exec_install "${P}"
     done
 }
