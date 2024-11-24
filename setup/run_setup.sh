@@ -11,6 +11,9 @@ ARGS=("${@}")
 source "$DIR/setup/_func_preparation.sh"
 source "$DIR/executables/bin/commons"
 
+# configure timezone
+dpkg-reconfigure tzdata
+
 # Add files to config folder
 mkdir "$DIR/config"
 FILES=($(ls "$DIR/setup/templates"))
