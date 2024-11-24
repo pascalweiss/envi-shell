@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-set -x
-source $DIR/setup/_func_console_output.sh
+
+source "$DIR"/setup/_func_console_output.sh
 INSTALLED_PACKAGES=""
 SYSTEM_NAME=$(uname)
 
@@ -100,15 +100,15 @@ function check_installation () {
 
 function exec_install () {
     local ERROR
-    check_installation $1
+    check_installation "$1"
     INSTALLED=$?
     if [ $INSTALLED = 0 ]; then
         if [ -f "/proc/version" ]; then
             if has_sudo; then
-                sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "$1"
+                sudo apt-get install -y "$1"
                 ERROR=$?
             else
-                DEBIAN_FRONTEND=noninteractive apt-get install -y "$1"
+                apt-get install -y "$1"
                 ERROR=$?
             fi
         elif [ -d "/System" ]; then
@@ -123,6 +123,6 @@ function exec_install () {
 
 function install_all () {
     for P in "$@"; do
-        exec_install $P 
+        exec_install "$P"
     done
 }
