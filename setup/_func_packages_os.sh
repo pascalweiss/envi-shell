@@ -39,15 +39,15 @@ configure_timezone() {
 function update_package_manager () {
     if is_linux; then
       if has_sudo; then
-        echo "${YELLOW}Update apt.${NC}"
+        echo -e "${YELLOW}Update apt.${NC}"
         sudo apt update
       else
-        echo "${YELLOW}Update apt.${NC}"
+        echo -e "${YELLOW}Update apt.${NC}"
         apt update
       fi
     elif is_darwin; then
         if [ ! `command -v brew` ]; then brew_install; fi
-        echo "${YELLOW}Update brew.${NC}"
+        echo -e "${YELLOW}Update brew.${NC}"
         brew update
     fi
 }
@@ -90,9 +90,10 @@ function brew_install () {
 function check_installation () {
     P=$1
     if [ "$INSTALLED_PACKAGES" = "" ]; then
-        if [[ "$SYSTEM_NAME" = *Linux* ]]; then 
+        if is_linux; then
             INSTALLED_PACKAGES=$( apt list --installed | grep -oP "^.*/" | sed 's/.$//')
-        elif [[ "$SYSTEM_NAME" = *Darwin* ]]; then INSTALLED_PACKAGES=$(brew list);
+        elif is_darwin; then
+          INSTALLED_PACKAGES=$(brew list);
         fi
     fi
     if [ `command -v $P` ]; then return 1; 
