@@ -7,8 +7,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 function install_error_print () {
-    if (( $2 == 0 )); then echo "${GREEN}Installation successful: ${1}${NC}";
-    else echo "${RED}Installation not successful: ${1}${NC}"
+    if (( $2 == 0 )); then echo -e "${GREEN}Installation successful: ${1}${NC}";
+    else echo -e "${RED}Installation not successful: ${1}${NC}"
     fi
 }
 
@@ -16,9 +16,9 @@ function print_packages () {
     NAME="$1"
     shift
     i=0
-    printf "\n$%sTry to install the following %s: " "$YELLOW" "$NAME"
+    printf "\n${YELLOW}Try to install the following ${NAME}: "
     for P in "$@"; do
-        P=$(echo "$P" | sed 's/[[:space:]]//g')
+        P=$(echo -e "$P" | sed 's/[[:space:]]//g')
         if (( $i == 0 )); then
             printf -- "\n$P"
         else 
@@ -26,5 +26,5 @@ function print_packages () {
         fi
         i=$(expr $i + 1)
     done
-    printf "%s\n\n" "$NC"
+    printf "${NC}\n\n"
 }
