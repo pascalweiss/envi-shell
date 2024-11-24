@@ -10,15 +10,16 @@ function install_packages () {
     install_all "${PY_PACKAGES[@]}"
 }
 
-function check_installation () {
-    return $(pipx list --format=freeze | grep -c "^${1}==")
+function check_installation() {
+  pipx list --json | jq -r '.venvs | keys[]' | grep -q "^$1$"
 }
 
 function exec_install () {
     local ERROR
-    check_installation
+    local INSTALLED
+    check_installation "${1}"
     INSTALLED=$?
-    if [ $INSTALLED = 0 ]; then
+    if [ $INSTALLED -ne 0 ]; then
         pipx install -q "${1}" < /dev/null &> /dev/null
         ERROR=$?
         install_error_print "${1}" "$ERROR"
