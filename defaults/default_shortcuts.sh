@@ -23,8 +23,8 @@ elif [[ "$(uname)" = *Darwin* ]]; then
     alias vol="cd /Volumes"
 fi
 mkcd (){
-    mkdir -p -- "$1" &&
-      cd -P -- "$1" || return
+    mkdir -p -- "${1}" &&
+      cd -P -- "${1}" || return
 }
 
 # alias creates an alias for 'thefuck'
