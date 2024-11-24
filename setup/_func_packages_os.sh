@@ -105,14 +105,14 @@ function exec_install () {
     if [ $INSTALLED = 0 ]; then
         if [ -f "/proc/version" ]; then
             if has_sudo; then
-                sudo DEBIAN_FRONTEND=noninteractive apt-get install "$1" < /dev/null &> /dev/null
+                sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "$1"
                 ERROR=$?
             else
-                DEBIAN_FRONTEND=noninteractive apt-get install "$1" < /dev/null &> /dev/null
+                DEBIAN_FRONTEND=noninteractive apt-get install -y "$1"
                 ERROR=$?
             fi
         elif [ -d "/System" ]; then
-            HOMEBREW_NO_AUTO_UPDATE=1 brew install "$1" < /dev/null &> /dev/null
+            HOMEBREW_NO_AUTO_UPDATE=1 brew install "$1"
             ERROR=$?
         fi
         install_error_print "$1" "$ERROR"
