@@ -27,10 +27,10 @@ is_darwin() {
 configure_timezone() {
   if is_linux; then
     if has_sudo; then
-      echo -e "${YELLOW}Install tzdata.${NC}"
+      echo -e "${BLUE}Install tzdata.${NC}"
       sudo apt install tzdata
     else
-      echo -e "${YELLOW}Install tzdata.${NC}"
+      echo -e "${BLUE}Install tzdata.${NC}"
       apt install tzdata
     fi
   fi
@@ -39,15 +39,15 @@ configure_timezone() {
 function update_package_manager () {
     if is_linux; then
       if has_sudo; then
-        echo -e "${YELLOW}Update apt.${NC}"
+        echo -e "${BLUE}Update apt.${NC}"
         sudo apt update
       else
-        echo -e "${YELLOW}Update apt.${NC}"
+        echo -e "${BLUE}Update apt.${NC}"
         apt update
       fi
     elif is_darwin; then
         if [ ! `command -v brew` ]; then brew_install; fi
-        echo -e "${YELLOW}Update brew.${NC}"
+        echo -e "${BLUE}Update brew.${NC}"
         brew update
     fi
 }
@@ -68,7 +68,7 @@ function install_python () {
     PACKAGES=("python3" "pipx")
     print_packages "OS packages" "${PACKAGES[@]}"
     install_all "${PACKAGES[@]}"
-    echo -e "${YELLOW}Ensure path for pipx with 'pipx ensurepath'${NC}"
+    echo -e "${BLUE}Ensure path for pipx with 'pipx ensurepath'${NC}"
     pipx ensurepath
 }
 
@@ -112,16 +112,16 @@ function exec_install () {
     if [ $INSTALLED = 0 ]; then
         if is_linux; then
             if has_sudo; then
-                echo -e "${YELLOW}Install ${1}.${NC}"
+                echo -e "${BLUE}Install ${1}.${NC}"
                 sudo apt install -y "${1}"
                 ERROR=${?}
             else
-                echo -e "${YELLOW}Install ${1}.${NC}"
+                echo -e "${BLUE}Install ${1}.${NC}"
                 apt install -y "${1}"
                 ERROR=${?}
             fi
         elif is_darwin; then
-            echo -e "${YELLOW}Install ${1}.${NC}"
+            echo -e "${BLUE}Install ${1}.${NC}"
             HOMEBREW_NO_AUTO_UPDATE=1 brew install "${1}"
             ERROR=$?
         fi

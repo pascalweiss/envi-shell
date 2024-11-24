@@ -16,7 +16,7 @@ function print_packages () {
     NAME="${1}"
     shift
     i=0
-    printf "\n${YELLOW}Try to install the following ${NAME}: "
+    printf "\n${BLUE}Try to install the following ${NAME}: "
     for P in "$@"; do
         P=$(echo -e "$P" | sed 's/[[:space:]]//g')
         if (( $i == 0 )); then
