@@ -11,7 +11,7 @@ function install_packages () {
 }
 
 function check_installation () {
-    return $(pip3 list --format=freeze | grep -c "^${1}==")
+    return $(pipx list --format=freeze | grep -c "^${1}==")
 }
 
 function exec_install () {
@@ -19,7 +19,7 @@ function exec_install () {
     check_installation
     INSTALLED=$?
     if [ $INSTALLED = 0 ]; then
-        pip3 install -q "${1}" < /dev/null &> /dev/null
+        pipx install -q "${1}" < /dev/null &> /dev/null
         ERROR=$?
         install_error_print "${1}" "$ERROR"
     else
