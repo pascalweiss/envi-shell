@@ -108,17 +108,18 @@ function exec_install () {
     check_installation "$1"
     INSTALLED=$?
     if [ $INSTALLED = 0 ]; then
-        if [ -f "/proc/version" ]; then
+        if is_linux; then
             if has_sudo; then
                 echo -e "${YELLOW}Install $1.${NC}"
                 sudo apt install -y "$1"
                 ERROR=$?
             else
                 echo -e "${YELLOW}Install $1.${NC}"
+                set -x
                 apt install -y "$1"
                 ERROR=$?
             fi
-        elif [ -d "/System" ]; then
+        elif is_darwin; then
             echo -e "${YELLOW}Install $1.${NC}"
             HOMEBREW_NO_AUTO_UPDATE=1 brew install "$1"
             ERROR=$?
