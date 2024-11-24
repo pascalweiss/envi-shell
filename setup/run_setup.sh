@@ -12,7 +12,7 @@ source "$DIR/setup/_func_preparation.sh"
 source "$DIR/executables/bin/commons"
 
 # configure timezone
-dpkg-reconfigure tzdata
+configure_timezone
 
 # Add files to config folder
 mkdir "$DIR/config"
@@ -24,7 +24,6 @@ done
 # Install dependencies
 if ! contains "--update-package-manager=no" "${ARGS[@]}"; then 
     source "$SETUP_OS"
-#    install_curl
     update_package_manager
 fi
 
