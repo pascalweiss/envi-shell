@@ -12,7 +12,9 @@ source "$DIR/setup/_func_preparation.sh"
 source "$DIR/executables/bin/commons"
 
 # configure timezone
-configure_timezone
+if ! contains "--configure-timezone=no" "${ARGS[@]}"; then
+    source "$SETUP_OS" && configure_timezone
+fi
 
 # Add files to config folder
 mkdir "$DIR/config"
