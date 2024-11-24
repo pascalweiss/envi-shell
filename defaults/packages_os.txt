@@ -1,6 +1,9 @@
+jq
+yq
 uname
 vim
 sl
 inetutils-ping
 fonts-powerline
 thefuck
+
