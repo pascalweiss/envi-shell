@@ -23,6 +23,12 @@ is_darwin() {
     [[ "$SYSTEM_NAME" == "Darwin" ]]
 }
 
+configure_timezone() {
+  if is_linux; then
+    dpkg-reconfigure tzdata
+  fi
+}
+
 function install_curl () {
     if [[ "$SYSTEM_NAME" == "Linux" ]]; then
       if has_sudo; then
