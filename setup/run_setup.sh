@@ -23,7 +23,7 @@ for FILE in "${FILES[@]}"; do
     cp "$DIR/setup/templates/$FILE" "$DIR/config/.$FILE"; 
 done
 
-# Install dependencies
+# Update package manager
 if ! contains "--update-package-manager=no" "${ARGS[@]}"; then 
     source "$SETUP_OS"
     update_package_manager
