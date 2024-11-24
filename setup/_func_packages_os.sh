@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 source "$DIR"/setup/_func_console_output.sh
-source "$DIR"/setup/colorvars.sh
 
 INSTALLED_PACKAGES=""
 SYSTEM_NAME=$(uname)
@@ -28,10 +27,10 @@ is_darwin() {
 configure_timezone() {
   if is_linux; then
     if has_sudo; then
-      echo "${YELLOW}Install tzdata.${NC}"
+      echo -e "${YELLOW}Install tzdata.${NC}"
       sudo apt install tzdata
     else
-      echo "${YELLOW}Install tzdata.${NC}"
+      echo -e "${YELLOW}Install tzdata.${NC}"
       apt install tzdata
     fi
   fi
@@ -110,22 +109,22 @@ function exec_install () {
     if [ $INSTALLED = 0 ]; then
         if [ -f "/proc/version" ]; then
             if has_sudo; then
-                echo "${YELLOW}Install $1.${NC}"
+                echo -e "${YELLOW}Install $1.${NC}"
                 sudo apt install -y "$1"
                 ERROR=$?
             else
-                echo "${YELLOW}Install $1.${NC}"
+                echo -e "${YELLOW}Install $1.${NC}"
                 apt install -y "$1"
                 ERROR=$?
             fi
         elif [ -d "/System" ]; then
-            echo "${YELLOW}Install $1.${NC}"
+            echo -e "${YELLOW}Install $1.${NC}"
             HOMEBREW_NO_AUTO_UPDATE=1 brew install "$1"
             ERROR=$?
         fi
         install_error_print "$1" "$ERROR"
     else 
-        echo "${GREEN}Already installed: $1${NC}"
+        echo -e "${GREEN}Already installed: $1${NC}"
     fi
 }
 
