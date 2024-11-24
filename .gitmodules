@@ -3,7 +3,7 @@
 	url = https://github.com/pascalweiss/dotfiles.git
 [submodule "submodules/envi-vim"]
 	path = submodules/envi-vim
-	url = https://ithub.com:pascalweiss/envi-vim.git
+	url = https://github.com/pascalweiss/envi-vim.git
 [submodule "submodules/fake-server"]
 	path = submodules/fake-server
-	url = https://github.com:pascalweiss/fake-server.git
+	url = https://github.com/pascalweiss/fake-server.git
