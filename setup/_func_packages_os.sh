@@ -53,7 +53,10 @@ function update_package_manager () {
 }
 
 function install_dependencies () {
-    readarray -t PACKAGES < "$DIR/setup/dependencies.txt" # read dependencies and strap away newline
+    local PACKAGES=();
+    while IFS= read -r line; do
+        PACKAGES+=("$line")
+    done < "$DIR/setup/dependencies.txt"
     print_packages "dependencies" "${PACKAGES[@]}"
     install_all "${PACKAGES[@]}"
 }
