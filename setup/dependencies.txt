@@ -2,3 +2,4 @@ wget
 curl
 git
 grep
+readarray
