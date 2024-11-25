@@ -3,6 +3,4 @@ yq
 uname
 vim
 sl
-inetutils-ping
-fonts-powerline
 htop
