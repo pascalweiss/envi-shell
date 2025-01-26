@@ -3,3 +3,4 @@ curl
 git
 grep
 readarray
+ansible
