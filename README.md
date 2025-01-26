@@ -10,7 +10,7 @@ You need to have `curl` and `git` installed.
 ## Installation
 Easiest way is to execute the following: 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/master/setup/install.sh)"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/main/setup/install.sh)"
 ``` 
 This will clone the repository to `$HOME` and execute the setup script. 
 
