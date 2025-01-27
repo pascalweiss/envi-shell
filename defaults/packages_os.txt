@@ -2,7 +2,8 @@ jq
 yq
 uname
 vim
-nvim
+neovim
 sl
 htop
 bat
+fzf
