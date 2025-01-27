@@ -2,5 +2,7 @@ jq
 yq
 uname
 vim
+nvim
 sl
 htop
+bat
