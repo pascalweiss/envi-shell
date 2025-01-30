@@ -7,3 +7,4 @@ sl
 htop
 bat
 fzf
+eza
