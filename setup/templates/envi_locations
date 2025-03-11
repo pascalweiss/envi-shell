@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 
+# Add aliases or env-vars that are related to locations, e.g. for better navigation, here
+
 alias dl='~/Downloads'
