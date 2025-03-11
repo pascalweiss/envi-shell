@@ -20,6 +20,7 @@ INSTALL_OH_MY_ZSH=false
 REPLACE_BASHRC=false
 REPLACE_ZSHRC=false
 REPLACE_VIM=false
+REPLACE_GITCONFIG=false
 
 # Collect all decisions upfront
 if ! contains "--configure-timezone=no" "${ARGS[@]}"; then
@@ -55,6 +56,9 @@ REPLACE_ZSHRC=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || ec
 read -ep "Do you want to replace your vim configuration? Type (Y/n): " ANSWER
 REPLACE_VIM=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
 
+read -ep "Do you want to replace your .gitconfig? Type (Y/n): " ANSWER
+REPLACE_GITCONFIG=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
+
 # Execute the decisions
 if $CONFIGURE_TIMEZONE; then
     source "$SETUP_OS" && configure_timezone
@@ -63,7 +67,10 @@ fi
 mkdir -p "$DIR/config"
 FILES=($(ls "$DIR/setup/templates"))
 for FILE in "${FILES[@]}"; do
-    cp "$DIR/setup/templates/$FILE" "$DIR/config/.$FILE"
+    # Copy the template files to the config folder, only if it is not a .md file
+    if [[ "$FILE" != *.md ]]; then
+        cp "$DIR/setup/templates/$FILE" "$DIR/config/.$FILE"
+    fi
 done
 
 if $UPDATE_PACKAGE_MANAGER; then
@@ -101,6 +108,12 @@ if $REPLACE_VIM; then
     source "$SETUP_DOTFILES" && replace_vim
 fi
 
+# Later in the execution section
+if $REPLACE_GITCONFIG; then
+    source "$SETUP_DOTFILES" && replace_gitconfig
+fi
+
+
 add_symlink "$DIR/config/.envi_env" "$HOME/.envi_env"
 add_symlink "$DIR/config/.envi_locations" "$HOME/.envi_locations"
 add_symlink "$DIR/config/.envi_rc" "$HOME/.envi_rc"
@@ -108,7 +121,7 @@ add_symlink "$DIR/config/.envi_shortcuts" "$HOME/.envi_shortcuts"
 
 BIN_DIRS=("bin" "sbin" "lib" "macbin" "linuxbin")
 for BIN in "${BIN_DIRS[@]}"; do
-    chmod u+x "$DIR/executables/$BIN/*"
+    chmod u+x "$DIR/executables/$BIN/"*
 done
 
 if $INSTALL_OH_MY_ZSH; then

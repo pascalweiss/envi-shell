@@ -2,7 +2,7 @@
 
 function ask () {
     if (( $#  > 1 )); then
-        echo $@
+        echo "$@"
     else 
         echo "Are you sure?"
     fi

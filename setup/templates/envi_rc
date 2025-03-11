@@ -21,3 +21,6 @@ ENVI_UTF_8=true
 # Do not delete the following command unless you don't want to use your .bashrc or .zshrc
 source $ENVI_HOME/executables/sbin/enviinit
 
+# Delete this
+echo "You may add individual git configurations in ~/.envi/config/.gitconfig_user_default, ~/.envi/config/.gitconfig_user_work, ~/.envi/config/.gitconfig_user_personal, etc."
+
