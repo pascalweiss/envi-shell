@@ -4,7 +4,7 @@ if (( $# == 3 )); then
     FROM="$1"
     TO="$2"
     WORD="$3"
-else 
+else
     FROM=en
     TO=de
     WORD="$1"
@@ -17,6 +17,10 @@ fi
 
 LOG="$(date +'%Y-%m-%d %H:%M:%S') - $WORD"
 echo "$LOG" >> "$DIR/translate.log"
-python3 -W ignore::SyntaxWarning $(which dict.cc.py) $TO $FROM $WORD
+
+# This is the python interpreter that is used specifically for dict.cc.py
+PYTHON="$HOME/.local/pipx/venvs/dict-cc-py/bin/python"
+
+$PYTHON -W ignore::SyntaxWarning $(which dict.cc.py) $TO $FROM $WORD
 
 
