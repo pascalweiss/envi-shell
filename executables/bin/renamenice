@@ -11,7 +11,7 @@ def reduce_underscores(s):
 
 def print_help():
     help_text = """
-Usage: sanitize_filenames.py [FILES...]
+Usage: renamenice [FILES...]
 
 This script renames files by converting their names to lowercase, replacing spaces and special characters with underscores,
 and converting German umlauts into their respective letter combinations (ä -> ae, ü -> ue, ö -> oe).

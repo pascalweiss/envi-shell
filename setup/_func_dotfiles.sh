@@ -28,3 +28,8 @@ function replace_vim () {
     backup_file "$HOME/.vimrc" $BACKUP_DIR
     add_symlink "$DIR/submodules/envi-vim/.vimrc" "$HOME/.vimrc"
 }
+
+function replace_gitconfig () {
+    backup_file "$HOME/.gitconfig" $BACKUP_DIR
+    add_symlink "$DIR/submodules/dotfiles/.gitconfig" "$HOME/.gitconfig"
+}
