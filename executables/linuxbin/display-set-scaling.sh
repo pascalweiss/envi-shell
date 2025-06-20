@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Set internal display (MacBook Retina) to 200% scaling (0.5x0.5)
 # Set external display to 100% scaling (1x1)
