@@ -1,15 +1,70 @@
 #!/usr/bin/env bash
 
+# Help function
+show_help() {
+    cat << EOF
+=== GIT COMMIT ALL SCRIPT ===
+
+DESCRIPTION:
+    This script commits changes in all submodules first, then in the main project.
+    It ensures submodule references are properly updated in the main project.
+
+USAGE:
+    $0 [OPTIONS]
+    $0 "Your commit message"
+
+OPTIONS:
+    -h, --help    Show this help message
+    
+COMMIT MESSAGE:
+    - Must be provided in quotes (single or double quotes)
+    - Cannot be empty
+    - Same message will be used for all repositories with changes
+
+EXAMPLES:
+    $0 "Add new feature to all modules"
+    $0 'Fix bug in configuration files'
+    $0 "Update documentation and scripts"
+
+BEHAVIOR:
+    1. Processes each submodule in submodules/ folder
+    2. Checks out main branch if submodule is in detached HEAD
+    3. Commits changes in submodules first
+    4. Commits main project last (includes updated submodule references)
+    5. Provides summary of what was committed
+
+EOF
+}
+
+# Check for help flag
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+    show_help
+    exit 0
+fi
+
 echo "=== COMMIT ALL PROJECTS ==="
 echo "This script will commit changes in all submodules and the main project."
 echo ""
 
-# Prompt for commit message
-read -p "Enter commit message: " commit_message
+# Check if commit message was provided as argument
+if [ $# -eq 1 ]; then
+    commit_message="$1"
+    echo "Using provided commit message: '$commit_message'"
+else
+    # Prompt for commit message with quotes requirement
+    echo "Please provide a commit message in quotes."
+    echo "Example: \"Your commit message here\""
+    echo ""
+    read -p "Enter commit message (in quotes): " commit_message
+    
+    # Remove surrounding quotes if present and validate
+    commit_message=$(echo "$commit_message" | sed 's/^['\''\"]\(.*\)['\''\"]/\1/')
+fi
 
 # Check if commit message is empty
 if [ -z "$commit_message" ]; then
     echo "Error: Commit message cannot be empty."
+    echo "Use: $0 --help for usage information"
     exit 1
 fi
 
