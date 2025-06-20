@@ -30,6 +30,13 @@ if [ -d "submodules" ]; then
             # Change to submodule directory
             cd "$submodule"
             
+            # Check if we're in detached HEAD and checkout main branch
+            current_branch=$(git branch --show-current)
+            if [ -z "$current_branch" ]; then
+                echo "Submodule is in detached HEAD, checking out main branch..."
+                git checkout main 2>/dev/null || git checkout -b main
+            fi
+            
             # Check if there are any changes
             if [ -n "$(git --no-pager status --porcelain)" ]; then
                 echo "Changes found in $submodule_name:"
