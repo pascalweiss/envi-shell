@@ -42,10 +42,18 @@ The `run/` folder contains automation scripts for managing the entire project an
   - No pager interruption - all output printed directly to terminal
 
 - **`git_commit_all.sh`** - Commits changes across all repositories with a single commit message
-  - Prompts for commit message
+  - Prompts for commit message (supports quoted messages)
   - Commits submodules first, then main project (ensuring submodule references are updated)
   - Adds all new and modified files automatically
-  - Provides detailed feedback on what was committed
+  - Handles detached HEAD state in submodules
+  - Includes comprehensive help documentation
+
+- **`git_push_all.sh`** - Pushes committed changes from all repositories to their remotes
+  - Pushes submodules first, then main project
+  - Supports both regular push and force push (with safety confirmation)
+  - Skips repositories with no commits to push
+  - Handles detached HEAD state gracefully
+  - Provides detailed feedback on push results
 
 - **`git_force_pull_all.sh`** - Force pulls latest changes from all remote repositories
   - **WARNING**: Overwrites all local changes without merge conflicts
@@ -58,12 +66,50 @@ The `run/` folder contains automation scripts for managing the entire project an
 # Check all changes across project and submodules
 ./run/git_diff_all.sh
 
-# Commit all changes with same message
+# Commit all changes with same message (interactive)
 ./run/git_commit_all.sh
+
+# Commit all changes with quoted message (command line)
+./run/git_commit_all.sh "Your commit message here"
+
+# Push all committed changes to remotes
+./run/git_push_all.sh
+
+# Force push (use with caution!)
+./run/git_push_all.sh --force
 
 # Force sync with remote (discards local changes)
 ./run/git_force_pull_all.sh
-```  
+
+# Show help for any script
+./run/git_commit_all.sh --help
+./run/git_push_all.sh --help
+```
+
+### Complete Git Workflow
+The scripts are designed to work together for a complete git workflow:
+
+```bash
+# 1. Check what changes you have
+./run/git_diff_all.sh
+
+# 2. Commit all changes with a descriptive message
+./run/git_commit_all.sh "Add new feature and update documentation"
+
+# 3. Push all changes to remote repositories
+./run/git_push_all.sh
+
+# Alternative: Do it all in one go
+./run/git_diff_all.sh && \
+./run/git_commit_all.sh "Your commit message" && \
+./run/git_push_all.sh
+```
+
+**Key Benefits:**
+- **Unified workflow** across main project + all submodules
+- **Proper ordering** ensures submodule references are always up-to-date
+- **Safety features** prevent common git mistakes with submodules
+- **Comprehensive feedback** shows exactly what was changed/committed/pushed  
 
 
 ## Integrated Submodules
