@@ -78,21 +78,24 @@ echo ""
 pushes_made=false
 failed_pushes=false
 
+# Store the main repository root directory
+MAIN_REPO_ROOT=$(pwd)
+
 echo "=== PUSHING SUBMODULES ==="
 if [ -d "submodules" ]; then
     for submodule in submodules/*/; do
-        if [ -d "$submodule" ] && [ -d "$submodule/.git" ]; then
+        if [ -d "$submodule" ] && [ -e "$submodule/.git" ]; then
             submodule_name=$(basename "$submodule")
             echo "--- Processing submodule: $submodule_name ---"
             
             # Change to submodule directory
-            cd "$submodule"
+            cd "$MAIN_REPO_ROOT/$submodule"
             
             # Check if we're on a proper branch
             current_branch=$(git branch --show-current)
             if [ -z "$current_branch" ]; then
                 echo "⚠ Submodule is in detached HEAD, skipping push"
-                cd - > /dev/null
+                cd "$MAIN_REPO_ROOT"
                 echo ""
                 continue
             fi
@@ -114,7 +117,7 @@ if [ -d "submodules" ]; then
             fi
             
             # Return to main project directory
-            cd - > /dev/null
+            cd "$MAIN_REPO_ROOT"
             echo ""
         fi
     done
