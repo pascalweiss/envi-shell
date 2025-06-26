@@ -75,15 +75,18 @@ echo ""
 # Track if any commits were made
 commits_made=false
 
+# Store the main repository root directory
+MAIN_REPO_ROOT=$(pwd)
+
 echo "=== COMMITTING SUBMODULES ==="
 if [ -d "submodules" ]; then
     for submodule in submodules/*/; do
-        if [ -d "$submodule" ] && [ -d "$submodule/.git" ]; then
+        if [ -d "$submodule" ] && [ -e "$submodule/.git" ]; then
             submodule_name=$(basename "$submodule")
             echo "--- Processing submodule: $submodule_name ---"
             
             # Change to submodule directory
-            cd "$submodule"
+            cd "$MAIN_REPO_ROOT/$submodule"
             
             # Check if we're in detached HEAD and checkout main branch
             current_branch=$(git branch --show-current)
@@ -112,7 +115,7 @@ if [ -d "submodules" ]; then
             fi
             
             # Return to main project directory
-            cd - > /dev/null
+            cd "$MAIN_REPO_ROOT"
             echo ""
         fi
     done
