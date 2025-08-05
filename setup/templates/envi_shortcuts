@@ -1,3 +1,12 @@
 #!/usr/bin/env bash
 
 alias pingg="ping -i 0.2 1.1.1.1"
+alias clr="clear"
+
+# Tmux shortcuts
+alias tl="tmux list-sessions"
+ta() { tmux attach-session -t "$1"; }
+tk() { tmux kill-session -t "$1"; }
+
+# Shell shortcuts
+alias execz="exec zsh"
