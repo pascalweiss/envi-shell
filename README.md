@@ -30,7 +30,8 @@ If you want to be able to make changes and push them, you can fork it first, clo
   and converting German umlauts into their respective letter combinations (ä -> ae, ü -> ue, ö -> oe).
   Multiple underscores are reduced to a single underscore.
 - `fake-server <port>` - Starts a simple http server that logs every request for the given port to the console. Runs in a docker
-- `netinfo`- Prints out for the current net interface: LAN IP, WAN IP, broadcast, MAC address  
+- `netinfo`- Prints out for the current net interface: LAN IP, WAN IP, broadcast, MAC address
+- `tt` - Interactive tmux session manager with fzf (press 'a' to attach, 'k' to kill sessions)  
 
 ## Automation Scripts (run/ folder)
 The `run/` folder contains automation scripts for managing the entire project and its submodules:
