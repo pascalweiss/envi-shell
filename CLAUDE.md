@@ -81,9 +81,8 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/mai
 
 ## Submodule Management
 
-The project uses three submodules managed collectively:
-- **dotfiles**: Shell themes and configurations
-- **envi-vim**: Vim configuration and plugins  
-- **fake-server**: Development HTTP server
+The project uses two submodules managed collectively:
+- **dotfiles**: Shell themes and configurations (config-files repository)
+- **envi-vim**: Vim configuration and plugins
 
 All automation scripts handle proper submodule → main project commit ordering to ensure submodule references stay synchronized.
