@@ -33,3 +33,8 @@ function replace_gitconfig () {
     backup_file "$HOME/.gitconfig" $BACKUP_DIR
     add_symlink "$DIR/submodules/dotfiles/.gitconfig" "$HOME/.gitconfig"
 }
+
+function replace_tmux () {
+    backup_file "$HOME/.tmux.conf" $BACKUP_DIR
+    add_symlink "$DIR/submodules/dotfiles/.tmux.conf" "$HOME/.tmux.conf"
+}

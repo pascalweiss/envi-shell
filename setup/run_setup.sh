@@ -21,6 +21,7 @@ REPLACE_BASHRC=false
 REPLACE_ZSHRC=false
 REPLACE_VIM=false
 REPLACE_GITCONFIG=false
+REPLACE_TMUX=false
 
 # Collect all decisions upfront
 if ! contains "--configure-timezone=no" "${ARGS[@]}"; then
@@ -58,6 +59,9 @@ REPLACE_VIM=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo
 
 read -ep "Do you want to replace your .gitconfig? Type (Y/n): " ANSWER
 REPLACE_GITCONFIG=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
+
+read -ep "Do you want to replace your .tmux.conf? Type (Y/n): " ANSWER
+REPLACE_TMUX=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
 
 # Execute the decisions
 if $CONFIGURE_TIMEZONE; then
@@ -111,6 +115,10 @@ fi
 # Later in the execution section
 if $REPLACE_GITCONFIG; then
     source "$SETUP_DOTFILES" && replace_gitconfig
+fi
+
+if $REPLACE_TMUX; then
+    source "$SETUP_DOTFILES" && replace_tmux
 fi
 
 
