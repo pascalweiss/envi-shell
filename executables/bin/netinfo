@@ -1,10 +1,36 @@
 #!/usr/bin/env bash
 
 echo "--------------- Network Information ---------------"
-LANIP=`/sbin/ifconfig en0 | awk /'inet / {print $2}'`
-LANBC=`/sbin/ifconfig en0 | awk /'broadcast/ {print $6}'`
-MAC=`/sbin/ifconfig en0 | awk /'ether/ {print $2}'`
-WANIP=`lynx -dump -hiddenlinks=ignore -nolist http://checkip.dyndns.org:8245/ | awk '/Address: /{print $4}'`
+
+# Detect OS and set appropriate commands
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    INTERFACE="en0"
+    if command -v /sbin/ifconfig >/dev/null 2>&1; then
+        LANIP=`/sbin/ifconfig $INTERFACE 2>/dev/null | awk '/inet / {print $2}'`
+        LANBC=`/sbin/ifconfig $INTERFACE 2>/dev/null | awk '/broadcast/ {print $6}'`
+        MAC=`/sbin/ifconfig $INTERFACE 2>/dev/null | awk '/ether/ {print $2}'`
+    fi
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    # Linux
+    # Find the default network interface
+    INTERFACE=$(ip route show default | head -1 | awk '{print $5}')
+    if [[ -n "$INTERFACE" ]] && command -v ip >/dev/null 2>&1; then
+        LANIP=`ip addr show $INTERFACE 2>/dev/null | awk '/inet / {print $2}' | cut -d'/' -f1 | head -1`
+        LANBC=`ip addr show $INTERFACE 2>/dev/null | awk '/inet / {print $4}' | head -1`
+        MAC=`ip addr show $INTERFACE 2>/dev/null | awk '/ether/ {print $2}' | head -1`
+    fi
+fi
+
+# Get WAN IP using curl (cross-platform)
+if command -v curl >/dev/null 2>&1; then
+    WANIP=`curl -s --connect-timeout 5 http://checkip.dyndns.org | sed -n 's/.*Address: \([0-9.]*\).*/\1/p'`
+elif command -v wget >/dev/null 2>&1; then
+    WANIP=`wget -qO- --timeout=5 http://checkip.dyndns.org | sed -n 's/.*Address: \([0-9.]*\).*/\1/p'`
+elif command -v lynx >/dev/null 2>&1; then
+    WANIP=`lynx -dump -hiddenlinks=ignore -nolist http://checkip.dyndns.org:8245/ | awk '/Address: /{print $4}'`
+fi
+
 echo "IP:   $LANIP"
 echo "BCST: $LANBC"
 echo "MAC:  $MAC"
