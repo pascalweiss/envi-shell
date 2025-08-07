@@ -32,24 +32,24 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/mai
 ./setup/install.sh
 ```
 
-### Git Workflow (Primary Development Commands)
+### Git Workflow (DEFAULT GIT APPROACH - Use These Commands)
 ```bash
-# Check all changes across project and submodules
+# Check all changes across project and submodules (REQUIRED - use instead of git status/diff)
 ./run/git_diff_all.sh
 
-# Commit all changes with same message
+# Commit all changes with same message (REQUIRED - use instead of git commit)
 ./run/git_commit_all.sh "commit message"
 
-# Push all repositories (submodules first, then main)
+# Push all repositories (REQUIRED - use instead of git push)
 ./run/git_push_all.sh
 
 # Force pull all repositories (destructive - overwrites local changes)
 ./run/git_force_pull_all.sh
 ```
 
-### Complete Workflow
+### Complete Workflow (ALWAYS USE THIS FOR GIT OPERATIONS)
 ```bash
-# Typical development cycle
+# Typical development cycle (REQUIRED workflow)
 ./run/git_diff_all.sh && \
 ./run/git_commit_all.sh "Your commit message" && \
 ./run/git_push_all.sh
