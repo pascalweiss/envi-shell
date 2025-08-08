@@ -1,34 +1,26 @@
 # export paths
 
+# Load cli tools
 if [[ "$(uname)" = *Darwin* ]]; then 
     export PATH=$PATH:$ENVI_HOME/executables/macbin
 elif [[ "$(uname)" = *Linux* ]]; then 
     export PATH=$PATH:$ENVI_HOME/executables/linuxbin
 fi
+
+# system agnostic bin
 export PATH=$PATH:$ENVI_HOME/executables/bin
 
-export PATH="$PATH:\
-/usr/local/bin:\
-/usr/bin:\
-/bin:\
-/usr/sbin:\
-/sbin"
-
-source commons
+source $ENVI_HOME/defaults/default_env.sh
+source $ENVI_HOME/executables/bin/commons
+source $ENVI_HOME/defaults/default_shortcuts.sh
 
 # Apply user settings FIRST (so variables are available)
 if $ENVI_ENV; then source $ENVI_HOME/config/.envi_env; fi
-
 if $ENVI_LOCATIONS; then source $ENVI_HOME/config/.envi_locations; fi
-
 if $ENVI_SHORTCUTS; then source $ENVI_HOME/config/.envi_shortcuts; fi
-
-# Load defaults after user settings (allows overrides)
-source $ENVI_HOME/defaults/default_shortcuts.sh
 
 # Apply environment settings
 if $ENVI_256_COLORS; then 256colors true; else 256colors false; fi
-
 if $ENVI_UTF_8; then export LC_ALL="en_US.UTF-8"; fi
 
 # Eventually add new theme to .oh_my_zsh/themes
@@ -38,5 +30,3 @@ fi
 if [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ]; then
     ZSH_THEME="robbyrussell"
 fi
-
-
