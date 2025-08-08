@@ -20,9 +20,9 @@ function add_symlink () {
 function 256colors () {
     if $1; then 
         TERM=xterm-256color
-        if $ENVI_DEBUG; then echo "enabled 256 colors"; fi
+        if [ "$ENVI_DEBUG" = "true" ]; then echo "enabled 256 colors"; fi
     else 
         TERM=xterm; 
-        if $ENVI_DEBUG; then echo "disabled 256 colors"; fi
+        if [ "$ENVI_DEBUG" = "true" ]; then echo "disabled 256 colors"; fi
     fi    
 }

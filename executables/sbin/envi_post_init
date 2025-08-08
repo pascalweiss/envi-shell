@@ -4,15 +4,15 @@
 # This handles interactive session features that should happen last
 
 # SSH Agent management (interactive shells only)
-if $SSH_AGENT_ENABLED && [ -z "$SSH_AUTH_SOCK" ] && [ -n "$PS1" ]; then
+if [ "$SSH_AGENT_ENABLED" = "true" ] && [ -z "$SSH_AUTH_SOCK" ] && [ -n "$PS1" ]; then
     eval "$(ssh-agent -s)" > /dev/null 2>&1
 fi
 
 # Tmux auto-start (only for interactive shells)
-if $TMUX_ENABLED && [ -z "$TMUX" ] && [ -n "$PS1" ]; then
+if [ "$TMUX_ENABLED" = "true" ] && [ -z "$TMUX" ] && [ -n "$PS1" ]; then
     if command -v tmux &> /dev/null; then
         # Show help if enabled
-        if $TMUX_SHOW_HELP; then
+        if [ "$TMUX_SHOW_HELP" = "true" ]; then
             tmux-help
             echo ""
         fi

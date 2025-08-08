@@ -128,3 +128,4 @@ All features can be enabled/disabled via environment variables in `config/.envi_
 - **envi_post_init** runs only for interactive shells (`[ -n "$PS1" ]`) - put user-facing features here
 - **Variable loading order**: User config loaded FIRST in enviinit so variables are available to all subsequent logic
 - **No exec commands**: Tmux commands don't use `exec` to allow shell initialization to complete
+- **Boolean variables**: All boolean checks use string comparison `[ "$VAR" = "true" ]` for consistency and robustness
