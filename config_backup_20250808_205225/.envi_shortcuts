@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+
+alias pingg="ping -i 0.2 1.1.1.1"
+alias clr="clear"
+
+alias kubectl="microk8s kubectl"
+alias k="microk8s kubectl"
+
+if command -v batcat >/dev/null 2>&1; then
+  alias bat='batcat'
+fi
+
+alias docker-compose="docker compose"
+
+hlc() {
+    cd ~/dev/homelab
+    claudessh "$@"
+}
+hlcr() {
+    cd ~/dev/homelab
+    claudessh --resume
+}
+
+envic() {
+    cd ~/.envi
+    claudessh "$@"
+}
+ec() {
+    cd ~/.envi
+    claudessh "$@"
+}
+alias ge="cd ~/dev/goodear"
+gec() {
+    cd ~/dev/goodear
+    claudessh "$@"
+}
+gecr() {
+    cd ~/dev/goodear
+    claudessh --resume
+}
+
+# Helper function to check and run ssh-add if needed
+_check_ssh_add() {
+    if ! ssh-add -l >/dev/null 2>&1; then
+        echo -n "Run ssh-add? (press Enter to confirm, ESC to decline): "
+        read -r -s -k 1 answer
+        echo
+        if [[ $answer == $'\n' || $answer == $'\r' ]]; then
+            ssh-add ~/.ssh/id_rsa
+        elif [[ $answer == $'\e' ]]; then
+            echo "Skipped ssh-add"
+        fi
+    fi
+}
+
+claudessh() {
+    _check_ssh_add
+    
+    # Get current folder name and clean it for tmux session name
+    local folder_name=$(basename "$PWD")
+    # Remove leading dots and replace problematic characters
+    folder_name=${folder_name#.}
+    folder_name=${folder_name//[-.]/_}
+    local session_name="claude-$folder_name"
+    
+    # Check if tmux session exists
+    if tmux has-session -t "$session_name" 2>/dev/null; then
+        # Session exists, switch to it
+        if [ -n "$TMUX" ]; then
+            # We're inside tmux, switch session
+            tmux switch-client -t "$session_name"
+        else
+            # We're not in tmux, attach normally
+            tmux attach-session -t "$session_name"
+        fi
+    else
+        # Session doesn't exist, create new one and run claude
+        tmux new-session -d -s "$session_name" -c "$PWD"
+        tmux send-keys -t "$session_name" "claude $*" Enter
+        if [ -n "$TMUX" ]; then
+            # We're inside tmux, switch to the new session
+            tmux switch-client -t "$session_name"
+        else
+            # We're not in tmux, attach normally
+            tmux attach-session -t "$session_name"
+        fi
+    fi
+}
+alias tl="tmux list-sessions"
+alias execz="exec zsh"

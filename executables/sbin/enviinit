@@ -1,40 +1,145 @@
-# export paths
+#!/usr/bin/env bash
+#
+# ENVI ENVIRONMENT INITIALIZATION SCRIPT
+# =====================================
+# 
+# This script is the core initialization component of the envi shell system.
+# It is sourced by ALL shell instances (interactive and non-interactive) via ~/.envi_rc
+# 
+# EXECUTION ORDER:
+# 1. Shell startup (.bashrc/.zshrc) 
+# 2. source ~/.envi_rc
+# 3. → enviinit (THIS SCRIPT) - Universal environment setup
+# 4. Oh-My-Zsh framework loading (zsh only)
+# 5. Powerlevel10k theme loading (if enabled, zsh only)
+# 6. envi_post_init - Interactive session features only
+#
+# DESIGN PRINCIPLES:
+# - Only put universal environment setup here (PATH, variables, sourcing configs)
+# - NO interactive features (those go in envi_post_init)
+# - Must work in both interactive and non-interactive shells
+# - Defaults loaded first, then user config to override defaults
+#
+# STRUCTURE:
+# 1. Platform-specific executable paths
+# 2. Default configurations and common utilities
+# 3. User configuration loading (with feature controls)
+# 4. Environment settings (colors, locale)
+# 5. Tool integrations (NVM, etc.)
+# 6. Shell-specific setup (Oh-My-Zsh theme linking)
 
-# Load cli tools
+# ============================================================================
+# PLATFORM-SPECIFIC EXECUTABLE PATHS
+# ============================================================================
+
+# System-critical PATH (essential system directories)
+export PATH="$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+# Load platform-specific CLI tools
 if [[ "$(uname)" = *Darwin* ]]; then 
     export PATH=$PATH:$ENVI_HOME/executables/macbin
 elif [[ "$(uname)" = *Linux* ]]; then 
     export PATH=$PATH:$ENVI_HOME/executables/linuxbin
 fi
 
-# system agnostic bin
+# Universal executables (work on all platforms)
 export PATH=$PATH:$ENVI_HOME/executables/bin
 
-source $ENVI_HOME/defaults/default_env.sh
+# ============================================================================
+# DEFAULT CONFIGURATIONS AND COMMON UTILITIES
+# ============================================================================
+
+
+# Load common shell functions (contains, add_symlink, 256colors)
 source $ENVI_HOME/executables/bin/commons
-source $ENVI_HOME/defaults/default_shortcuts.sh
 
-# Apply user settings FIRST (so variables are available)
-if [ "$ENVI_ENV" = "true" ]; then source $ENVI_HOME/config/.envi_env; fi
+# System-critical envi aliases (required for envi system functionality)
+alias envi="cd \$ENVI_HOME"
+alias loc="vim ~/.envi/config/.envi_locations"
+alias environ="vim ~/.envi/config/.envi_env"
+alias short="vim ~/.envi/config/.envi_shortcuts"
 
-if [ "$ENVI_LOCATIONS" = "true" ]; then source $ENVI_HOME/config/.envi_locations; fi
+# ============================================================================
+# DEFAULT CONFIGURATION LOADING
+# ============================================================================
+# Load system defaults first (provides baseline configuration)
 
-if [ "$ENVI_SHORTCUTS" = "true" ]; then source $ENVI_HOME/config/.envi_shortcuts; fi
 
-# Apply environment settings
+# Load default environment variables and feature controls
+if [ "$ENVI_ENV" = "true" ] && [ -f "$ENVI_HOME/defaults/default_env_user.sh" ]; then 
+    source $ENVI_HOME/defaults/default_env_user.sh; 
+fi
+
+# Load default path locations
+if [ "$ENVI_LOCATIONS" = "true" ] && [ -f "$ENVI_HOME/defaults/default_locations.sh" ]; then 
+    source $ENVI_HOME/defaults/default_locations.sh; 
+fi
+
+# Load default shortcuts and aliases
+if [ "$ENVI_SHORTCUTS" = "true" ] && [ -f "$ENVI_HOME/defaults/default_shortcuts.sh" ]; then 
+    source $ENVI_HOME/defaults/default_shortcuts.sh; 
+fi
+
+# ============================================================================
+# USER CONFIGURATION LOADING (OVERRIDES DEFAULTS)
+# ============================================================================
+# Load user configs second so they can override defaults
+
+# Load user environment variables and feature controls (overrides defaults)
+if [ "$ENVI_ENV" = "true" ] && [ -f "$ENVI_HOME/config/.envi_env" ]; then 
+    source $ENVI_HOME/config/.envi_env; 
+fi
+
+# Load user-defined path locations (overrides defaults)  
+if [ "$ENVI_LOCATIONS" = "true" ] && [ -f "$ENVI_HOME/config/.envi_locations" ]; then 
+    source $ENVI_HOME/config/.envi_locations; 
+fi
+
+# Load user-defined shortcuts and aliases (overrides defaults)
+if [ "$ENVI_SHORTCUTS" = "true" ] && [ -f "$ENVI_HOME/config/.envi_shortcuts" ]; then 
+    source $ENVI_HOME/config/.envi_shortcuts; 
+fi
+
+# ============================================================================
+# ENVIRONMENT SETTINGS
+# ============================================================================
+
+# Apply terminal color settings
 if [ "$ENVI_256_COLORS" = "true" ]; then 256colors true; else 256colors false; fi
 
+# Set UTF-8 locale for proper character encoding
 if [ "$ENVI_UTF_8" = "true" ]; then export LC_ALL="en_US.UTF-8"; fi
 
-# Load NVM if available
+# ============================================================================
+# TOOL INTEGRATIONS
+# ============================================================================
+
+# Load NVM (Node Version Manager) if available - automatic detection
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-# Eventually add new theme to .oh_my_zsh/themes
-if [ -e "$ZSH" ] && [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ] && [ -e "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" ]; then
-    ln -s "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" "$ZSH/themes/"
+# ============================================================================
+# SHELL-SPECIFIC SETUP
+# ============================================================================
+
+# Oh-My-Zsh theme linking (if enabled) - creates symlinks for custom themes
+if [ "$ZSH_THEME_LINKING_ENABLED" = "true" ]; then
+    # Create symlink from envi dotfiles theme to Oh-My-Zsh themes directory
+    if [ -e "$ZSH" ] && [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ] && [ -e "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" ]; then
+        ln -s "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" "$ZSH/themes/"
+    fi
+    # Fallback to default theme if custom theme is not available
+    if [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ]; then
+        ZSH_THEME="robbyrussell"
+    fi
 fi
-if [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ]; then
-    ZSH_THEME="robbyrussell"
-fi
+
+# ============================================================================
+# END OF ENVIINIT
+# ============================================================================
+# 
+# Next steps in shell initialization:
+# - Oh-My-Zsh framework loading (zsh only)
+# - Powerlevel10k theme loading (if POWERLEVEL10K_ENABLED=true, zsh only) 
+# - envi_post_init for interactive session features (tmux, ssh-agent)

@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 
-# Add environment variables, that are relevant specifically for this machine, here
-
 # Envi Feature Controls - Set to true/false to enable/disable features
 export SSH_AGENT_ENABLED=true
 export POWERLEVEL10K_ENABLED=true
-export TMUX_ENABLED=false
+export TMUX_ENABLED=true
+export TMUX_SHOW_HELP=true
 export TMUX_AUTO_ATTACH=false
-export TMUX_SHOW_HELP=false
 
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+
+export XDG_CONFIG_HOME=$HOME/.config
 export "PATH=$HOME/.local/bin:\
 /usr/local/mysql/bin:\
 /opt/local/bin:\

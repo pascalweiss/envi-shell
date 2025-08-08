@@ -1,1 +1,0 @@
-Every File is this folder is automatically copied to `envi/config` at setup
