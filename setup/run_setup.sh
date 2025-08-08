@@ -69,13 +69,19 @@ if $CONFIGURE_TIMEZONE; then
 fi
 
 mkdir -p "$DIR/config"
-FILES=($(ls "$DIR/setup/templates"))
-for FILE in "${FILES[@]}"; do
-    # Copy the template files to the config folder, only if it is not a .md file
-    if [[ "$FILE" != *.md ]]; then
-        cp "$DIR/setup/templates/$FILE" "$DIR/config/.$FILE"
-    fi
-done
+
+# Copy default configuration files to config directory for user customization
+cp "$DIR/defaults/default_env_user.sh" "$DIR/config/.envi_env"
+cp "$DIR/defaults/default_locations.sh" "$DIR/config/.envi_locations"  
+cp "$DIR/defaults/default_shortcuts.sh" "$DIR/config/.envi_shortcuts"
+
+# Create minimal .envi_rc bootstrap file
+cat > "$DIR/config/.envi_rc" << 'EOF'
+export ENVI_HOME=~/.envi
+
+# Do not delete the following command unless you don't want to use your .bashrc or .zshrc
+source $ENVI_HOME/executables/sbin/enviinit
+EOF
 
 if $UPDATE_PACKAGE_MANAGER; then
     source "$SETUP_OS"
