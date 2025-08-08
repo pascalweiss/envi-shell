@@ -98,11 +98,11 @@ Shell startup (.bashrc/.zshrc)
   ↓
 source ~/.envi_rc  
   ↓
-enviinit: Load user config FIRST → Set environment → NO interactive features
-  ├── Load config/.envi_env (variables like TMUX_ENABLED, SSH_AGENT_ENABLED)
+enviinit: Load defaults → Load user config → Set environment → NO interactive features
+  ├── Load config/.envi_env (variables like TMUX_ENABLED, SSH_AGENT_ENABLED, OHMYZSH_*)
   ├── Load config/.envi_locations and config/.envi_shortcuts  
   ├── Set PATH, colors, UTF-8 locale
-  └── Oh-My-Zsh theme linking
+  └── Oh-My-Zsh configuration (plugins, git cache, theme linking)
   ↓  
 Oh-My-Zsh framework loading (zsh only)
   ↓
@@ -121,7 +121,7 @@ All features can be enabled/disabled via environment variables in `config/.envi_
 
 - **enviinit** runs for ALL shell instances (interactive and non-interactive) - only put universal environment setup here
 - **envi_post_init** runs only for interactive shells (`[ -n "$PS1" ]`) - put user-facing features here
-- **Variable loading order**: User config loaded FIRST in enviinit so variables are available to all subsequent logic
+- **Variable loading order**: Defaults loaded first, then user config to override defaults
 - **No exec commands**: Tmux commands don't use `exec` to allow shell initialization to complete
 - **Boolean variables**: All boolean checks use string comparison `[ "$VAR" = "true" ]` for consistency and robustness
 - **Automatic tool loading**: NVM is automatically loaded if `~/.nvm/nvm.sh` exists (no configuration required)

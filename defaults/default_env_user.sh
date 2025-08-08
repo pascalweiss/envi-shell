@@ -10,7 +10,7 @@
 # SSH agent auto-start for interactive shells
 export SSH_AGENT_ENABLED=true
 
-# Powerlevel10k theme loading (zsh only)
+# Powerlevel10k theme with instant prompt (zsh only)
 export POWERLEVEL10K_ENABLED=true
 
 # Tmux session management
@@ -18,8 +18,12 @@ export TMUX_ENABLED=false
 export TMUX_AUTO_ATTACH=false
 export TMUX_SHOW_HELP=false
 
-# Oh-My-Zsh custom theme linking from dotfiles submodule
-export ZSH_THEME_LINKING_ENABLED=true
+# Oh-My-Zsh configuration
+export OHMYZSH_ENABLED=true
+export OHMYZSH_THEME_LINKING=true
+export OHMYZSH_PLUGINS="git kubectl zsh-autosuggestions"
+export OHMYZSH_GIT_PROMPT_CACHE=true
+export ZSH_THEME="robbyrussell"  # Default Oh-My-Zsh theme
 
 # PATH Extensions
 

@@ -123,15 +123,64 @@ export NVM_DIR="$HOME/.nvm"
 # SHELL-SPECIFIC SETUP
 # ============================================================================
 
-# Oh-My-Zsh theme linking (if enabled) - creates symlinks for custom themes
-if [ "$ZSH_THEME_LINKING_ENABLED" = "true" ]; then
-    # Create symlink from envi dotfiles theme to Oh-My-Zsh themes directory
-    if [ -e "$ZSH" ] && [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ] && [ -e "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" ]; then
-        ln -s "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" "$ZSH/themes/"
+# Powerlevel10k instant prompt (must run before Oh-My-Zsh, zsh only)
+if [ "$POWERLEVEL10K_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
+    # Enable Powerlevel10k instant prompt - should stay close to the top of shell initialization
+    # Initialization code that may require console input must go above this block
+    if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+        source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
     fi
-    # Fallback to default theme if custom theme is not available
-    if [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ]; then
-        ZSH_THEME="robbyrussell"
+fi
+
+# Oh-My-Zsh framework loading and configuration (zsh only)
+if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
+    # Configure plugins from OHMYZSH_PLUGINS variable BEFORE loading Oh-My-Zsh
+    if [ -n "$OHMYZSH_PLUGINS" ]; then
+        # Convert space-separated string to zsh array format
+        export plugins=(${=OHMYZSH_PLUGINS})
+    fi
+    
+    # Git prompt cache optimization
+    if [ "$OHMYZSH_GIT_PROMPT_CACHE" = "true" ]; then
+        export ZSH_THEME_GIT_PROMPT_CACHE=yes
+    fi
+    
+    # Theme linking - creates symlinks for custom themes BEFORE loading Oh-My-Zsh
+    if [ "$OHMYZSH_THEME_LINKING" = "true" ] && [ -n "$ZSH_THEME" ]; then
+        # Create symlink from envi dotfiles theme to Oh-My-Zsh themes directory
+        if [ -e "$ZSH" ] && [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ] && [ -e "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" ]; then
+            ln -s "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" "$ZSH/themes/"
+        fi
+        # Fallback to default theme if custom theme is not available
+        if [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ]; then
+            export ZSH_THEME="robbyrussell"
+        fi
+    elif [ -z "$ZSH_THEME" ]; then
+        # Set default theme if not defined
+        export ZSH_THEME="robbyrussell"
+    fi
+    
+    # Load Oh-My-Zsh framework (replaces source $ZSH/oh-my-zsh.sh from .zshrc)
+    if [ -f "$ZSH/oh-my-zsh.sh" ]; then
+        source "$ZSH/oh-my-zsh.sh"
+    fi
+    
+    # Load Powerlevel10k theme after Oh-My-Zsh (if enabled)
+    if [ "$POWERLEVEL10K_ENABLED" = "true" ]; then
+        # Check for different Powerlevel10k installation paths across operating systems
+        if [[ -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
+            # macOS with Apple Silicon (M1/M2) Homebrew
+            source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
+        elif [[ -f /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
+            # macOS with Intel Homebrew
+            source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
+        elif [[ -f /home/linuxbrew/.linuxbrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
+            # Linux with Linuxbrew
+            source /home/linuxbrew/.linuxbrew/share/powerlevel10k/powerlevel10k.zsh-theme
+        elif [[ -f ${ZSH_CUSTOM:-$ZSH/custom}/themes/powerlevel10k/powerlevel10k.zsh-theme ]]; then
+            # Oh My Zsh custom theme installation
+            source ${ZSH_CUSTOM:-$ZSH/custom}/themes/powerlevel10k/powerlevel10k.zsh-theme
+        fi
     fi
 fi
 
