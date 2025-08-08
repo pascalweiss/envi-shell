@@ -86,3 +86,45 @@ The project uses two submodules managed collectively:
 - **envi-vim**: Vim configuration and plugins
 
 All automation scripts handle proper submodule → main project commit ordering to ensure submodule references stay synchronized.
+
+## Shell Initialization Flow
+
+**IMPORTANT: Keep this section updated when modifying shell initialization logic**
+
+The envi system follows a specific execution order during shell startup to ensure proper loading of configurations and features:
+
+```
+Shell startup (.bashrc/.zshrc)
+  ↓
+source ~/.envi_rc  
+  ↓
+enviinit: Load user config FIRST → Set environment → NO interactive features
+  ├── Load config/.envi_env (variables like TMUX_ENABLED, SSH_AGENT_ENABLED)
+  ├── Load config/.envi_locations and config/.envi_shortcuts  
+  ├── Set PATH, colors, UTF-8 locale
+  └── Oh-My-Zsh theme linking
+  ↓  
+Oh-My-Zsh framework loading (zsh only)
+  ↓
+Powerlevel10k theme loading (if POWERLEVEL10K_ENABLED=true, zsh only)
+  ↓
+envi_post_init: Interactive session features only
+  ├── SSH agent startup (if SSH_AGENT_ENABLED=true)
+  └── Tmux auto-start (if TMUX_ENABLED=true)
+```
+
+### Feature Control Variables
+
+All features can be enabled/disabled via environment variables in `config/.envi_env`:
+
+- `SSH_AGENT_ENABLED=true/false` - Control SSH agent auto-start (interactive shells only)
+- `POWERLEVEL10K_ENABLED=true/false` - Control Powerlevel10k theme loading (zsh only)
+- `TMUX_ENABLED=true/false` - Control tmux auto-start (interactive shells only)  
+- `TMUX_SHOW_HELP=true/false` - Show tmux help before starting session
+
+### Key Implementation Details
+
+- **enviinit** runs for ALL shell instances (interactive and non-interactive) - only put universal environment setup here
+- **envi_post_init** runs only for interactive shells (`[ -n "$PS1" ]`) - put user-facing features here
+- **Variable loading order**: User config loaded FIRST in enviinit so variables are available to all subsequent logic
+- **No exec commands**: Tmux commands don't use `exec` to allow shell initialization to complete

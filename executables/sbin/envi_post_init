@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+# Post-initialization script for envi - runs after all other setup
+# This handles interactive session features that should happen last
+
+# SSH Agent management (interactive shells only)
+if $SSH_AGENT_ENABLED && [ -z "$SSH_AUTH_SOCK" ] && [ -n "$PS1" ]; then
+    eval "$(ssh-agent -s)" > /dev/null 2>&1
+fi
+
+# Tmux auto-start (only for interactive shells)
+if $TMUX_ENABLED && [ -z "$TMUX" ] && [ -n "$PS1" ]; then
+    if command -v tmux &> /dev/null; then
+        # Show help if enabled
+        if $TMUX_SHOW_HELP; then
+            tmux-help
+            echo ""
+        fi
+        
+        # Check if there are existing sessions
+        if tmux list-sessions &>/dev/null; then
+            echo "Attaching to existing tmux session..."
+            tmux attach-session
+        else
+            echo "Starting new tmux session..."
+            tmux new-session
+        fi
+    fi
+fi
