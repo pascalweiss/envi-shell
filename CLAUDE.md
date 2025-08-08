@@ -120,6 +120,7 @@ All features can be enabled/disabled via environment variables in `config/.envi_
 - `SSH_AGENT_ENABLED=true/false` - Control SSH agent auto-start (interactive shells only)
 - `POWERLEVEL10K_ENABLED=true/false` - Control Powerlevel10k theme loading (zsh only)
 - `TMUX_ENABLED=true/false` - Control tmux auto-start (interactive shells only)  
+- `TMUX_AUTO_ATTACH=true/false` - Auto-attach to existing tmux sessions (disabled by default)
 - `TMUX_SHOW_HELP=true/false` - Show tmux help before starting session
 
 ### Key Implementation Details
