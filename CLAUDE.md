@@ -130,3 +130,4 @@ All features can be enabled/disabled via environment variables in `config/.envi_
 - **Variable loading order**: User config loaded FIRST in enviinit so variables are available to all subsequent logic
 - **No exec commands**: Tmux commands don't use `exec` to allow shell initialization to complete
 - **Boolean variables**: All boolean checks use string comparison `[ "$VAR" = "true" ]` for consistency and robustness
+- **Automatic tool loading**: NVM is automatically loaded if `~/.nvm/nvm.sh` exists (no configuration required)

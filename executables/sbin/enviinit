@@ -26,6 +26,11 @@ if [ "$ENVI_256_COLORS" = "true" ]; then 256colors true; else 256colors false; f
 
 if [ "$ENVI_UTF_8" = "true" ]; then export LC_ALL="en_US.UTF-8"; fi
 
+# Load NVM if available
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
 # Eventually add new theme to .oh_my_zsh/themes
 if [ -e "$ZSH" ] && [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ] && [ -e "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" ]; then
     ln -s "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" "$ZSH/themes/"
