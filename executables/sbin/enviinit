@@ -66,17 +66,17 @@ alias short="vim ~/.envi/config/.envi_shortcuts"
 
 
 # Load default environment variables and feature controls
-if [ "$ENVI_ENV" = "true" ] && [ -f "$ENVI_HOME/defaults/default_env_user.sh" ]; then 
+if [ -f "$ENVI_HOME/defaults/default_env_user.sh" ]; then 
     source $ENVI_HOME/defaults/default_env_user.sh; 
 fi
 
 # Load default path locations
-if [ "$ENVI_LOCATIONS" = "true" ] && [ -f "$ENVI_HOME/defaults/default_locations.sh" ]; then 
+if [ -f "$ENVI_HOME/defaults/default_locations.sh" ]; then 
     source $ENVI_HOME/defaults/default_locations.sh; 
 fi
 
 # Load default shortcuts and aliases
-if [ "$ENVI_SHORTCUTS" = "true" ] && [ -f "$ENVI_HOME/defaults/default_shortcuts.sh" ]; then 
+if [ -f "$ENVI_HOME/defaults/default_shortcuts.sh" ]; then 
     source $ENVI_HOME/defaults/default_shortcuts.sh; 
 fi
 
@@ -86,17 +86,17 @@ fi
 # Load user configs second so they can override defaults
 
 # Load user environment variables and feature controls (overrides defaults)
-if [ "$ENVI_ENV" = "true" ] && [ -f "$ENVI_HOME/config/.envi_env" ]; then 
+if [ -f "$ENVI_HOME/config/.envi_env" ]; then 
     source $ENVI_HOME/config/.envi_env; 
 fi
 
 # Load user-defined path locations (overrides defaults)  
-if [ "$ENVI_LOCATIONS" = "true" ] && [ -f "$ENVI_HOME/config/.envi_locations" ]; then 
+if [ -f "$ENVI_HOME/config/.envi_locations" ]; then 
     source $ENVI_HOME/config/.envi_locations; 
 fi
 
 # Load user-defined shortcuts and aliases (overrides defaults)
-if [ "$ENVI_SHORTCUTS" = "true" ] && [ -f "$ENVI_HOME/config/.envi_shortcuts" ]; then 
+if [ -f "$ENVI_HOME/config/.envi_shortcuts" ]; then 
     source $ENVI_HOME/config/.envi_shortcuts; 
 fi
 
