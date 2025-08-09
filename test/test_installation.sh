@@ -50,21 +50,24 @@ echo "Testing envi installation..."
 docker exec "$CONTAINER_NAME" bash -c '
     echo "=== Testing envi components ==="
     
-    # Test 1: Check if .envi_rc exists and is sourced
+    # Initialize failure tracking
+    FAILED_TESTS=0
+    
+    # Test 1: Check if .envi_rc exists
     if [ -f ~/.envi_rc ]; then
         echo "✓ .envi_rc file exists"
     else
         echo "✗ .envi_rc file missing"
-        exit 1
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
     # Test 2: Source envi and check ENVI_HOME
-    source ~/.envi_rc
+    source ~/.envi_rc 2>/dev/null || true
     if [ -n "$ENVI_HOME" ]; then
         echo "✓ ENVI_HOME is set: $ENVI_HOME"
     else
         echo "✗ ENVI_HOME not set"
-        exit 1
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
     # Test 3: Check if envi directory exists
@@ -72,7 +75,7 @@ docker exec "$CONTAINER_NAME" bash -c '
         echo "✓ envi directory exists"
     else
         echo "✗ envi directory missing"
-        exit 1
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
     # Test 4: Check if enviinit script exists
@@ -80,7 +83,7 @@ docker exec "$CONTAINER_NAME" bash -c '
         echo "✓ enviinit script exists"
     else
         echo "✗ enviinit script missing"
-        exit 1
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
     # Test 5: Check if config files were created
@@ -89,17 +92,17 @@ docker exec "$CONTAINER_NAME" bash -c '
             echo "✓ $config exists"
         else
             echo "✗ $config missing"
-            exit 1
+            FAILED_TESTS=$((FAILED_TESTS + 1))
         fi
     done
     
     # Test 6: Test envi alias is available
-    source ~/.envi_rc
+    source ~/.envi_rc 2>/dev/null || true
     if alias envi >/dev/null 2>&1; then
         echo "✓ envi alias available"
     else
         echo "✗ envi alias not available"
-        exit 1
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
     # Test 7: Test submodules exist
@@ -107,7 +110,7 @@ docker exec "$CONTAINER_NAME" bash -c '
         echo "✓ dotfiles submodule exists"
     else
         echo "✗ dotfiles submodule missing"
-        exit 1
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
     # Test 8: Test tmux configuration exists
@@ -115,7 +118,7 @@ docker exec "$CONTAINER_NAME" bash -c '
         echo "✓ tmux configuration exists"
     else
         echo "✗ tmux configuration missing"
-        exit 1
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
     # Test 9: Test tmux configuration is valid
@@ -123,10 +126,54 @@ docker exec "$CONTAINER_NAME" bash -c '
         echo "✓ tmux configuration is valid"
     else
         echo "✗ tmux configuration is invalid"
-        exit 1
+        FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
-    echo "=== All tests passed! ==="
+    # Test 10: Test Homebrew packages are installed
+    echo "=== Testing Homebrew packages ==="
+    source ~/.envi_rc 2>/dev/null || true
+    
+    # Test packages with their actual command names
+    declare -A PACKAGES=(
+        ["jq"]="jq"
+        ["yq"]="yq" 
+        ["vim"]="vim"
+        ["neovim"]="nvim"
+        ["sl"]="sl"
+        ["htop"]="htop"
+        ["bat"]="bat"
+        ["fzf"]="fzf"
+        ["eza"]="eza"
+        ["tmux"]="tmux"
+    )
+    
+    for pkg_name in "${!PACKAGES[@]}"; do
+        cmd_name="${PACKAGES[$pkg_name]}"
+        if command -v "$cmd_name" >/dev/null 2>&1; then
+            echo "✓ $pkg_name is available (as $cmd_name)"
+        else
+            echo "✗ $pkg_name is not available (expected command: $cmd_name)"
+            FAILED_TESTS=$((FAILED_TESTS + 1))
+        fi
+    done
+    
+    # Test 11: Test brew command is available
+    if command -v brew >/dev/null 2>&1; then
+        echo "✓ brew command is available"
+    else
+        echo "✗ brew command is not available"
+        FAILED_TESTS=$((FAILED_TESTS + 1))
+    fi
+    
+    # Final result
+    echo "=== Test Summary ==="
+    if [ $FAILED_TESTS -eq 0 ]; then
+        echo "✅ All tests passed!"
+        exit 0
+    else
+        echo "❌ $FAILED_TESTS test(s) failed!"
+        exit 1
+    fi
 '
 
 TEST_RESULT=$?
