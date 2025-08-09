@@ -7,7 +7,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE_NAME="envi-test"
-CONTAINER_NAME="envi-test-container"
+CONTAINER_NAME="envi-test-container-$(date +%s)"
 
 echo "=== ENVI INSTALLATION TEST ==="
 
@@ -27,19 +27,22 @@ docker run --name "$CONTAINER_NAME" -d "$IMAGE_NAME" sleep 3600
 # Execute installation inside container
 echo "Installing envi in container..."
 docker exec "$CONTAINER_NAME" bash -c '
-    echo "=== Installing envi ==="
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/main/setup/install.sh)" << EOF
-n
-n
-n
-n
-n
-y
-y
-n
-n
-n
-EOF
+echo "=== Installing envi ==="
+{
+  echo n   # configure timezone
+  echo n   # update package manager
+  echo n   # install dependencies
+  echo y   # install OS packages via Homebrew (includes tmux)
+  echo n   # install Python packages
+  echo y   # install oh-my-zsh
+  echo y   # replace zshrc
+  echo n   # replace bashrc
+  echo n   # replace vim
+  echo n   # replace gitconfig
+  echo y   # replace tmux
+  echo ""  # empty password for chsh
+  echo ""  # second empty password attempt if needed
+} | sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/main/setup/install.sh)"
 '
 
 # Test installation
@@ -90,11 +93,12 @@ docker exec "$CONTAINER_NAME" bash -c '
         fi
     done
     
-    # Test 6: Test basic envi command
-    if command -v envi >/dev/null 2>&1; then
-        echo "✓ envi command available"
+    # Test 6: Test envi alias is available
+    source ~/.envi_rc
+    if alias envi >/dev/null 2>&1; then
+        echo "✓ envi alias available"
     else
-        echo "✗ envi command not available"
+        echo "✗ envi alias not available"
         exit 1
     fi
     
@@ -103,6 +107,22 @@ docker exec "$CONTAINER_NAME" bash -c '
         echo "✓ dotfiles submodule exists"
     else
         echo "✗ dotfiles submodule missing"
+        exit 1
+    fi
+    
+    # Test 8: Test tmux configuration exists
+    if [ -f ~/.tmux.conf ]; then
+        echo "✓ tmux configuration exists"
+    else
+        echo "✗ tmux configuration missing"
+        exit 1
+    fi
+    
+    # Test 9: Test tmux configuration is valid
+    if tmux source-file ~/.tmux.conf 2>/dev/null; then
+        echo "✓ tmux configuration is valid"
+    else
+        echo "✗ tmux configuration is invalid"
         exit 1
     fi
     

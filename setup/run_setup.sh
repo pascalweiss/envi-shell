@@ -39,7 +39,7 @@ if ! contains "--install-dependencies=no" "${ARGS[@]}"; then
     INSTALL_DEPENDENCIES=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
 fi
 
-read -ep "Do you want to install OS packages (config/packages_os.txt)? Type (Y/n): " ANSWER
+read -ep "Do you want to install OS packages via Homebrew? Type (Y/n): " ANSWER
 INSTALL_OS_PACKAGES=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
 
 read -ep "Do you want to install Python packages (config/packages_python.txt)? Type (Y/n): " ANSWER
