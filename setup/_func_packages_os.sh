@@ -104,19 +104,18 @@ function brew_install () {
     # Install Homebrew (same script works for macOS and Linux)
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     
-    echo -e "${BLUE}Activating Homebrew for current shell...${NC}"
     # Activate Homebrew for current session only (enviinit handles permanent config)
     if [ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        echo -e "${GREEN}Homebrew activated from /home/linuxbrew/.linuxbrew/bin/brew${NC}"
+        echo -e "${GREEN}Homebrew activated${NC}"
     elif [ -x "/opt/homebrew/bin/brew" ]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
-        echo -e "${GREEN}Homebrew activated from /opt/homebrew/bin/brew${NC}"
+        echo -e "${GREEN}Homebrew activated${NC}"
     elif [ -x "/usr/local/bin/brew" ]; then
         eval "$(/usr/local/bin/brew shellenv)"
-        echo -e "${GREEN}Homebrew activated from /usr/local/bin/brew${NC}"
+        echo -e "${GREEN}Homebrew activated${NC}"
     else
-        echo -e "${RED}Warning: Homebrew installation may have failed - no brew binary found${NC}"
+        echo -e "${RED}Warning: Homebrew installation may have failed${NC}"
     fi
 }
 
