@@ -22,7 +22,7 @@ docker build -t "$IMAGE_NAME" "$SCRIPT_DIR"
 
 # Run installation test
 echo "Starting Docker container and testing installation..."
-docker run --name "$CONTAINER_NAME" -d "$IMAGE_NAME" sleep 3600
+docker run --name "$CONTAINER_NAME" -d "$IMAGE_NAME" sleep 7200
 
 # Execute installation inside container
 echo "Installing envi in container..."
@@ -30,7 +30,7 @@ docker exec "$CONTAINER_NAME" bash -c '
 echo "=== Installing envi ==="
 {
   echo n   # configure timezone
-  echo n   # update package manager
+  echo y   # update package manager (installs Homebrew)
   echo n   # install dependencies
   echo y   # install OS packages via Homebrew (includes tmux)
   echo n   # install Python packages

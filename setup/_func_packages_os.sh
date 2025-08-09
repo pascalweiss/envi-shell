@@ -88,29 +88,35 @@ function install_oh_my_zsh () {
 # --- private ---
 
 function brew_install () {
-    # Install system prerequisites for Linux
+    # Install system prerequisites for Linux  
     if is_linux; then
         echo -e "${BLUE}Installing Homebrew prerequisites on Linux...${NC}"
         if has_sudo; then
             sudo apt update
-            sudo apt install -y build-essential curl git procfs
+            sudo apt install -y build-essential curl git
         else
             apt update
-            apt install -y build-essential curl git procfs
+            apt install -y build-essential curl git  
         fi
     fi
     
     echo -e "${BLUE}Installing Homebrew...${NC}"
     # Install Homebrew (same script works for macOS and Linux)
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     
+    echo -e "${BLUE}Activating Homebrew for current shell...${NC}"
     # Activate Homebrew for current session only (enviinit handles permanent config)
     if [ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        echo -e "${GREEN}Homebrew activated from /home/linuxbrew/.linuxbrew/bin/brew${NC}"
     elif [ -x "/opt/homebrew/bin/brew" ]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
+        echo -e "${GREEN}Homebrew activated from /opt/homebrew/bin/brew${NC}"
     elif [ -x "/usr/local/bin/brew" ]; then
         eval "$(/usr/local/bin/brew shellenv)"
+        echo -e "${GREEN}Homebrew activated from /usr/local/bin/brew${NC}"
+    else
+        echo -e "${RED}Warning: Homebrew installation may have failed - no brew binary found${NC}"
     fi
 }
 
