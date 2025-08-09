@@ -194,8 +194,13 @@ if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
     fi
     
     # Load Flux CLI completion after Oh-My-Zsh (requires completion system)
-    if command -v flux >/dev/null 2>&1; then
+    if command -v flux >/dev/null 2>&1 && typeset -f compdef >/dev/null 2>&1; then
         . <(flux completion zsh)
+    fi
+    
+    # Load Angular CLI completion after Oh-My-Zsh (requires completion system)
+    if command -v ng >/dev/null 2>&1 && typeset -f compdef >/dev/null 2>&1; then
+        . <(ng completion script)
     fi
 fi
 

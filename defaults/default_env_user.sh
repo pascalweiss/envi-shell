@@ -33,13 +33,9 @@ export ZSH_THEME="robbyrussell"  # Default Oh-My-Zsh theme
 # PATH Extensions
 
 export PATH="$HOME/.local/bin:\
-/usr/local/mysql/bin:\
 /opt/local/bin:\
 /opt/local/sbin:\
-/usr/local/Cellar/pyenv-virtualenv/1.1.1/shims:\
 $HOME/.pyenv/shims:\
-/Library/TeX/texbin:\
-/usr/local/MacGPG2/bin:\
 /usr/games:\
 $HOME/.vimpkg/bin:\
 $PATH"
