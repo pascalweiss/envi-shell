@@ -2,7 +2,6 @@
 
 source "$DIR"/setup/_func_console_output.sh
 
-INSTALLED_PACKAGES=""
 SYSTEM_NAME=$(uname)
 
 
@@ -37,6 +36,7 @@ configure_timezone() {
 }
 
 function update_package_manager () {
+    # Install/update apt only on Linux (for system prerequisites)
     if is_linux; then
       if has_sudo; then
         echo -e "${BLUE}Update apt.${NC}"
@@ -45,14 +45,12 @@ function update_package_manager () {
         echo -e "${BLUE}Update apt.${NC}"
         apt update
       fi
-      if [ ! `command -v brew` ]; then brew_install; fi
-      echo -e "${BLUE}Update brew.${NC}"
-      brew update
-    elif is_darwin; then
-        if [ ! `command -v brew` ]; then brew_install; fi
-        echo -e "${BLUE}Update brew.${NC}"
-        brew update
     fi
+    
+    # Install/update Homebrew (unified for all platforms)
+    if ! command -v brew >/dev/null 2>&1; then brew_install; fi
+    echo -e "${BLUE}Update brew.${NC}"
+    brew update
 }
 
 function install_dependencies () {
@@ -88,14 +86,12 @@ function install_oh_my_zsh () {
 # --- private ---
 
 function brew_install () {
-    # Install system prerequisites for Linux  
+    # Install system prerequisites for Linux (skip apt update - already done by caller)
     if is_linux; then
         echo -e "${BLUE}Installing Homebrew prerequisites on Linux...${NC}"
         if has_sudo; then
-            sudo apt update
             sudo apt install -y build-essential curl git
         else
-            apt update
             apt install -y build-essential curl git  
         fi
     fi
@@ -105,45 +101,31 @@ function brew_install () {
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     
     # Activate Homebrew for current session only (enviinit handles permanent config)
-    if [ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        echo -e "${GREEN}Homebrew activated${NC}"
-    elif [ -x "/opt/homebrew/bin/brew" ]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-        echo -e "${GREEN}Homebrew activated${NC}"
-    elif [ -x "/usr/local/bin/brew" ]; then
-        eval "$(/usr/local/bin/brew shellenv)"
-        echo -e "${GREEN}Homebrew activated${NC}"
-    else
-        echo -e "${RED}Warning: Homebrew installation may have failed${NC}"
-    fi
+    for brew_path in "/home/linuxbrew/.linuxbrew/bin/brew" "/opt/homebrew/bin/brew" "/usr/local/bin/brew"; do
+        if [ -x "$brew_path" ]; then
+            eval "$($brew_path shellenv)"
+            echo -e "${GREEN}Homebrew activated${NC}"
+            return
+        fi
+    done
+    echo -e "${RED}Warning: Homebrew installation may have failed${NC}"
 }
 
 function check_installation () {
-    P=${1}
-    if [ "$INSTALLED_PACKAGES" = "" ]; then
-        if is_linux || is_darwin; then
-            INSTALLED_PACKAGES=$(brew list);
-        fi
-    fi
-    if [ `command -v $P` ]; then return 1; 
+    # Check if package is already installed via command availability
+    if command -v "${1}" >/dev/null 2>&1; then
+        return 1  # Already installed
     else
-        installed=$(echo "${INSTALLED_PACKAGES[@]}" | grep -c '^$P$')
-        return "$installed";
+        return 0  # Not installed
     fi
 }
 
 function exec_install () {
-    local ERROR
     check_installation "${1}"
-    INSTALLED=$?
-    if [ $INSTALLED = 0 ]; then
-        if is_linux || is_darwin; then
-            echo -e "${BLUE}Install ${1}.${NC}"
-            HOMEBREW_NO_AUTO_UPDATE=1 brew install "${1}"
-            ERROR=$?
-        fi
-        install_error_print "${1}" "$ERROR"
+    if [ $? = 0 ]; then
+        echo -e "${BLUE}Install ${1}.${NC}"
+        HOMEBREW_NO_AUTO_UPDATE=1 brew install "${1}"
+        install_error_print "${1}" "$?"
     else 
         echo -e "${GREEN}Already installed: ${1}${NC}"
     fi

@@ -16,7 +16,7 @@ export ENVI_UTF_8=true
 export SSH_AGENT_ENABLED=true
 
 # Powerlevel10k theme with instant prompt (zsh only)
-export POWERLEVEL10K_ENABLED=true
+export POWERLEVEL10K_ENABLED=false
 
 # Tmux session management
 export TMUX_ENABLED=false
@@ -28,7 +28,7 @@ export OHMYZSH_ENABLED=true
 export OHMYZSH_THEME_LINKING=true
 export OHMYZSH_PLUGINS="git kubectl zsh-autosuggestions"
 export OHMYZSH_GIT_PROMPT_CACHE=true
-export ZSH_THEME="robbyrussell"  # Default Oh-My-Zsh theme
+export ZSH_THEME="envi-theme"  # Default envi cyberpunk theme
 
 # PATH Extensions
 
