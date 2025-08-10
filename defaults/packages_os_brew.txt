@@ -10,6 +10,3 @@ fzf
 eza
 tmux
 xclip
-font-fira-code-nerd-font
-font-jetbrains-mono-nerd-font
-font-hack-nerd-font
