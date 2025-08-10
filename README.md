@@ -1,5 +1,5 @@
 # Envi Shell
-A clean shell environment that can be deployed with a single command. This project provides a comprehensive development environment with integrated submodules and automation scripts.
+A clean shell environment that can be deployed with a single command. This project provides a comprehensive development environment with integrated submodules and automation scripts. Test change.
 
 ### Warning
 The installation will require root rights. If you don't trust this system don't use it. 
