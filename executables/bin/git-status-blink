@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+# Check if we're in a git repository and have changes
+if ! git status --porcelain 2>/dev/null | grep -q .; then
+    exit 0
+fi
+
+# Get current second to create blinking effect
+SECOND=$(date +%S)
+if [ $((SECOND % 2)) -eq 0 ]; then
+    echo "*"
+else
+    echo " "
+fi
