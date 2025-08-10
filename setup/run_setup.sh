@@ -74,6 +74,7 @@ mkdir -p "$DIR/config"
 cp "$DIR/defaults/default_env_user.sh" "$DIR/config/.envi_env"
 cp "$DIR/defaults/default_locations.sh" "$DIR/config/.envi_locations"  
 cp "$DIR/defaults/default_shortcuts.sh" "$DIR/config/.envi_shortcuts"
+cp "$DIR/defaults/default_app_integrations.sh" "$DIR/config/.envi_app_integrations"
 
 # Create minimal .envi_rc bootstrap file
 cat > "$DIR/config/.envi_rc" << 'EOF'
@@ -132,6 +133,7 @@ add_symlink "$DIR/config/.envi_env" "$HOME/.envi_env"
 add_symlink "$DIR/config/.envi_locations" "$HOME/.envi_locations"
 add_symlink "$DIR/config/.envi_rc" "$HOME/.envi_rc"
 add_symlink "$DIR/config/.envi_shortcuts" "$HOME/.envi_shortcuts"
+add_symlink "$DIR/config/.envi_app_integrations" "$HOME/.envi_app_integrations"
 
 BIN_DIRS=("bin" "sbin" "lib" "macbin" "linuxbin")
 for BIN in "${BIN_DIRS[@]}"; do

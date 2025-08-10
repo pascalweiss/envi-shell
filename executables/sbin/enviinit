@@ -58,6 +58,7 @@ alias envi="cd \$ENVI_HOME"
 alias loc="vim ~/.envi/config/.envi_locations"
 alias environ="vim ~/.envi/config/.envi_env"
 alias short="vim ~/.envi/config/.envi_shortcuts"
+alias apps="vim ~/.envi/config/.envi_app_integrations"
 
 # ============================================================================
 # DEFAULT CONFIGURATION LOADING
@@ -111,35 +112,32 @@ if [ "$ENVI_256_COLORS" = "true" ]; then 256colors true; else 256colors false; f
 if [ "$ENVI_UTF_8" = "true" ]; then export LC_ALL="en_US.UTF-8"; fi
 
 # ============================================================================
-# TOOL INTEGRATIONS
+# APPLICATION INTEGRATIONS
 # ============================================================================
 
-# Load Homebrew environment if available - automatic detection
-if [ -x "/home/linuxbrew/.linuxbrew/bin/brew" ]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-elif [ -x "/opt/homebrew/bin/brew" ]; then
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-elif [ -x "/usr/local/bin/brew" ]; then
-    eval "$(/usr/local/bin/brew shellenv)"
+# Load default app integrations (provides baseline tool configurations)
+if [ -f "$ENVI_HOME/defaults/default_app_integrations.sh" ]; then
+    source "$ENVI_HOME/defaults/default_app_integrations.sh"
 fi
 
-# Load NVM (Node Version Manager) if available - automatic detection
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+# Load user app integrations (overrides defaults)
+if [ -f "$ENVI_HOME/config/.envi_app_integrations" ]; then
+    source "$ENVI_HOME/config/.envi_app_integrations"
+fi
+
+# Initialize core app integrations (Homebrew, NVM)
+if type init_app_integrations >/dev/null 2>&1; then
+    init_app_integrations
+fi
 
 
 # ============================================================================
 # SHELL-SPECIFIC SETUP
 # ============================================================================
 
-# Powerlevel10k instant prompt (must run before Oh-My-Zsh, zsh only)
-if [ "$POWERLEVEL10K_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
-    # Enable Powerlevel10k instant prompt - should stay close to the top of shell initialization
-    # Initialization code that may require console input must go above this block
-    if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-        source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-    fi
+# Initialize Powerlevel10k instant prompt (must run before Oh-My-Zsh)
+if type configure_powerlevel10k_instant_prompt >/dev/null 2>&1; then
+    configure_powerlevel10k_instant_prompt
 fi
 
 # Oh-My-Zsh framework loading and configuration (zsh only)
@@ -175,32 +173,9 @@ if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
         source "$ZSH/oh-my-zsh.sh"
     fi
     
-    # Load Powerlevel10k theme after Oh-My-Zsh (if enabled)
-    if [ "$POWERLEVEL10K_ENABLED" = "true" ]; then
-        # Check for different Powerlevel10k installation paths across operating systems
-        if [[ -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
-            # macOS with Apple Silicon (M1/M2) Homebrew
-            source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
-        elif [[ -f /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
-            # macOS with Intel Homebrew
-            source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
-        elif [[ -f /home/linuxbrew/.linuxbrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
-            # Linux with Linuxbrew
-            source /home/linuxbrew/.linuxbrew/share/powerlevel10k/powerlevel10k.zsh-theme
-        elif [[ -f ${ZSH_CUSTOM:-$ZSH/custom}/themes/powerlevel10k/powerlevel10k.zsh-theme ]]; then
-            # Oh My Zsh custom theme installation
-            source ${ZSH_CUSTOM:-$ZSH/custom}/themes/powerlevel10k/powerlevel10k.zsh-theme
-        fi
-    fi
-    
-    # Load Flux CLI completion after Oh-My-Zsh (requires completion system)
-    if command -v flux >/dev/null 2>&1 && typeset -f compdef >/dev/null 2>&1; then
-        . <(flux completion zsh)
-    fi
-    
-    # Load Angular CLI completion after Oh-My-Zsh (requires completion system)
-    if command -v ng >/dev/null 2>&1 && typeset -f compdef >/dev/null 2>&1; then
-        . <(ng completion script)
+    # Initialize shell-specific app integrations (Powerlevel10k, CLI completions)
+    if type init_shell_app_integrations >/dev/null 2>&1; then
+        init_shell_app_integrations
     fi
 fi
 
