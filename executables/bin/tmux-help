@@ -23,7 +23,7 @@ fi
 
 if [ "$LAYOUT" = "1" ]; then
     # Single column layout
-    echo "📋 TMUX COMMANDS"
+    echo "TMUX COMMANDS"
     echo ""
     echo "Essential Commands:"
     echo "  - Ctrl+b d  - Detach from session"
@@ -51,7 +51,7 @@ if [ "$LAYOUT" = "1" ]; then
 elif [ "$LAYOUT" = "2" ]; then
     # Bordered layout (original)
     echo "┌───────────────────────────────────────────────────────────────────────────────────┐"
-    echo "│                                  📋 TMUX COMMANDS                                 │"
+    echo "│                                   TMUX COMMANDS                                   │"
     echo "├───────────────────────────────────────────────────────────────────────────────────┤"
     echo "│ Essential Commands:                 │ Pane Management:                            │"
     echo "│   Ctrl+b d  - Detach from session   │   Ctrl+b %    - Split vertically            │"
