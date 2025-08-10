@@ -25,7 +25,7 @@ export OHMYZSH_ENABLED=true
 export OHMYZSH_THEME_LINKING=true
 export OHMYZSH_PLUGINS="git kubectl zsh-autosuggestions"
 export OHMYZSH_GIT_PROMPT_CACHE=true
-export ZSH_THEME="envi-theme"  # Default envi cyberpunk theme
+export ZSH_THEME="envi-minimal"  # Minimal theme for tmux integration
 
 # PATH Extensions
 
