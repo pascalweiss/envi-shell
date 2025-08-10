@@ -31,36 +31,6 @@ configure_nvm() {
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 }
 
-# Powerlevel10k Instant Prompt (must run before Oh-My-Zsh)
-configure_powerlevel10k_instant_prompt() {
-    if [ "$POWERLEVEL10K_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
-        # Enable Powerlevel10k instant prompt - should stay close to the top of shell initialization
-        # Initialization code that may require console input must go above this block
-        if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-            source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-        fi
-    fi
-}
-
-# Powerlevel10k Theme Loading (must run after Oh-My-Zsh)
-configure_powerlevel10k_theme() {
-    if [ "$POWERLEVEL10K_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
-        # Load Powerlevel10k theme after Oh-My-Zsh
-        if [[ -f /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
-            # macOS with Apple Silicon (M1/M2) Homebrew
-            source /opt/homebrew/share/powerlevel10k/powerlevel10k.zsh-theme
-        elif [[ -f /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
-            # macOS with Intel Homebrew
-            source /usr/local/share/powerlevel10k/powerlevel10k.zsh-theme
-        elif [[ -f /home/linuxbrew/.linuxbrew/share/powerlevel10k/powerlevel10k.zsh-theme ]]; then
-            # Linux with Linuxbrew
-            source /home/linuxbrew/.linuxbrew/share/powerlevel10k/powerlevel10k.zsh-theme
-        elif [[ -f ${ZSH_CUSTOM:-$ZSH/custom}/themes/powerlevel10k/powerlevel10k.zsh-theme ]]; then
-            # Oh My Zsh custom theme installation
-            source ${ZSH_CUSTOM:-$ZSH/custom}/themes/powerlevel10k/powerlevel10k.zsh-theme
-        fi
-    fi
-}
 
 # CLI Completion Integrations
 configure_cli_completions() {
@@ -90,7 +60,6 @@ init_app_integrations() {
 # Initialize shell-specific app integrations (called from enviinit after Oh-My-Zsh)
 init_shell_app_integrations() {
     if [ -n "$ZSH" ]; then
-        configure_powerlevel10k_theme
         configure_cli_completions
     fi
 }

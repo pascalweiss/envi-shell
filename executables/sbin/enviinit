@@ -135,10 +135,6 @@ fi
 # SHELL-SPECIFIC SETUP
 # ============================================================================
 
-# Initialize Powerlevel10k instant prompt (must run before Oh-My-Zsh)
-if type configure_powerlevel10k_instant_prompt >/dev/null 2>&1; then
-    configure_powerlevel10k_instant_prompt
-fi
 
 # Oh-My-Zsh framework loading and configuration (zsh only)
 if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then

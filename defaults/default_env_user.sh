@@ -15,9 +15,6 @@ export ENVI_UTF_8=true
 # SSH agent auto-start for interactive shells
 export SSH_AGENT_ENABLED=true
 
-# Powerlevel10k theme with instant prompt (zsh only)
-export POWERLEVEL10K_ENABLED=false
-
 # Tmux session management
 export TMUX_ENABLED=false
 export TMUX_AUTO_ATTACH=false
