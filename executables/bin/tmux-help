@@ -5,7 +5,15 @@ LAYOUT="${1:-auto}"
 
 # Auto-detect layout based on terminal width if no parameter given
 if [ "$LAYOUT" = "auto" ]; then
-    TERMINAL_WIDTH=$(tput cols 2>/dev/null || echo 80)
+    # Try multiple methods to get terminal width
+    if [ -n "$TMUX" ]; then
+        # Inside tmux, get the actual pane width
+        TERMINAL_WIDTH=$(tmux display-message -p "#{pane_width}" 2>/dev/null || echo 80)
+    else
+        # Outside tmux, use standard methods
+        TERMINAL_WIDTH=$(tput cols 2>/dev/null || stty size 2>/dev/null | cut -d' ' -f2 || echo 80)
+    fi
+    
     if [ "$TERMINAL_WIDTH" -ge 86 ]; then
         LAYOUT="2"  # Use bordered layout
     else

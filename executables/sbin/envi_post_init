@@ -15,14 +15,14 @@ if [ "$TMUX_ENABLED" = "true" ] && [ -z "$TMUX" ] && [ -n "$PS1" ]; then
         if [ "$TMUX_AUTO_ATTACH" = "true" ] && tmux list-sessions &>/dev/null; then
             echo "Attaching to existing tmux session..."
             if [ "$TMUX_SHOW_HELP" = "true" ]; then
-                tmux attach-session \; send-keys 'tmux-help && echo' C-m
+                tmux attach-session \; send-keys 'tmux-help' C-m
             else
                 tmux attach-session
             fi
         else
             echo "Starting new tmux session..."
             if [ "$TMUX_SHOW_HELP" = "true" ]; then
-                tmux new-session \; send-keys 'tmux-help && echo' C-m
+                tmux new-session \; send-keys 'tmux-help' C-m
             else
                 tmux new-session
             fi
