@@ -16,9 +16,9 @@ UPDATE_PACKAGE_MANAGER=false
 INSTALL_DEPENDENCIES=false
 INSTALL_OS_PACKAGES=false
 INSTALL_PYTHON_PACKAGES=false
-INSTALL_OH_MY_ZSH=false
-REPLACE_BASHRC=false
-REPLACE_ZSHRC=false
+# Always install oh-my-zsh and replace zshrc - zsh is mandatory
+INSTALL_OH_MY_ZSH=true
+REPLACE_ZSHRC=true
 # REPLACE_VIM removed - using neovim with VIMINIT approach
 REPLACE_GITCONFIG=false
 REPLACE_TMUX=false
@@ -45,14 +45,7 @@ INSTALL_OS_PACKAGES=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true
 read -ep "Do you want to install Python packages (config/packages_python.txt)? Type (Y/n): " ANSWER
 INSTALL_PYTHON_PACKAGES=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
 
-read -ep "Do you want to install oh-my-zsh? Type (Y/n): " ANSWER
-INSTALL_OH_MY_ZSH=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
-
-read -ep "Do you want to replace your .bashrc? Type (Y/n): " ANSWER
-REPLACE_BASHRC=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
-
-read -ep "Do you want to replace your .zshrc? Type (Y/n): " ANSWER
-REPLACE_ZSHRC=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
+# Oh-my-zsh and zsh configuration always installed - zsh is mandatory
 
 # Vim configuration removed - using neovim with VIMINIT approach
 
@@ -79,7 +72,7 @@ cp "$DIR/defaults/default_app_integrations.sh" "$DIR/config/.envi_app_integratio
 cat > "$DIR/config/.envi_rc" << 'EOF'
 export ENVI_HOME=~/.envi
 
-# Do not delete the following command unless you don't want to use your .bashrc or .zshrc
+# Load envi environment initialization
 source $ENVI_HOME/executables/sbin/enviinit
 EOF
 
@@ -101,18 +94,10 @@ if $INSTALL_PYTHON_PACKAGES; then
     source "$SETUP_PY" && install_packages
 fi
 
-if $INSTALL_OH_MY_ZSH; then
-    source "$SETUP_OS" && install_oh_my_zsh
-    source "$SETUP_OH_MY_ZSH" && install_packages
-fi
-
-if $REPLACE_BASHRC; then
-    source "$SETUP_DOTFILES" && replace_bashrc
-fi
-
-if $REPLACE_ZSHRC; then
-    source "$SETUP_DOTFILES" && replace_zshrc
-fi
+# Always install oh-my-zsh and replace zshrc - zsh is mandatory
+source "$SETUP_OS" && install_oh_my_zsh
+source "$SETUP_OH_MY_ZSH" && install_packages
+source "$SETUP_DOTFILES" && replace_zshrc
 
 # Vim configuration removed - using neovim with VIMINIT approach
 
@@ -137,10 +122,6 @@ for BIN in "${BIN_DIRS[@]}"; do
     chmod u+x "$DIR/executables/$BIN/"*
 done
 
-if $INSTALL_OH_MY_ZSH; then
-    chsh --shell "$(command -v zsh)"
-    exec zsh
-else
-    chsh --shell "$(command -v bash)"
-    exec bash
-fi
+# Always switch to zsh - mandatory shell for envi-shell
+chsh --shell "$(command -v zsh)"
+exec zsh

@@ -7,7 +7,7 @@
 # It is sourced by ALL shell instances (interactive and non-interactive) via ~/.envi_rc
 # 
 # EXECUTION ORDER:
-# 1. Shell startup (.bashrc/.zshrc) 
+# 1. Shell startup (.zshrc) 
 # 2. source ~/.envi_rc
 # 3. → enviinit (THIS SCRIPT) - Universal environment setup
 # 4. Oh-My-Zsh framework loading (zsh only)

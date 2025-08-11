@@ -34,10 +34,8 @@ echo "=== Installing envi ==="
   echo n   # install dependencies
   echo y   # install OS packages via Homebrew (includes tmux)
   echo n   # install Python packages
-  echo y   # install oh-my-zsh
-  echo y   # replace zshrc
-  echo n   # replace bashrc
-  echo n   # replace vim
+  # oh-my-zsh and zshrc always installed - no prompts needed
+  # vim removed - using neovim approach
   echo n   # replace gitconfig
   echo y   # replace tmux
   echo ""  # empty password for chsh

@@ -24,6 +24,9 @@ Envi Shell is a cross-platform development environment setup system written in B
 ## Development Commands
 
 ### Installation
+
+**Requirements:** zsh is mandatory - envi-shell automatically installs Oh-My-Zsh and configures zsh as the default shell.
+
 ```bash
 # Remote installation
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/main/setup/install.sh)"
@@ -94,7 +97,7 @@ All automation scripts handle proper submodule → main project commit ordering 
 The envi system follows a specific execution order during shell startup to ensure proper loading of configurations and features:
 
 ```
-Shell startup (.bashrc/.zshrc)
+Shell startup (.zshrc)
   ↓
 source ~/.envi_rc  
   ↓

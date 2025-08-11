@@ -11,10 +11,7 @@ function backup_file () {
     if [[ -f "${1}" || -d "${1}" ]]; then mv $1 $2; fi
 }
 
-function replace_bashrc () {
-    backup_file "$HOME/.bashrc" $BACKUP_DIR
-    add_symlink "$DIR/submodules/dotfiles/.bashrc" "$HOME/.bashrc"
-}
+# Bashrc configuration removed - using zsh-only approach
 
 function replace_zshrc () {
     backup_file "$HOME/.zshrc" $BACKUP_DIR
