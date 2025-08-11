@@ -4,22 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Envi Shell is a cross-platform development environment setup system written in Bash. It provides automated shell environment configuration, custom commands, and git workflow automation for multi-repository projects with submodules.
+Envi Shell is a cross-platform development environment setup system written in Bash. It provides automated shell environment configuration, custom commands, and modular tool integrations.
 
 ## Architecture
 
 **Core Components:**
 - **Setup System** (`setup/`): Modular installation with interactive user configuration
 - **Runtime Environment** (`executables/sbin/enviinit`): Environment initialization loaded by shell
-- **Automation Scripts** (`run/`): Git workflow management for project + submodules
 - **Configuration Management**: User configs in `config/`, defaults in `defaults/`
-- **Submodules**: Separate repositories for dotfiles and fake-server
+- **Tool Integrations** (`tool-integrations/`): Modular configuration for development tools
 
 **Key Design Patterns:**
 - Modular setup functions (`setup/_func_*.sh`) for different installation components
 - Platform-specific executables organized by OS (`linuxbin/`, `macbin/`, universal `bin/`)
 - Template-based configuration system for user customization
-- Proper submodule commit ordering (submodules first, then main project)
+- Tool-specific initialization scripts in `tool-integrations/*/init.sh`
 
 ## Development Commands
 
@@ -35,37 +34,32 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/mai
 ./setup/install.sh
 ```
 
-### Git Workflow (DEFAULT GIT APPROACH - Use These Commands)
+### Git Workflow
 ```bash
-# Check all changes across project and submodules (REQUIRED - use instead of git status/diff)
-./run/git_diff_all.sh
+# Check changes before committing
+git diff && git status
 
-# Commit all changes with same message (REQUIRED - use instead of git commit)
-./run/git_commit_all.sh "commit message"
+# Commit changes with message
+git add . && git commit -m "Your commit message"
 
-# Push all repositories (REQUIRED - use instead of git push)
-./run/git_push_all.sh
-
-# Force pull all repositories (destructive - overwrites local changes)
-./run/git_force_pull_all.sh
+# Push to remote
+git push
 ```
 
-### Complete Workflow (ALWAYS USE THIS FOR GIT OPERATIONS)
+### Complete Workflow
 ```bash
-# Typical development cycle (REQUIRED workflow)
-./run/git_diff_all.sh && \
-./run/git_commit_all.sh "Your commit message" && \
-./run/git_push_all.sh
+# Typical development cycle
+git diff && git status && \
+git add . && git commit -m "Your commit message" && \
+git push
 ```
 
 ## Project Structure
 
 - **`setup/`**: Interactive installation system with modular functions
 - **`executables/`**: Custom commands organized by platform compatibility
-- **`run/`**: Git automation scripts for multi-repository management
 - **`defaults/`**: Default configurations and package lists
 - **`config/`**: User-specific configuration files
-- **`submodules/`**: Two git submodules (dotfiles, fake-server)
 
 ## Custom Commands Available After Installation
 
@@ -76,19 +70,11 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/mai
 
 ## Configuration Files
 
-- **`.gitmodules`**: Defines three submodules with main branch tracking
 - **`defaults/packages_os.txt`**: OS packages installed during setup
 - **`setup/templates/envi_rc`**: Main environment configuration template
 - **`config/.envi_shortcuts`**: User-defined aliases and functions
 - **`executables/sbin/enviinit`**: Runtime initialization sourced by shell
 
-## Submodule Management
-
-The project uses two submodules managed collectively:
-- **dotfiles**: Shell themes and configurations (config-files repository)
-- **fake-server**: Development HTTP server in Docker
-
-All automation scripts handle proper submodule → main project commit ordering to ensure submodule references stay synchronized.
 
 ## Shell Initialization Flow
 
