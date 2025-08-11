@@ -28,4 +28,5 @@ function replace_gitconfig () {
 function replace_tmux () {
     backup_file "$HOME/.tmux.conf" $BACKUP_DIR
     add_symlink "$DIR/tool-integrations/tmux/tmux.conf" "$HOME/.tmux.conf"
+    add_symlink "$DIR/tool-integrations/tmux/tmux-small.conf" "$HOME/.tmux-small.conf"
 }
