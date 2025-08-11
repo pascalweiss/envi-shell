@@ -31,6 +31,12 @@ configure_nvm() {
     [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 }
 
+# Neovim Configuration
+configure_neovim() {
+    # Use VIMINIT to load configs directly from envi project
+    export VIMINIT="lua dofile('$ENVI_HOME/defaults/default_nvim.lua') if vim.fn.filereadable('$ENVI_HOME/config/.envi_nvim') == 1 then dofile('$ENVI_HOME/config/.envi_nvim') end"
+}
+
 
 # CLI Completion Integrations
 configure_cli_completions() {
@@ -55,6 +61,7 @@ configure_cli_completions() {
 init_app_integrations() {
     configure_homebrew
     configure_nvm
+    configure_neovim
 }
 
 # Initialize shell-specific app integrations (called from enviinit after Oh-My-Zsh)
