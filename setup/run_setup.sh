@@ -66,7 +66,6 @@ mkdir -p "$DIR/config"
 cp "$DIR/defaults/default_env_user.sh" "$DIR/config/.envi_env"
 cp "$DIR/defaults/default_locations.sh" "$DIR/config/.envi_locations"  
 cp "$DIR/defaults/default_shortcuts.sh" "$DIR/config/.envi_shortcuts"
-cp "$DIR/defaults/default_app_integrations.sh" "$DIR/config/.envi_app_integrations"
 
 # Create minimal .envi_rc bootstrap file
 cat > "$DIR/config/.envi_rc" << 'EOF'

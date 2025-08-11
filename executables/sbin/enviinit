@@ -11,8 +11,7 @@
 # 2. source ~/.envi_rc
 # 3. → enviinit (THIS SCRIPT) - Universal environment setup
 # 4. Oh-My-Zsh framework loading (zsh only)
-# 5. Powerlevel10k theme loading (if enabled, zsh only)
-# 6. envi_post_init - Interactive session features only
+# 5. envi_post_init - Interactive session features only
 #
 # DESIGN PRINCIPLES:
 # - Only put universal environment setup here (PATH, variables, sourcing configs)
@@ -25,8 +24,7 @@
 # 2. Default configurations and common utilities
 # 3. User configuration loading (with feature controls)
 # 4. Environment settings (colors, locale)
-# 5. Tool integrations (NVM, etc.)
-# 6. Shell-specific setup (Oh-My-Zsh theme linking)
+# 5. Tool integrations (via tool-integrations/ structure)
 
 # ============================================================================
 # PLATFORM-SPECIFIC EXECUTABLE PATHS
@@ -49,7 +47,6 @@ export PATH=$PATH:$ENVI_HOME/executables/bin
 # DEFAULT CONFIGURATIONS AND COMMON UTILITIES
 # ============================================================================
 
-
 # Load common shell functions (contains, add_symlink, 256colors)
 source $ENVI_HOME/executables/bin/commons
 
@@ -58,28 +55,20 @@ alias envi="cd \$ENVI_HOME"
 alias loc="vim ~/.envi/config/.envi_locations"
 alias environ="vim ~/.envi/config/.envi_env"
 alias short="vim ~/.envi/config/.envi_shortcuts"
-alias apps="vim ~/.envi/config/.envi_app_integrations"
 
 # ============================================================================
 # DEFAULT CONFIGURATION LOADING
 # ============================================================================
 # Load system defaults first (provides baseline configuration)
 
-
 # Load default environment variables and feature controls
-if [ -f "$ENVI_HOME/defaults/default_env_user.sh" ]; then 
-    source $ENVI_HOME/defaults/default_env_user.sh; 
-fi
+source $ENVI_HOME/defaults/default_env_user.sh
 
 # Load default path locations
-if [ -f "$ENVI_HOME/defaults/default_locations.sh" ]; then 
-    source $ENVI_HOME/defaults/default_locations.sh; 
-fi
+source $ENVI_HOME/defaults/default_locations.sh
 
 # Load default shortcuts and aliases
-if [ -f "$ENVI_HOME/defaults/default_shortcuts.sh" ]; then 
-    source $ENVI_HOME/defaults/default_shortcuts.sh; 
-fi
+source $ENVI_HOME/defaults/default_shortcuts.sh
 
 # ============================================================================
 # USER CONFIGURATION LOADING (OVERRIDES DEFAULTS)
@@ -112,74 +101,33 @@ if [ "$ENVI_256_COLORS" = "true" ]; then 256colors true; else 256colors false; f
 if [ "$ENVI_UTF_8" = "true" ]; then export LC_ALL="en_US.UTF-8"; fi
 
 # ============================================================================
-# APPLICATION INTEGRATIONS
+# TOOL INTEGRATIONS
 # ============================================================================
 
-# Load default app integrations (provides baseline tool configurations)
-if [ -f "$ENVI_HOME/defaults/default_app_integrations.sh" ]; then
-    source "$ENVI_HOME/defaults/default_app_integrations.sh"
-fi
+# Load Homebrew initialization
+source "$ENVI_HOME/tool-integrations/homebrew/init.sh"
 
-# Load user app integrations (overrides defaults)
-if [ -f "$ENVI_HOME/config/.envi_app_integrations" ]; then
-    source "$ENVI_HOME/config/.envi_app_integrations"
-fi
+# Load Neovim initialization
+source "$ENVI_HOME/tool-integrations/neovim/init.sh"
 
-# Initialize core app integrations (Homebrew, NVM)
-if type init_app_integrations >/dev/null 2>&1; then
-    init_app_integrations
-fi
+# Load zsh/oh-my-zsh configuration and initialization
+source "$ENVI_HOME/tool-integrations/zsh/init.sh"
 
+# Load SSH initialization
+source "$ENVI_HOME/tool-integrations/ssh/init.sh"
 
-# ============================================================================
-# SHELL-SPECIFIC SETUP
-# ============================================================================
+# Load Node/NVM initialization
+source "$ENVI_HOME/tool-integrations/node/init.sh"
 
+# Load Flux initialization
+source "$ENVI_HOME/tool-integrations/flux/init.sh"
 
-# Oh-My-Zsh framework loading and configuration (zsh only)
-if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
-    # Configure plugins from OHMYZSH_PLUGINS variable BEFORE loading Oh-My-Zsh
-    if [ -n "$OHMYZSH_PLUGINS" ]; then
-        # Convert space-separated string to zsh array format
-        export plugins=(${=OHMYZSH_PLUGINS})
-    fi
-    
-    # Git prompt cache optimization
-    if [ "$OHMYZSH_GIT_PROMPT_CACHE" = "true" ]; then
-        export ZSH_THEME_GIT_PROMPT_CACHE=yes
-    fi
-    
-    # Theme linking - creates symlinks for custom themes BEFORE loading Oh-My-Zsh
-    if [ "$OHMYZSH_THEME_LINKING" = "true" ] && [ -n "$ZSH_THEME" ]; then
-        # Create symlink from envi dotfiles theme to Oh-My-Zsh themes directory
-        if [ -e "$ZSH" ] && [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ] && [ -e "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" ]; then
-            ln -s "$HOME/.envi/submodules/dotfiles/themes/$ZSH_THEME.zsh-theme" "$ZSH/themes/"
-        fi
-        # Fallback to default theme if custom theme is not available
-        if [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ]; then
-            export ZSH_THEME="robbyrussell"
-        fi
-    elif [ -z "$ZSH_THEME" ]; then
-        # Set default theme if not defined
-        export ZSH_THEME="robbyrussell"
-    fi
-    
-    # Load Oh-My-Zsh framework (replaces source $ZSH/oh-my-zsh.sh from .zshrc)
-    if [ -f "$ZSH/oh-my-zsh.sh" ]; then
-        source "$ZSH/oh-my-zsh.sh"
-    fi
-    
-    # Initialize shell-specific app integrations (Powerlevel10k, CLI completions)
-    if type init_shell_app_integrations >/dev/null 2>&1; then
-        init_shell_app_integrations
-    fi
-fi
+# Load Angular CLI initialization
+source "$ENVI_HOME/tool-integrations/angular/init.sh"
+
+# Load tmux initialization
+source "$ENVI_HOME/tool-integrations/tmux/init.sh"
 
 # ============================================================================
 # END OF ENVIINIT
 # ============================================================================
-# 
-# Next steps in shell initialization:
-# - Oh-My-Zsh framework loading (zsh only)
-# - Powerlevel10k theme loading (if POWERLEVEL10K_ENABLED=true, zsh only) 
-# - envi_post_init for interactive session features (tmux, ssh-agent)

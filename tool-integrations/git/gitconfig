@@ -1,0 +1,41 @@
+[include]
+  path = ~/.envi/config/.gitconfig_user_default
+
+[includeIf "gitdir:~/dev/"]
+	path = ~/.envi/config/.gitconfig_user_work
+
+[includeIf "gitdir:~/dev-personal/"]
+	path = ~/.envi/config/.gitconfig_user_personal
+
+[includeIf "gitdir:~/Library/Mobile\\ Documents/iCloud\\~md\\~obsidian/Documents/private/"]
+  path = ~/.envi/config/.gitconfig_user_personal
+
+[includeIf "gitdir:~/.envi/"]
+	path = ~/.envi/config/.gitconfig_user_personal
+
+
+# You can add more path-specific includes here
+# [includeIf "gitdir:/specific/path/"]
+#    path = ~/.envi/config/.gitconfig_specific
+
+
+# Common settings for all environments
+[core]
+    editor = vim
+    autocrlf = input
+
+[color]
+    ui = auto
+
+[filter "lfs"]
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
+
+[rerere]
+	enabled = true
+	autoupdate = true
+
+[alias]
+    whoami = "!echo 'Current Git identity: '$(git config user.name)' <'$(git config user.email)'>'"

@@ -1,0 +1,50 @@
+# Powerlevel10k instant prompt handled by envi (see POWERLEVEL10K_ENABLED in ~/.envi/config/.envi_env)
+
+
+
+
+
+# If you come from bash you might have to change your $PATH.
+# export PATH=$HOME/bin:/usr/local/bin:$PATH
+
+# Oh-My-Zsh installation path
+export ZSH=$HOME/.oh-my-zsh
+
+# Setup for my own shell stuff (includes Oh-My-Zsh loading via OHMYZSH_ENABLED)
+if [ -f "$HOME/.envi_rc" ]; then
+    source ~/.envi_rc
+fi
+
+# User configuration
+
+# You may need to manually set your language environment
+# export LANG=en_US.UTF-8
+
+# Preferred editor for local and remote sessions
+# if [[ -n $SSH_CONNECTION ]]; then
+#   export EDITOR='vim'
+# else
+#   export EDITOR='mvim'
+# fi
+
+# Compilation flags
+# export ARCHFLAGS="-arch x86_64"
+
+# Set personal aliases, overriding those provided by oh-my-zsh libs,
+# plugins, and themes. Aliases can be placed here, though oh-my-zsh
+# users are encouraged to define aliases within the ZSH_CUSTOM folder.
+# For a full list of active aliases, run `alias`.
+#
+# Example aliases
+# alias zshconfig="mate ~/.zshrc"
+# alias ohmyzsh="mate ~/.oh-my-zsh"
+
+# Oh-My-Zsh configuration handled by envi (plugins, git cache, Powerlevel10k, etc.)
+
+# Load p10k configuration
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+# Envi post-initialization (tmux auto-start, etc.)
+if [ -f "$ENVI_HOME/executables/sbin/envi_post_init" ]; then
+    source "$ENVI_HOME/executables/sbin/envi_post_init"
+fi

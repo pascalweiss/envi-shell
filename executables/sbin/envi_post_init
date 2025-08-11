@@ -8,24 +8,5 @@ if [ "$SSH_AGENT_ENABLED" = "true" ] && [ -z "$SSH_AUTH_SOCK" ] && [ -n "$PS1" ]
     eval "$(ssh-agent -s)" > /dev/null 2>&1
 fi
 
-# Tmux auto-start (only for interactive shells)
-if [ "$TMUX_ENABLED" = "true" ] && [ -z "$TMUX" ] && [ -n "$PS1" ]; then
-    if command -v tmux &> /dev/null; then
-        # Check if there are existing sessions and auto-attach is enabled
-        if [ "$TMUX_AUTO_ATTACH" = "true" ] && tmux list-sessions &>/dev/null; then
-            echo "Attaching to existing tmux session..."
-            if [ "$TMUX_SHOW_HELP" = "true" ]; then
-                tmux attach-session \; send-keys 'tmux-help' C-m
-            else
-                tmux attach-session
-            fi
-        else
-            echo "Starting new tmux session..."
-            if [ "$TMUX_SHOW_HELP" = "true" ]; then
-                tmux new-session \; send-keys 'tmux-help' C-m
-            else
-                tmux new-session
-            fi
-        fi
-    fi
-fi
+# Load tmux initialization
+source "$ENVI_HOME/tool-integrations/tmux/init.sh"
