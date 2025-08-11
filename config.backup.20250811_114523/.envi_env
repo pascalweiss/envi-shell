@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# Envi Feature Controls - Set to true/false to enable/disable features
+
+# Core environment features  
+export ENVI_256_COLORS=true
+export ENVI_DEBUG=false
+export ENVI_UTF_8=true
+
+export SSH_AGENT_ENABLED=true
+
+# Oh-My-Zsh configuration
+export OHMYZSH_ENABLED=true
+export OHMYZSH_THEME_LINKING=true
+export OHMYZSH_PLUGINS="git kubectl zsh-autosuggestions"
+export OHMYZSH_GIT_PROMPT_CACHE=false
+export TMUX_ENABLED=false
+export TMUX_SHOW_HELP=false
+export TMUX_AUTO_ATTACH=false
+
+export NVM_DIR="$HOME/.nvm"
+
+export XDG_CONFIG_HOME=$HOME/.config
+export "PATH=$HOME/.local/bin:\
+/opt/local/bin:\
+/opt/local/sbin:\
+/usr/local/Cellar/pyenv-virtualenv/1.1.1/shims:\
+$HOME/.pyenv/shims:\
+/Library/TeX/texbin:\
+/usr/local/MacGPG2/bin:\
+/usr/games: \
+$HOME/.vimpkg/bin:\
+$PATH"
+

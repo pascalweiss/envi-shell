@@ -21,13 +21,7 @@ function replace_zshrc () {
     add_symlink "$DIR/submodules/dotfiles/.zshrc" "$HOME/.zshrc"
 }
 
-function replace_vim () {
-    backup_file "$HOME/.vim" $BACKUP_DIR
-    add_symlink "$DIR/submodules/envi-vim/.vim" "$HOME/.vim"
-
-    backup_file "$HOME/.vimrc" $BACKUP_DIR
-    add_symlink "$DIR/submodules/envi-vim/.vimrc" "$HOME/.vimrc"
-}
+# Vim configuration removed - using neovim with VIMINIT approach
 
 function replace_gitconfig () {
     backup_file "$HOME/.gitconfig" $BACKUP_DIR

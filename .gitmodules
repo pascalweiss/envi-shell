@@ -2,7 +2,3 @@
 	path = submodules/dotfiles
 	url = https://github.com/pascalweiss/config-files.git
 	branch = main
-[submodule "submodules/envi-vim"]
-	path = submodules/envi-vim
-	url = https://github.com/pascalweiss/envi-vim.git
-	branch = main

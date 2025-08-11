@@ -13,7 +13,7 @@ Envi Shell is a cross-platform development environment setup system written in B
 - **Runtime Environment** (`executables/sbin/enviinit`): Environment initialization loaded by shell
 - **Automation Scripts** (`run/`): Git workflow management for project + submodules
 - **Configuration Management**: User configs in `config/`, defaults in `defaults/`
-- **Submodules**: Separate repositories for dotfiles, vim config, and fake-server
+- **Submodules**: Separate repositories for dotfiles and fake-server
 
 **Key Design Patterns:**
 - Modular setup functions (`setup/_func_*.sh`) for different installation components
@@ -62,7 +62,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/mai
 - **`run/`**: Git automation scripts for multi-repository management
 - **`defaults/`**: Default configurations and package lists
 - **`config/`**: User-specific configuration files
-- **`submodules/`**: Three git submodules (dotfiles, envi-vim, fake-server)
+- **`submodules/`**: Two git submodules (dotfiles, fake-server)
 
 ## Custom Commands Available After Installation
 
@@ -83,7 +83,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/mai
 
 The project uses two submodules managed collectively:
 - **dotfiles**: Shell themes and configurations (config-files repository)
-- **envi-vim**: Vim configuration and plugins
+- **fake-server**: Development HTTP server in Docker
 
 All automation scripts handle proper submodule → main project commit ordering to ensure submodule references stay synchronized.
 

@@ -1,0 +1,9 @@
+-- USER NEOVIM CONFIG
+-- Add your custom settings here
+
+-- Example: Change colorscheme
+-- pcall(vim.cmd.colorscheme, "habamax")
+
+-- Example: Custom settings
+-- vim.opt.wrap = true
+vim.opt.number = true

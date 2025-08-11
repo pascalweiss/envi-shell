@@ -120,10 +120,6 @@ This project uses submodules to organize related components:
   - Location: `submodules/dotfiles/`
   - Repository: https://github.com/pascalweiss/config-files
 
-- **envi-vim** - Vim configuration and plugins
-  - Location: `submodules/envi-vim/`
-  - Repository: https://github.com/pascalweiss/envi-vim/
-
 - **fake-server** - Development HTTP server for testing
   - Location: `submodules/fake-server/`
   - Repository: https://github.com/pascalweiss/fake-server/

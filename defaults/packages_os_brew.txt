@@ -1,7 +1,6 @@
 jq
 yq
 uname
-vim
 neovim
 sl
 htop

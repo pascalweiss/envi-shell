@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# USER APPLICATION INTEGRATIONS
+# ==============================
+# User-specific tool integrations and app configurations
+# This file overrides settings from defaults/default_app_integrations.sh
+# Add your custom app integrations and tool configurations here
+
+# Example: Custom tool integration
+# configure_my_tool() {
+#     if command -v my_tool >/dev/null 2>&1; then
+#         export MY_TOOL_PATH=/path/to/my/tool
+#         # Add custom configuration
+#     fi
+# }
+
+# Example: Override default NVM configuration
+# configure_nvm() {
+#     export NVM_DIR="$HOME/.custom_nvm"
+#     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+# }
+
+# Example: Add custom CLI completions
+# configure_custom_completions() {
+#     if [ -n "$ZSH" ] && typeset -f compdef >/dev/null 2>&1; then
+#         if command -v kubectl >/dev/null 2>&1; then
+#             source <(kubectl completion zsh)
+#         fi
+#     fi
+# }
+
+# Uncomment and modify functions above or add your own custom integrations below

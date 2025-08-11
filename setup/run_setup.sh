@@ -19,7 +19,7 @@ INSTALL_PYTHON_PACKAGES=false
 INSTALL_OH_MY_ZSH=false
 REPLACE_BASHRC=false
 REPLACE_ZSHRC=false
-REPLACE_VIM=false
+# REPLACE_VIM removed - using neovim with VIMINIT approach
 REPLACE_GITCONFIG=false
 REPLACE_TMUX=false
 
@@ -54,8 +54,7 @@ REPLACE_BASHRC=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || e
 read -ep "Do you want to replace your .zshrc? Type (Y/n): " ANSWER
 REPLACE_ZSHRC=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
 
-read -ep "Do you want to replace your vim configuration? Type (Y/n): " ANSWER
-REPLACE_VIM=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
+# Vim configuration removed - using neovim with VIMINIT approach
 
 read -ep "Do you want to replace your .gitconfig? Type (Y/n): " ANSWER
 REPLACE_GITCONFIG=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
@@ -115,9 +114,7 @@ if $REPLACE_ZSHRC; then
     source "$SETUP_DOTFILES" && replace_zshrc
 fi
 
-if $REPLACE_VIM; then
-    source "$SETUP_DOTFILES" && replace_vim
-fi
+# Vim configuration removed - using neovim with VIMINIT approach
 
 # Later in the execution section
 if $REPLACE_GITCONFIG; then

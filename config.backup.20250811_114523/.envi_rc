@@ -1,0 +1,7 @@
+
+export ENVI_HOME=~/.envi
+
+# Do not delete the following command unless you don't want to use your .bashrc or .zshrc
+source $ENVI_HOME/executables/sbin/enviinit
+
+
