@@ -10,7 +10,7 @@ if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
     # Configure plugins from OHMYZSH_PLUGINS variable BEFORE loading Oh-My-Zsh
     if [ -n "$OHMYZSH_PLUGINS" ]; then
         # Convert space-separated string to zsh array format
-        export plugins=(${=OHMYZSH_PLUGINS})
+        plugins=(${=OHMYZSH_PLUGINS})
     fi
     
     # Git prompt cache optimization

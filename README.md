@@ -125,3 +125,4 @@ This project uses submodules to organize related components:
   - Repository: https://github.com/pascalweiss/fake-server/
 
 All submodules use `main` as their default branch and can be managed collectively using the automation scripts in the `run/` folder.
+
