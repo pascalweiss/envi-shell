@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+# Reject commits that include any co-author trailers
+MSG_FILE="$1"
+
+if grep -Ei '^co-authored-by:\s' "$MSG_FILE" >/dev/null; then
+  echo "\nERROR: Co-authors are not allowed in this repository." >&2
+  echo "Remove any 'Co-authored-by:' trailers from the commit message." >&2
+  exit 1
+fi
+
+exit 0
+
