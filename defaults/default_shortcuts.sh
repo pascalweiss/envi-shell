@@ -32,6 +32,19 @@ if command -v batcat >/dev/null 2>&1; then
   alias bat='batcat'
 fi
 
+_check_ssh_add() {
+    if ! ssh-add -l >/dev/null 2>&1; then
+        echo -n "Run ssh-add? (press Enter to confirm, ESC to decline): "
+        read -r -s -k 1 answer
+        echo
+        if [[ $answer == $'\n' || $answer == $'\r' ]]; then
+            ssh-add ~/.ssh/id_rsa
+        elif [[ $answer == $'\e' ]]; then
+            echo "Skipped ssh-add"
+        fi
+    fi
+}
+
 # Platform-specific shortcuts
 
 if [[ "$(uname)" = *Linux* ]]; then
