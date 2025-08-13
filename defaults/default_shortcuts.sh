@@ -20,6 +20,7 @@ alias pingg="ping -i 0.2 1.1.1.1"
 
 # Tmux shortcuts
 alias tl="tmux list-sessions"
+alias tt="tmux choose-session"
 ta() { tmux attach-session -t "$1"; }
 tk() { tmux kill-session -t "$1"; }
 
