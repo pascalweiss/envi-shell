@@ -27,6 +27,7 @@
 # 5. Tool integrations (conditional based on ENVI_TMUX_ONLY)
 # 6. Interactive features (tmux auto-start)
 
+
 # ============================================================================
 # PLATFORM-SPECIFIC EXECUTABLE PATHS
 # ============================================================================

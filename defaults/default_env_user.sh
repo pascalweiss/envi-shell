@@ -12,6 +12,7 @@ export ENVI_256_COLORS=true
 export ENVI_DEBUG=false
 export ENVI_UTF_8=true
 
+
 # SSH agent auto-start for interactive shells
 export SSH_AGENT_ENABLED=true
 
