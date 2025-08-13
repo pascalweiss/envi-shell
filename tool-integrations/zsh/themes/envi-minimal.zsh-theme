@@ -5,20 +5,8 @@
 # Enable prompt substitution
 setopt PROMPT_SUBST
 
-# Colors for minimal aesthetic
-local timestamp_color="%{$fg_bold[blue]%}"
-local command_num_color="%{$fg_bold[cyan]%}"
-local prompt_color="%{$fg_bold[green]%}"
-local accent_color="%{$fg[white]%}"
-local reset_color="%{$reset_color%}"
-
-# Symbols
-local separator="│"
-local prompt_symbol="❯❯❯"
-local number_symbol="⌘"
-
 # Minimal prompt with static timestamp and bright green chevrons
-PROMPT='${accent_color}[${command_num_color}${number_symbol} %h${reset_color} ${accent_color}${separator}${reset_color} ${timestamp_color}%D{%H:%M:%S}${reset_color}${accent_color}]${reset_color} %{$fg_bold[green]%}${prompt_symbol}${reset_color} '
+PROMPT='%{$fg[white]%}[%{$fg_bold[cyan]%}⌘ %h%{$reset_color%} %{$fg[white]%}│%{$reset_color%} %{$fg_bold[blue]%}%D{%H:%M:%S}%{$reset_color%}%{$fg[white]%}]%{$reset_color%} %{$fg_bold[green]%}❯❯❯%{$reset_color%} '
 
 # Clean right prompt - no extra info (tmux has it all)
 RPS1=''

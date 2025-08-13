@@ -3,7 +3,7 @@
 # TMUX INITIALIZATION
 # ===================
 # Tmux session management and auto-start functionality
-# Called from envi_post_init for interactive shells only
+# Called from enviinit for interactive shells only
 
 # Tmux auto-start (only for interactive shells)
 if [ "$TMUX_ENABLED" = "true" ] && [ -z "$TMUX" ] && [ -n "$PS1" ]; then

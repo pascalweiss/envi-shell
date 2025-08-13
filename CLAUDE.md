@@ -87,29 +87,34 @@ Shell startup (.zshrc)
   ↓
 source ~/.envi_rc  
   ↓
-enviinit: Load defaults → Load user config → Set environment → NO interactive features
-  ├── Load config/.envi_env (variables like TMUX_ENABLED, SSH_AGENT_ENABLED, OHMYZSH_*)
+enviinit: Complete environment initialization
+  ├── Load config/.envi_env (variables like TMUX_ENABLED, SSH_AGENT_ENABLED, ENVI_TMUX_ONLY)
   ├── Load config/.envi_locations and config/.envi_shortcuts  
   ├── Set PATH, colors, UTF-8 locale
-  └── Oh-My-Zsh configuration (plugins, git cache, theme linking)
+  ├── Tool integrations (conditional based on ENVI_TMUX_ONLY)
+  │   ├── Minimal mode (ENVI_TMUX_ONLY=true, outside tmux): Homebrew, SSH only
+  │   └── Full mode (default or inside tmux): All tools including Oh-My-Zsh, Node, etc.
+  └── Interactive features (SSH agent startup, tmux auto-start)
   ↓  
-Oh-My-Zsh framework loading (zsh only)
+Oh-My-Zsh framework loading (zsh only, full mode only)
   ↓
 Powerlevel10k theme loading (if POWERLEVEL10K_ENABLED=true, zsh only)
-  ↓
-envi_post_init: Interactive session features only
-  ├── SSH agent startup (if SSH_AGENT_ENABLED=true)
-  └── Tmux auto-start (if TMUX_ENABLED=true)
 ```
 
 ### Feature Control Variables
 
 All features can be enabled/disabled via environment variables in `config/.envi_env`.
 
+**Performance Optimization:**
+- **`ENVI_TMUX_ONLY=false`** (default): Full initialization in all shells
+- **`ENVI_TMUX_ONLY=true`**: Minimal initialization outside tmux, full initialization inside tmux
+  - Prevents double initialization when creating tmux panes
+  - Significantly speeds up shell startup when working primarily in tmux
+
 ### Key Implementation Details
 
-- **enviinit** runs for ALL shell instances (interactive and non-interactive) - only put universal environment setup here
-- **envi_post_init** runs only for interactive shells (`[ -n "$PS1" ]`) - put user-facing features here
+- **enviinit** runs for ALL shell instances and handles everything - universal environment setup AND interactive features
+- **Interactive features** within enviinit use `[ -n "$PS1" ]` checks to only run for interactive shells
 - **Variable loading order**: Defaults loaded first, then user config to override defaults
 - **No exec commands**: Tmux commands don't use `exec` to allow shell initialization to complete
 - **Boolean variables**: All boolean checks use string comparison `[ "$VAR" = "true" ]` for consistency and robustness

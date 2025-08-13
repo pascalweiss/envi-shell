@@ -3,7 +3,7 @@
 # SSH INITIALIZATION
 # ==================
 # SSH agent management and auto-start functionality
-# Called from envi_post_init for interactive shells only
+# Called from enviinit for all shells
 
 # SSH Agent management (interactive shells only)
 if [ "$SSH_AGENT_ENABLED" = "true" ] && [ -z "$SSH_AUTH_SOCK" ] && [ -n "$PS1" ]; then

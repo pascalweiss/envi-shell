@@ -9,13 +9,13 @@
 # EXECUTION ORDER:
 # 1. Shell startup (.zshrc) 
 # 2. source ~/.envi_rc
-# 3. → enviinit (THIS SCRIPT) - Universal environment setup
+# 3. → enviinit (THIS SCRIPT) - Complete environment initialization
 # 4. Oh-My-Zsh framework loading (zsh only)
-# 5. envi_post_init - Interactive session features only
 #
 # DESIGN PRINCIPLES:
-# - Only put universal environment setup here (PATH, variables, sourcing configs)
-# - NO interactive features (those go in envi_post_init)
+# - Universal environment setup (PATH, variables, sourcing configs)
+# - Tool integrations with conditional loading based on ENVI_TMUX_ONLY
+# - Interactive features at the end with proper PS1 checks
 # - Must work in both interactive and non-interactive shells
 # - Defaults loaded first, then user config to override defaults
 #
@@ -24,7 +24,8 @@
 # 2. Default configurations and common utilities
 # 3. User configuration loading (with feature controls)
 # 4. Environment settings (colors, locale)
-# 5. Tool integrations (via tool-integrations/ structure)
+# 5. Tool integrations (conditional based on ENVI_TMUX_ONLY)
+# 6. Interactive features (tmux auto-start)
 
 # ============================================================================
 # PLATFORM-SPECIFIC EXECUTABLE PATHS
@@ -101,32 +102,46 @@ if [ "$ENVI_256_COLORS" = "true" ]; then 256colors true; else 256colors false; f
 if [ "$ENVI_UTF_8" = "true" ]; then export LC_ALL="en_US.UTF-8"; fi
 
 # ============================================================================
+# TOOL INTEGRATION FUNCTIONS
+# ============================================================================
+
+# Minimal initialization - essential tools only
+envi_minimal_init() {
+    source "$ENVI_HOME/tool-integrations/homebrew/init.sh"
+    source "$ENVI_HOME/tool-integrations/ssh/init.sh"
+}
+
+# Full initialization - all tool integrations
+envi_full_init() {
+    envi_minimal_init
+    source "$ENVI_HOME/tool-integrations/neovim/init.sh"
+    source "$ENVI_HOME/tool-integrations/zsh/init.sh"
+    source "$ENVI_HOME/tool-integrations/node/init.sh"
+    source "$ENVI_HOME/tool-integrations/flux/init.sh"
+    source "$ENVI_HOME/tool-integrations/angular/init.sh"
+}
+
+# ============================================================================
 # TOOL INTEGRATIONS
 # ============================================================================
 
-# Load Homebrew initialization
-source "$ENVI_HOME/tool-integrations/homebrew/init.sh"
+# Choose initialization mode based on ENVI_TMUX_ONLY and TMUX_ENABLED settings
+if [ "$ENVI_TMUX_ONLY" = "true" ] && [ "$TMUX_ENABLED" = "true" ] && [ -z "$TMUX" ]; then
+    # Minimal mode: ENVI_TMUX_ONLY=true, TMUX_ENABLED=true, and outside tmux
+    envi_minimal_init
+else
+    # Full mode: any other case (tmux disabled, inside tmux, or ENVI_TMUX_ONLY=false)
+    envi_full_init
+fi
 
-# Load Neovim initialization
-source "$ENVI_HOME/tool-integrations/neovim/init.sh"
+# ============================================================================
+# INTERACTIVE FEATURES
+# ============================================================================
 
-# Load zsh/oh-my-zsh configuration and initialization
-source "$ENVI_HOME/tool-integrations/zsh/init.sh"
-
-# Load SSH initialization
-source "$ENVI_HOME/tool-integrations/ssh/init.sh"
-
-# Load Node/NVM initialization
-source "$ENVI_HOME/tool-integrations/node/init.sh"
-
-# Load Flux initialization
-source "$ENVI_HOME/tool-integrations/flux/init.sh"
-
-# Load Angular CLI initialization
-source "$ENVI_HOME/tool-integrations/angular/init.sh"
-
-# Load tmux initialization
-source "$ENVI_HOME/tool-integrations/tmux/init.sh"
+# Tmux auto-start (interactive shells only)
+if [ -n "$PS1" ]; then
+    source "$ENVI_HOME/tool-integrations/tmux/init.sh"
+fi
 
 # ============================================================================
 # END OF ENVIINIT

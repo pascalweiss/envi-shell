@@ -44,7 +44,4 @@ fi
 # Load p10k configuration
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-# Envi post-initialization (tmux auto-start, etc.)
-if [ -f "$ENVI_HOME/executables/sbin/envi_post_init" ]; then
-    source "$ENVI_HOME/executables/sbin/envi_post_init"
-fi
+# Note: Interactive features (SSH agent, tmux auto-start) now handled in enviinit

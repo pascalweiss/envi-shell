@@ -19,6 +19,7 @@ export SSH_AGENT_ENABLED=true
 export TMUX_ENABLED=false
 export TMUX_AUTO_ATTACH=false
 export TMUX_SHOW_HELP=false
+export ENVI_TMUX_ONLY=false
 
 # Oh-My-Zsh configuration
 export OHMYZSH_ENABLED=true
