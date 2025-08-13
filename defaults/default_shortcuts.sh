@@ -18,6 +18,15 @@ alias clr="clear"
 # Network utilities
 alias pingg="ping -i 0.2 1.1.1.1"
 
+# SSH utilities
+sshd() {
+    if [ -n "$TMUX" ]; then
+        tmux detach-client -E "ssh $1"
+    else
+        ssh "$1"
+    fi
+}
+
 # Tmux shortcuts
 alias tl="tmux list-sessions"
 alias tt="tmux choose-session"
