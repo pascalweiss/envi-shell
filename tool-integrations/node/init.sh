@@ -25,8 +25,28 @@ fi
 if [ "$NODE_VERSION_ALIAS" = "node" ] || [ -z "$NODE_VERSION_ALIAS" ]; then
     # Get the latest version available
     NODE_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | sort -V | tail -1)
+elif [ "$NODE_VERSION_ALIAS" = "lts/*" ]; then
+    # Resolve lts/* through NVM's alias system
+    if [ -f "$NVM_DIR/alias/lts/*" ]; then
+        LTS_ALIAS=$(cat "$NVM_DIR/alias/lts/*" 2>/dev/null)
+        if [ -f "$NVM_DIR/alias/$LTS_ALIAS" ]; then
+            NODE_VERSION=$(cat "$NVM_DIR/alias/$LTS_ALIAS" 2>/dev/null)
+        fi
+    fi
+    # Fallback to latest if resolution failed
+    [ -z "$NODE_VERSION" ] && NODE_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | sort -V | tail -1)
 else
-    NODE_VERSION="$NODE_VERSION_ALIAS"
+    # Check if this is a direct version number or needs resolution
+    if [ -d "$NVM_DIR/versions/node/$NODE_VERSION_ALIAS" ]; then
+        NODE_VERSION="$NODE_VERSION_ALIAS"
+    else
+        # Try to resolve as an alias
+        if [ -f "$NVM_DIR/alias/$NODE_VERSION_ALIAS" ]; then
+            NODE_VERSION=$(cat "$NVM_DIR/alias/$NODE_VERSION_ALIAS" 2>/dev/null)
+        fi
+        # Fallback to latest available
+        [ -z "$NODE_VERSION" ] && NODE_VERSION=$(ls "$NVM_DIR/versions/node" 2>/dev/null | sort -V | tail -1)
+    fi
 fi
 
 # Add Node bin directory to PATH for immediate command availability

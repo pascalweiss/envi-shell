@@ -10,6 +10,9 @@
 # Oh-My-Zsh installation path
 export ZSH=$HOME/.oh-my-zsh
 
+# Set custom directory for Oh-My-Zsh plugins and themes
+export ZSH_CUSTOM="$ZSH/custom"
+
 # Setup for my own shell stuff (includes Oh-My-Zsh loading via OHMYZSH_ENABLED)
 if [ -f "$HOME/.envi_rc" ]; then
     source ~/.envi_rc

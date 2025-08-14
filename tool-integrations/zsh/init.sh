@@ -7,9 +7,12 @@
 
 # Oh-My-Zsh framework loading and configuration (zsh only)
 if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
+    # Set custom directory for Oh-My-Zsh plugins and themes BEFORE configuring plugins
+    export ZSH_CUSTOM="$ZSH/custom"
+    
     # Configure plugins from OHMYZSH_PLUGINS variable BEFORE loading Oh-My-Zsh
     if [ -n "$OHMYZSH_PLUGINS" ]; then
-        # Convert space-separated string to zsh array format
+        # Convert space-separated string to zsh array format using word splitting
         plugins=(${=OHMYZSH_PLUGINS})
     fi
     
