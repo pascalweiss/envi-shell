@@ -27,11 +27,16 @@ sshd() {
     fi
 }
 
-# Tmux shortcuts
-alias tl="tmux list-sessions"
-alias tt="tmux choose-session"
-ta() { tmux attach-session -t "$1"; }
-tk() { tmux kill-session -t "$1"; }
+# Tmux shortcuts  
+tt() {
+    if [ -n "$TMUX" ]; then
+        # Inside tmux: use tree view
+        tmux choose-tree -Zw
+    else
+        # Outside tmux: use tfzf
+        tfzf
+    fi
+}
 
 # Shell shortcuts
 alias execz="exec zsh"
