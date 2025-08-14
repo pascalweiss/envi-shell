@@ -5,8 +5,15 @@
 # Enable prompt substitution
 setopt PROMPT_SUBST
 
-# Minimal prompt with static timestamp and bright green chevrons
-PROMPT='%{$fg[white]%}[%{$fg_bold[cyan]%}⌘ %h%{$reset_color%} %{$fg[white]%}│%{$reset_color%} %{$fg_bold[blue]%}%D{%H:%M:%S}%{$reset_color%}%{$fg[white]%}]%{$reset_color%} %{$fg_bold[green]%}❯❯❯%{$reset_color%} '
+# Minimal prompt with static timestamp; chevrons color depends on OS
+
+# Set chevrons to purple on Linux, otherwise keep bright green
+case "$OSTYPE" in
+    linux*) envi_chevron_color="%{$fg_bold[magenta]%}" ;;
+    *)      envi_chevron_color="%{$fg_bold[green]%}" ;;
+esac
+
+PROMPT='%{$fg[white]%}[%{$fg_bold[cyan]%}⌘ %h%{$reset_color%} %{$fg[white]%}│%{$reset_color%} %{$fg_bold[blue]%}%D{%H:%M:%S}%{$reset_color%}%{$fg[white]%}]%{$reset_color%} ${envi_chevron_color}❯❯❯%{$reset_color%} '
 
 # Clean right prompt - no extra info (tmux has it all)
 RPS1=''
