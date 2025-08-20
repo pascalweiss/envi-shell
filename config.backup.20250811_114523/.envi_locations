@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-
-alias gitlab="~/dev/homelab-infra/gitlab"
-alias homelab="~/dev/homelab"
-alias hl="~/dev/homelab"
-alias infra="~/dev/homelab-infra"
-alias dl='~/Downloads'
-alias dev="~/dev"
