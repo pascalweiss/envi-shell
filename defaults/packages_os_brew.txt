@@ -9,3 +9,4 @@ fzf
 eza
 tmux
 xclip
+ripgrep
