@@ -8,16 +8,8 @@
 # Tmux auto-start (only for interactive shells)
 if [ "$TMUX_ENABLED" = "true" ] && [ -z "$TMUX" ] && [ -n "$PS1" ]; then
     if command -v tmux &> /dev/null; then
-        # Determine which tmux config to use based on terminal size
-        TMUX_CONFIG_FILE=""
-        TERMINAL_COLS="${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}"
-        if [ "$TERMINAL_COLS" -lt 80 ]; then
-            # Small terminal - use minimal config
-            TMUX_CONFIG_FILE="$HOME/.envi/tool-integrations/tmux/tmux-small.conf"
-        else
-            # Regular or large terminal - use full config
-            TMUX_CONFIG_FILE="$HOME/.envi/tool-integrations/tmux/tmux.conf"
-        fi
+        # Use single tmux config for all terminal sizes
+        TMUX_CONFIG_FILE="$HOME/.envi/tool-integrations/tmux/tmux.conf"
         
         # Check if there are existing sessions and auto-attach is enabled
         if [ "$TMUX_AUTO_ATTACH" = "true" ] && tmux list-sessions &>/dev/null; then

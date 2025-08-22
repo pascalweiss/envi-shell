@@ -108,6 +108,7 @@ require("lazy").setup({
       local telescope = require("telescope")
       telescope.setup({
         defaults = {
+          hidden = true,  -- Show hidden files and folders
           mappings = {
             i = {
               ["<C-j>"] = "move_selection_next",

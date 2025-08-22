@@ -39,3 +39,5 @@
 
 [alias]
     whoami = "!echo 'Current Git identity: '$(git config user.name)' <'$(git config user.email)'>'"
+[init]
+	defaultBranch = main
