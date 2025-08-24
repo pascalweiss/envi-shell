@@ -32,18 +32,18 @@
 # PLATFORM-SPECIFIC EXECUTABLE PATHS
 # ============================================================================
 
-# System-critical PATH (essential system directories)
-export PATH="$PATH:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+# Build PATH with platform-specific and universal executables
+ENVI_PATHS="$ENVI_HOME/executables/bin"
 
-# Load platform-specific CLI tools
+# Add platform-specific CLI tools
 if [[ "$(uname)" = *Darwin* ]]; then 
-    export PATH=$PATH:$ENVI_HOME/executables/macbin
+    ENVI_PATHS="$ENVI_PATHS:$ENVI_HOME/executables/macbin"
 elif [[ "$(uname)" = *Linux* ]]; then 
-    export PATH=$PATH:$ENVI_HOME/executables/linuxbin
+    ENVI_PATHS="$ENVI_PATHS:$ENVI_HOME/executables/linuxbin"
 fi
 
-# Universal executables (work on all platforms)
-export PATH=$PATH:$ENVI_HOME/executables/bin
+# Single PATH export with proper quoting
+export PATH="$ENVI_PATHS:$PATH"
 
 # ============================================================================
 # DEFAULT CONFIGURATIONS AND COMMON UTILITIES
