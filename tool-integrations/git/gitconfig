@@ -24,6 +24,11 @@
     editor = vim
     autocrlf = input
 
+[pager]
+  diff = delta
+  log = delta
+  show = delta
+
 [color]
 	ui = always
 
