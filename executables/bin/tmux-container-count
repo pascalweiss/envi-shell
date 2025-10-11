@@ -1,0 +1,12 @@
+#!/bin/sh
+# Count running Docker and Podman containers for tmux status bar
+
+docker_count=$(docker ps -q 2>/dev/null | wc -l)
+podman_count=$(podman ps -q 2>/dev/null | wc -l)
+total=$((docker_count + podman_count))
+
+if [ "$total" -gt 0 ]; then
+    echo "⬟ $total"
+else
+    echo "⬡ $total"
+fi
