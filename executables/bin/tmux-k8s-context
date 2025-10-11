@@ -1,0 +1,11 @@
+#!/bin/sh
+# Display current Kubernetes context for tmux status bar
+# Shows: ⬢ context-name (filled symbol when context exists)
+#        ⬡ (outline symbol when no context)
+
+ctx=$(kubectx -c 2>/dev/null | head -1)
+if [ -n "$ctx" ]; then
+    echo "⬢ $ctx"
+else
+    echo "⬡"
+fi
