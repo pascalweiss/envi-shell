@@ -10,3 +10,5 @@ eza
 tmux
 xclip
 ripgrep
+ffmpeg
+git-delta
