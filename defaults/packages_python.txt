@@ -1,2 +1,4 @@
 dict.cc.py
 ipython
+yt-dlp
+openai-whisper

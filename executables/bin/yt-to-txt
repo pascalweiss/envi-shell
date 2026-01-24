@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+show_help() {
+  cat <<'EOF'
+Usage: yt-to-txt <video_url> [options]
+       yt-to-txt --url <video_url> [options]
+
+Downloads audio with yt-dlp, transcribes with whisper, and writes:
+  - audio file (default mp3)
+  - transcript (default txt)
+  - info.txt with basic video metadata
+All outputs go into a folder named after the video title (sanitized).
+
+Options:
+  -u, --url <url>             Video URL (can also be passed as first argument)
+  -m, --model <name>          Whisper model (default: large-v3-turbo)
+  -d, --device <device>       Device for whisper: cpu|cuda|mps (default: cpu)
+  -l, --language <code>       Language code (optional; omit for auto-detect)
+  -f, --output-format <fmt>   Transcript format: txt|vtt|srt|tsv|json|all (default: txt)
+  -a, --audio-format <fmt>    Audio format for download (default: mp3)
+  -k, --keep-audio            Keep the downloaded audio file (default: delete after transcription)
+  -o, --output-dir <dir>      Base output directory (default: $YT_TRANSCRIBE_OUTPUT_DIR or current dir)
+  -h, --help                  Show this help and exit
+
+Notes:
+  - If you omit --language, whisper will auto-detect when the model supports it.
+  - Title and filenames are sanitized to ASCII-safe characters.
+  - MPS (Apple Silicon GPU) is unstable with whisper; use cpu for reliability.
+EOF
+}
+
+url=""
+model="large-v3-turbo"
+device="cpu"
+language=""
+output_format="txt"
+audio_format="mp3"
+keep_audio="0"
+output_dir="${YT_TRANSCRIBE_OUTPUT_DIR:-.}"
+
+# Expand leading ~ so tools like ffmpeg/whisper can resolve the path.
+case "$output_dir" in
+  "~"|"~/"*)
+    output_dir="${HOME}${output_dir#\~}"
+    ;;
+esac
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -u|--url)
+      url="${2:-}"
+      shift 2
+      ;; 
+    -m|--model)
+      model="${2:-}"
+      shift 2
+      ;; 
+    -d|--device)
+      device="${2:-}"
+      shift 2
+      ;; 
+    -l|--language)
+      language="${2:-}"
+      shift 2
+      ;; 
+    -f|--output-format)
+      output_format="${2:-}"
+      shift 2
+      ;; 
+    -a|--audio-format)
+      audio_format="${2:-}"
+      shift 2
+      ;; 
+    -k|--keep-audio)
+      keep_audio="1"
+      shift
+      ;; 
+    -o|--output-dir)
+      output_dir="${2:-}"
+      shift 2
+      ;; 
+    -h|--help)
+      show_help
+      exit 0
+      ;; 
+    *)
+      # Treat positional argument as URL if it doesn't start with -
+      if [[ "$1" != -* && -z "$url" ]]; then
+        url="$1"
+        shift
+      else
+        echo "Unknown argument: $1" >&2
+        echo "Run with --help for usage." >&2
+        exit 1
+      fi
+      ;; 
+  esac
+done
+
+if [[ -z "$url" ]]; then
+  echo "Missing URL." >&2
+  echo "Run with --help for usage." >&2
+  exit 1
+fi
+
+for cmd in yt-dlp whisper ffmpeg; do
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "Missing dependency: $cmd" >&2
+    exit 1
+  fi
+done
+
+title="$(yt-dlp --print "%(title)s" "$url")"
+video_id="$(yt-dlp --print "%(id)s" "$url")"
+channel="$(yt-dlp --print "%(channel)s" "$url")"
+
+sanitize() {
+  local input="$1"
+  local sanitized
+  sanitized="$(printf '%s' "$input" | LC_ALL=C tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '_' | sed -E 's/_+/_/g; s/^_+//; s/_+$//')"
+  printf '%s' "$sanitized"
+}
+
+channel_dir="$(sanitize "$channel")"
+if [[ -z "$channel_dir" ]]; then
+  channel_dir="unknown_channel"
+fi
+
+video_dir="$(sanitize "$title")"
+if [[ -z "$video_dir" ]]; then
+  video_dir="$(sanitize "$video_id")"
+fi
+
+target_dir="${output_dir%/}/${channel_dir}/${video_dir}"
+mkdir -p "$target_dir"
+
+audio_basename="$video_dir"
+audio_path="${target_dir}/${audio_basename}.${audio_format}"
+
+yt-dlp -x \
+  --audio-format "$audio_format" \
+  --audio-quality 0 \
+  -o "${target_dir}/${audio_basename}.%(ext)s" \
+  "$url"
+
+info_path="${target_dir}/info.txt"
+cat <<EOF > "$info_path"
+title: $title
+id: $video_id
+channel: $channel
+url: $url
+EOF
+
+whisper_args=(
+  "$audio_path"
+  --model "$model"
+  --device "$device"
+  --output_format "$output_format"
+  --output_dir "$target_dir"
+)
+if [[ -n "$language" ]]; then
+  whisper_args+=(--language "$language")
+fi
+
+whisper "${whisper_args[@]}"
+
+word_count="unknown"
+transcript_path="${target_dir}/${audio_basename}.txt"
+if [[ -f "$transcript_path" ]]; then
+  word_count="$(LC_ALL=C wc -w < "$transcript_path" | tr -d ' ')"
+fi
+
+cat <<EOF > "$info_path"
+title: $title
+id: $video_id
+channel: $channel
+url: $url
+word_count: $word_count
+EOF
+
+if [[ "$keep_audio" != "1" ]]; then
+  rm -f "$audio_path"
+fi
