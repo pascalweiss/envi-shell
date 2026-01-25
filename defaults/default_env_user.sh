@@ -15,6 +15,7 @@ export ENVI_UTF_8=true
 
 # SSH agent auto-start for interactive shells
 export SSH_AGENT_ENABLED=true
+export SSH_AUTO_ADD_KEY=false
 
 # Tmux session management
 export TMUX_ENABLED=false
