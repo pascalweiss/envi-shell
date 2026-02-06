@@ -21,6 +21,7 @@ export SSH_AUTO_ADD_KEY=false
 export TMUX_ENABLED=false
 export TMUX_AUTO_ATTACH=false
 export TMUX_SHOW_HELP=false
+export TMUX_SPLIT_FOLLOW_PWD=true
 export ENVI_TMUX_ONLY=false
 
 # Oh-My-Zsh configuration
