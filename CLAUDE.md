@@ -71,8 +71,8 @@ git push
 ## Configuration Files
 
 - **`defaults/packages_os.txt`**: OS packages installed during setup
-- **`setup/templates/envi_rc`**: Main environment configuration template
-- **`config/.envi_shortcuts`**: User-defined aliases and functions
+- **`config/envi_rc`**: Main environment configuration bootstrap file
+- **`config/envi_shortcuts`**: User-defined aliases and functions
 - **`executables/sbin/enviinit`**: Runtime initialization sourced by shell
 
 
@@ -88,8 +88,8 @@ Shell startup (.zshrc)
 source ~/.envi_rc  
   ↓
 enviinit: Complete environment initialization
-  ├── Load config/.envi_env (variables like TMUX_ENABLED, SSH_AGENT_ENABLED, ENVI_TMUX_ONLY)
-  ├── Load config/.envi_locations and config/.envi_shortcuts  
+  ├── Load config/envi_env (variables like TMUX_ENABLED, SSH_AGENT_ENABLED, ENVI_TMUX_ONLY)
+  ├── Load config/envi_locations and config/envi_shortcuts  
   ├── Set PATH, colors, UTF-8 locale
   ├── Tool integrations (conditional based on ENVI_TMUX_ONLY)
   │   ├── Minimal mode (ENVI_TMUX_ONLY=true, outside tmux): Homebrew, SSH only
@@ -103,7 +103,7 @@ Powerlevel10k theme loading (if POWERLEVEL10K_ENABLED=true, zsh only)
 
 ### Feature Control Variables
 
-All features can be enabled/disabled via environment variables in `config/.envi_env`.
+All features can be enabled/disabled via environment variables in `config/envi_env`.
 
 **Performance Optimization:**
 - **`ENVI_TMUX_ONLY=false`** (default): Full initialization in all shells

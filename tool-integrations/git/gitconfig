@@ -1,17 +1,17 @@
 [include]
-  path = ~/.envi/config/.gitconfig_user_default
+  path = ~/.envi/config/gitconfig_user_default
 
 [includeIf "gitdir:~/dev/"]
-	path = ~/.envi/config/.gitconfig_user_work
+	path = ~/.envi/config/gitconfig_user_work
 
 [includeIf "gitdir:~/dev-personal/"]
-	path = ~/.envi/config/.gitconfig_user_personal
+	path = ~/.envi/config/gitconfig_user_personal
 
 [includeIf "gitdir:~/Library/Mobile\\ Documents/iCloud\\~md\\~obsidian/Documents/private/"]
-  path = ~/.envi/config/.gitconfig_user_personal
+  path = ~/.envi/config/gitconfig_user_personal
 
 [includeIf "gitdir:~/.envi/"]
-	path = ~/.envi/config/.gitconfig_user_personal
+	path = ~/.envi/config/gitconfig_user_personal
 
 
 # You can add more path-specific includes here

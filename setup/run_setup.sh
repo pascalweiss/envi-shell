@@ -63,13 +63,13 @@ fi
 mkdir -p "$DIR/config"
 
 # Copy default configuration files to config directory for user customization
-cp "$DIR/defaults/default_env_user.sh" "$DIR/config/.envi_env"
-cp "$DIR/defaults/default_locations.sh" "$DIR/config/.envi_locations"  
-cp "$DIR/defaults/default_shortcuts.sh" "$DIR/config/.envi_shortcuts"
-cp "$DIR/defaults/default_nvim.lua" "$DIR/config/.envi_nvim"
+cp "$DIR/defaults/default_env_user.sh" "$DIR/config/envi_env"
+cp "$DIR/defaults/default_locations.sh" "$DIR/config/envi_locations"
+cp "$DIR/defaults/default_shortcuts.sh" "$DIR/config/envi_shortcuts"
+cp "$DIR/defaults/default_nvim.lua" "$DIR/config/envi_nvim"
 
-# Create minimal .envi_rc bootstrap file
-cat > "$DIR/config/.envi_rc" << 'EOF'
+# Create minimal envi_rc bootstrap file
+cat > "$DIR/config/envi_rc" << 'EOF'
 export ENVI_HOME=~/.envi
 
 # Load envi environment initialization
@@ -111,11 +111,11 @@ if $REPLACE_TMUX; then
 fi
 
 
-add_symlink "$DIR/config/.envi_env" "$HOME/.envi_env"
-add_symlink "$DIR/config/.envi_locations" "$HOME/.envi_locations"
-add_symlink "$DIR/config/.envi_rc" "$HOME/.envi_rc"
-add_symlink "$DIR/config/.envi_shortcuts" "$HOME/.envi_shortcuts"
-add_symlink "$DIR/config/.envi_app_integrations" "$HOME/.envi_app_integrations"
+add_symlink "$DIR/config/envi_env" "$HOME/.envi_env"
+add_symlink "$DIR/config/envi_locations" "$HOME/.envi_locations"
+add_symlink "$DIR/config/envi_rc" "$HOME/.envi_rc"
+add_symlink "$DIR/config/envi_shortcuts" "$HOME/.envi_shortcuts"
+add_symlink "$DIR/config/envi_app_integrations" "$HOME/.envi_app_integrations"
 
 BIN_DIRS=("bin" "sbin" "lib" "macbin" "linuxbin")
 for BIN in "${BIN_DIRS[@]}"; do

@@ -84,8 +84,8 @@ docker exec "$CONTAINER_NAME" bash -c '
         FAILED_TESTS=$((FAILED_TESTS + 1))
     fi
     
-    # Test 5: Check if config files were created
-    for config in .envi_env .envi_locations .envi_shortcuts; do
+    # Test 5: Check if config files were created (without leading dots)
+    for config in envi_env envi_locations envi_shortcuts; do
         if [ -f ~/.envi/config/$config ]; then
             echo "✓ $config exists"
         else
