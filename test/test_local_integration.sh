@@ -86,7 +86,28 @@ podman exec "$CONTAINER_NAME" bash -c '
         echo "✗ yt-to-txt is NOT executable"
         FAILED=1
     fi
-    
+
+    # Check symlinks point to valid targets
+    check_symlink() {
+        local link="$1"
+        if [ -L "$link" ]; then
+            if [ -e "$link" ]; then
+                echo "✓ $link symlink OK"
+            else
+                echo "✗ $link symlink BROKEN (target does not exist)"
+                FAILED=1
+            fi
+        else
+            echo "✗ $link is not a symlink"
+            FAILED=1
+        fi
+    }
+
+    check_symlink ~/.envi_rc
+    check_symlink ~/.envi_env
+    check_symlink ~/.envi_locations
+    check_symlink ~/.envi_shortcuts
+
     if [ $FAILED -eq 0 ]; then
         echo "ALL CHECKS PASSED"
         exit 0

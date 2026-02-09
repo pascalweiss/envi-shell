@@ -115,7 +115,6 @@ add_symlink "$DIR/config/envi_env" "$HOME/.envi_env"
 add_symlink "$DIR/config/envi_locations" "$HOME/.envi_locations"
 add_symlink "$DIR/config/envi_rc" "$HOME/.envi_rc"
 add_symlink "$DIR/config/envi_shortcuts" "$HOME/.envi_shortcuts"
-add_symlink "$DIR/config/envi_app_integrations" "$HOME/.envi_app_integrations"
 
 BIN_DIRS=("bin" "sbin" "lib" "macbin" "linuxbin")
 for BIN in "${BIN_DIRS[@]}"; do
