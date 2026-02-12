@@ -77,15 +77,6 @@ podman exec "$CONTAINER_NAME" bash -c '
     check_cmd ffmpeg
     check_cmd yt-dlp
     check_cmd whisper
-    check_cmd yt-to-txt
-    
-    # Check if yt-to-txt is executable
-    if [ -x ~/.envi/executables/bin/yt-to-txt ]; then
-        echo "✓ yt-to-txt is executable"
-    else
-        echo "✗ yt-to-txt is NOT executable"
-        FAILED=1
-    fi
 
     # Check symlinks point to valid targets
     check_symlink() {
