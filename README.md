@@ -1,128 +1,165 @@
 # Envi Shell
-A clean shell environment that can be deployed with a single command. This project provides a comprehensive development environment with integrated submodules and automation scripts. Test change.
 
-### Warning
-The installation will require root rights. If you don't trust this system don't use it. 
-
-## Requirements
-You need to have `curl` and `git` installed.
+A modular, cross-platform development environment that configures your shell with a single command. Envi sets up zsh with Oh-My-Zsh, tmux session management, custom commands, and tool integrations — designed for developers who work across multiple machines.
 
 ## Installation
-Easiest way is to execute the following: 
+
+**Requirements:** `curl` and `git`
+
 ```bash
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/pascalweiss/envi-shell/main/setup/install.sh)"
-``` 
-This will clone the repository to `$HOME` and execute the setup script. 
-
-### Alternative
-If you want to be able to make changes and push them, you can fork it first, clone it, and execute `setup/install.sh` manually.
-
-## Features
-- An installation setup where you can choose what to install
-- A set of useful command line tools, functions and aliases
-- The ability to define custom aliases and functions
-- Integrated submodule management with automation scripts
-- Git workflow automation for multi-repository projects
-
-### Commands
-- `git whoami` - provides the current git user and email with single command
-- `renamenice [FILES...]`- This script renames files by converting their names to lowercase, replacing spaces and special characters with underscores,
-  and converting German umlauts into their respective letter combinations (ä -> ae, ü -> ue, ö -> oe).
-  Multiple underscores are reduced to a single underscore.
-- `fake-server <port>` - Starts a simple http server that logs every request for the given port to the console. Runs in a docker
-- `netinfo`- Prints out for the current net interface: LAN IP, WAN IP, broadcast, MAC address
-- `tt` - Interactive tmux session manager with fzf (press 'a' to attach, 'k' to kill sessions)  
-
-## Automation Scripts (run/ folder)
-The `run/` folder contains automation scripts for managing the entire project and its submodules:
-
-### Git Management Scripts
-- **`git_diff_all.sh`** - Shows git status and diffs for the main project and all submodules
-  - Displays staged and unstaged changes
-  - Provides summary of files with changes across all repositories
-  - No pager interruption - all output printed directly to terminal
-
-- **`git_commit_all.sh`** - Commits changes across all repositories with a single commit message
-  - Prompts for commit message (supports quoted messages)
-  - Commits submodules first, then main project (ensuring submodule references are updated)
-  - Adds all new and modified files automatically
-  - Handles detached HEAD state in submodules
-  - Includes comprehensive help documentation
-
-- **`git_push_all.sh`** - Pushes committed changes from all repositories to their remotes
-  - Pushes submodules first, then main project
-  - Supports both regular push and force push (with safety confirmation)
-  - Skips repositories with no commits to push
-  - Handles detached HEAD state gracefully
-  - Provides detailed feedback on push results
-
-- **`git_force_pull_all.sh`** - Force pulls latest changes from all remote repositories
-  - **WARNING**: Overwrites all local changes without merge conflicts
-  - Updates main project and all submodules to match remote state exactly
-  - Includes safety confirmation prompt
-  - Updates submodule references in main project
-
-### Usage Examples
-```bash
-# Check all changes across project and submodules
-./run/git_diff_all.sh
-
-# Commit all changes with same message (interactive)
-./run/git_commit_all.sh
-
-# Commit all changes with quoted message (command line)
-./run/git_commit_all.sh "Your commit message here"
-
-# Push all committed changes to remotes
-./run/git_push_all.sh
-
-# Force push (use with caution!)
-./run/git_push_all.sh --force
-
-# Force sync with remote (discards local changes)
-./run/git_force_pull_all.sh
-
-# Show help for any script
-./run/git_commit_all.sh --help
-./run/git_push_all.sh --help
 ```
 
-### Complete Git Workflow
-The scripts are designed to work together for a complete git workflow:
+This clones the repository to `~/.envi` and runs an interactive setup where you choose what to install.
 
-```bash
-# 1. Check what changes you have
-./run/git_diff_all.sh
+**Alternative (for contributors):** Fork the repo, clone it, and run `setup/install.sh` manually.
 
-# 2. Commit all changes with a descriptive message
-./run/git_commit_all.sh "Add new feature and update documentation"
+> **Note:** The installation requires root rights for system package installation. Review the setup scripts before running if you have concerns.
 
-# 3. Push all changes to remote repositories
-./run/git_push_all.sh
+## How It Works
 
-# Alternative: Do it all in one go
-./run/git_diff_all.sh && \
-./run/git_commit_all.sh "Your commit message" && \
-./run/git_push_all.sh
+Envi hooks into your shell startup and loads a layered configuration system:
+
+```
+Shell startup (.zshrc)
+  └── source ~/.envi_rc
+        └── enviinit
+              ├── Load defaults, then user config (user overrides defaults)
+              ├── Set PATH, colors, locale
+              ├── Tool integrations (homebrew, node, neovim, etc.)
+              └── Interactive features (tmux auto-start, SSH agent)
 ```
 
-**Key Benefits:**
-- **Unified workflow** across main project + all submodules
-- **Proper ordering** ensures submodule references are always up-to-date
-- **Safety features** prevent common git mistakes with submodules
-- **Comprehensive feedback** shows exactly what was changed/committed/pushed  
+All behavior is controlled through environment variables in your config files. No magic — just sourced shell scripts.
 
+## Configuration
 
-## Integrated Submodules
-This project uses submodules to organize related components:
+Envi uses a two-layer config system. Defaults ship with the repo, and your personal config overrides them:
 
-- **dotfiles** - Configuration files and shell themes
-  - Location: `submodules/dotfiles/`
-  - Repository: https://github.com/pascalweiss/config-files
+| File | Purpose | Edit command |
+|------|---------|--------------|
+| `config/envi_env` | Feature flags, PATH extensions | `environ` |
+| `config/envi_locations` | Directory shortcuts | `loc` |
+| `config/envi_shortcuts` | Custom aliases and functions | `short` |
 
-- **fake-server** - Development HTTP server for testing
-  - Location: `submodules/fake-server/`
-  - Repository: https://github.com/pascalweiss/fake-server/
+### Key Feature Flags
 
-All submodules use `main` as their default branch and can be managed collectively using the automation scripts in the `run/` folder.
+Set these in `config/envi_env`:
 
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TMUX_ENABLED` | `false` | Auto-start tmux on shell launch |
+| `TMUX_AUTO_ATTACH` | `false` | Attach to existing session instead of creating new |
+| `ENVI_TMUX_ONLY` | `false` | Minimal init outside tmux, full init inside (faster startup) |
+| `SSH_AGENT_ENABLED` | `true` | Auto-start SSH agent for interactive shells |
+| `OHMYZSH_ENABLED` | `true` | Load Oh-My-Zsh framework |
+| `ENVI_DEBUG` | `false` | Enable debug logging |
+
+## Tmux Integration
+
+Envi provides a custom tmux configuration with a status bar theme, pane borders showing git status, and session management tools.
+
+### Session Chooser for SSH Connections
+
+When connecting to a remote machine via SSH, you can automatically get a session chooser menu instead of starting a new tmux session. This is useful when reconnecting from mobile clients like Termius.
+
+**How it works:** Set the environment variable `LC_IDENTIFICATION=tmux-menu` on the SSH client side. This passes through SSH's `AcceptEnv LC_*` and triggers the native tmux session chooser on connect.
+
+**Setup in your SSH client:**
+1. Add an environment variable: `LC_IDENTIFICATION` = `tmux-menu`
+2. Connect via SSH
+3. If existing tmux sessions are found, the chooser menu appears
+4. If no sessions exist, a new session is created
+
+**Tmux shortcuts:**
+- `tt` — Session manager (native tmux tree view inside tmux, fzf-based outside)
+- `tmux-help` — Quick reference for tmux key bindings
+- `Ctrl+b w` — Native tmux session/window chooser (customized with color theme)
+
+### Status Bar
+
+The tmux status bar displays:
+- **Left:** Session name, window index, pane index
+- **Right:** Docker container count, Kubernetes context, hostname
+- **Pane borders:** Current directory path and git branch with uncommitted changes indicator
+
+## Commands
+
+### Universal Commands
+
+| Command | Description |
+|---------|-------------|
+| `git whoami` | Show current git user and email |
+| `renamenice [FILES...]` | Normalize filenames (lowercase, underscores, umlaut conversion) |
+| `fake-server <port>` | Start a development HTTP server in Docker that logs all requests |
+| `netinfo` | Display LAN IP, WAN IP, broadcast, and MAC address |
+| `tt` | Interactive tmux session manager |
+| `tmux-help` | Display tmux key binding reference |
+| `tfzf` | Tmux session selector with fzf (attach/kill sessions) |
+
+### Built-in Aliases
+
+| Alias | Expands to | Notes |
+|-------|-----------|-------|
+| `envi` | `cd ~/.envi` | Navigate to envi directory |
+| `environ` | `vim ~/.envi/config/envi_env` | Edit environment config |
+| `loc` | `vim ~/.envi/config/envi_locations` | Edit location shortcuts |
+| `short` | `vim ~/.envi/config/envi_shortcuts` | Edit custom shortcuts |
+| `clr` | `clear` | |
+| `execz` | `exec zsh` | Restart shell |
+| `mkcd <dir>` | `mkdir -p && cd` | Create directory and enter it |
+| `o <file>` | `open` | Open file (cross-platform) |
+| `sshd <host>` | Smart SSH | Detaches tmux before connecting |
+
+## Tool Integrations
+
+Envi automatically detects and configures the following tools when present:
+
+| Tool | What Envi Does |
+|------|---------------|
+| **Homebrew** | Adds to PATH, sets up environment |
+| **Oh-My-Zsh** | Loads framework with configured plugins and theme |
+| **Node.js / NVM** | Loads NVM if `~/.nvm/nvm.sh` exists |
+| **Neovim** | Applies default configuration |
+| **Git** | Sets up gitconfig |
+| **SSH** | Auto-starts SSH agent for interactive shells |
+| **tmux** | Auto-start, custom theme, session management |
+| **Angular** | CLI autocompletion |
+| **Flux** | CLI autocompletion |
+
+## Project Structure
+
+```
+~/.envi/
+├── setup/                  Interactive installation system
+├── executables/
+│   ├── bin/                Universal commands (all platforms)
+│   ├── linuxbin/           Linux-specific commands
+│   ├── macbin/             macOS-specific commands
+│   └── sbin/enviinit       Core initialization script
+├── defaults/               Default configurations (templates)
+├── config/                 User configurations (editable, override defaults)
+├── tool-integrations/      Modular init scripts per tool
+│   ├── tmux/               Tmux config and initialization
+│   ├── zsh/                Zsh config and themes
+│   ├── homebrew/           Homebrew setup
+│   ├── node/               Node.js/NVM setup
+│   └── ...                 Other tool integrations
+└── test/                   Docker-based installation tests
+```
+
+## Testing
+
+Envi includes Docker-based tests to verify installation across platforms:
+
+```bash
+# Run installation verification tests
+./test/test_installation.sh
+
+# Run local integration tests
+./test/test_local_integration.sh
+```
+
+## License
+
+MIT

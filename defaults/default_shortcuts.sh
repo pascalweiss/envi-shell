@@ -2,7 +2,7 @@
 #
 # ENVI DEFAULT SHORTCUTS
 # ======================
-# Default shortcuts and aliases - copied to ~/.envi/config/.envi_shortcuts during setup
+# Default shortcuts and aliases - copied to ~/.envi/config/envi_shortcuts during setup
 # User config overrides these defaults. See CLAUDE.md for loading order details.
 # NOTE: Core envi aliases (envi, loc, environ, short) are hardcoded in enviinit
 
@@ -19,6 +19,7 @@ alias clr="clear"
 alias pingg="ping -i 0.2 1.1.1.1"
 
 # SSH utilities
+alias sshadd="ssh-add"
 sshd() {
     if [ -n "$TMUX" ]; then
         tmux detach-client -E "ssh $1"

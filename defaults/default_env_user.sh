@@ -2,7 +2,7 @@
 #
 # ENVI DEFAULT ENVIRONMENT SETTINGS
 # =================================
-# Default feature controls and PATH extensions - copied to ~/.envi/config/.envi_env during setup
+# Default feature controls and PATH extensions - copied to ~/.envi/config/envi_env during setup
 # User config overrides these defaults. See CLAUDE.md for loading order details.
 
 # Feature Controls (true/false)
