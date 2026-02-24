@@ -6,7 +6,11 @@
 # Called from enviinit for interactive shells only
 
 # Tmux auto-start (only for interactive shells)
-if [ "$TMUX_ENABLED" = "true" ] && [ -z "$TMUX" ] && [ -n "$PS1" ]; then
+# Set ENVI_DISABLE_TMUX_AUTOSTART=true (e.g. in VS Code terminal env) to skip auto-start.
+if [ "$TMUX_ENABLED" = "true" ] \
+    && [ "${ENVI_DISABLE_TMUX_AUTOSTART:-false}" != "true" ] \
+    && [ -z "$TMUX" ] \
+    && [ -n "$PS1" ]; then
     if command -v tmux &> /dev/null; then
         # Use single tmux config for all terminal sizes
         TMUX_CONFIG_FILE="$HOME/.envi/tool-integrations/tmux/tmux.conf"
