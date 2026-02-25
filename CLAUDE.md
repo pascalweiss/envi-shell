@@ -85,21 +85,26 @@ The envi system follows a specific execution order during shell startup to ensur
 ```
 Shell startup (.zshrc)
   ↓
-source ~/.envi_rc  
+source ~/.envi_rc
   ↓
 enviinit: Complete environment initialization
   ├── Load config/envi_env (variables like TMUX_ENABLED, SSH_AGENT_ENABLED, ENVI_TMUX_ONLY)
-  ├── Load config/envi_locations and config/envi_shortcuts  
+  ├── Load config/envi_locations
   ├── Set PATH, colors, UTF-8 locale
   ├── Tool integrations (conditional based on ENVI_TMUX_ONLY)
   │   ├── Minimal mode (ENVI_TMUX_ONLY=true, outside tmux): Homebrew, SSH only
   │   └── Full mode (default or inside tmux): All tools including Oh-My-Zsh, Node, etc.
+  │       → Oh-My-Zsh loads HERE → compdef becomes available
+  ├── Shortcuts and completions (AFTER tool integrations!)
+  │   ├── defaults/default_shortcuts.sh
+  │   └── config/envi_shortcuts  ← compdef is available here
   └── Interactive features (SSH agent startup, tmux auto-start)
-  ↓  
-Oh-My-Zsh framework loading (zsh only, full mode only)
   ↓
 Powerlevel10k theme loading (if POWERLEVEL10K_ENABLED=true, zsh only)
 ```
+
+**IMPORTANT - Completion registrations in shortcuts:**
+Shortcuts are intentionally loaded AFTER tool integrations so that Oh-My-Zsh (and therefore `compdef`) is already available. This means `config/envi_shortcuts` can safely use completion registrations like `source <(gardenctl completion zsh)` without needing guards. Do NOT move shortcuts loading back before tool integrations.
 
 ### Feature Control Variables
 

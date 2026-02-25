@@ -22,10 +22,12 @@
 # STRUCTURE:
 # 1. Platform-specific executable paths
 # 2. Default configurations and common utilities
-# 3. User configuration loading (with feature controls)
+# 3. User configuration loading - env and locations (with feature controls)
 # 4. Environment settings (colors, locale)
 # 5. Tool integrations (conditional based on ENVI_TMUX_ONLY)
-# 6. Interactive features (tmux auto-start)
+#    → Oh-My-Zsh loads here, making compdef available
+# 6. Shortcuts and completions (AFTER tool integrations so compdef is available)
+# 7. Interactive features (tmux auto-start)
 
 
 # ============================================================================
@@ -69,9 +71,6 @@ source $ENVI_HOME/defaults/default_env_user.sh
 # Load default path locations
 source $ENVI_HOME/defaults/default_locations.sh
 
-# Load default shortcuts and aliases
-source $ENVI_HOME/defaults/default_shortcuts.sh
-
 # ============================================================================
 # USER CONFIGURATION LOADING (OVERRIDES DEFAULTS)
 # ============================================================================
@@ -85,11 +84,6 @@ fi
 # Load user-defined path locations (overrides defaults)
 if [ -f "$ENVI_HOME/config/envi_locations" ]; then
     source $ENVI_HOME/config/envi_locations;
-fi
-
-# Load user-defined shortcuts and aliases (overrides defaults)
-if [ -f "$ENVI_HOME/config/envi_shortcuts" ]; then
-    source $ENVI_HOME/config/envi_shortcuts;
 fi
 
 # ============================================================================
@@ -133,6 +127,20 @@ if [ "$ENVI_TMUX_ONLY" = "true" ] && [ "$TMUX_ENABLED" = "true" ] && [ -z "$TMUX
 else
     # Full mode: any other case (tmux disabled, inside tmux, or ENVI_TMUX_ONLY=false)
     envi_full_init
+fi
+
+# ============================================================================
+# SHORTCUTS AND COMPLETIONS
+# ============================================================================
+# Loaded AFTER tool integrations so that Oh-My-Zsh (and compdef) is available.
+# This allows completion registrations in shortcuts to work without guards.
+
+# Load default shortcuts and aliases
+source $ENVI_HOME/defaults/default_shortcuts.sh
+
+# Load user-defined shortcuts and aliases (overrides defaults)
+if [ -f "$ENVI_HOME/config/envi_shortcuts" ]; then
+    source $ENVI_HOME/config/envi_shortcuts;
 fi
 
 # ============================================================================
