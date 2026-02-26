@@ -96,6 +96,16 @@ if [ "$ENVI_256_COLORS" = "true" ]; then 256colors true; else 256colors false; f
 # Set UTF-8 locale for proper character encoding
 if [ "$ENVI_UTF_8" = "true" ]; then export LC_ALL="en_US.UTF-8"; fi
 
+# Apply runtime tmux settings that depend on envi environment variables.
+# This runs inside tmux where the shell environment is fully available,
+# unlike if-shell in tmux.conf which runs before enviinit sets up the environment.
+if [ -n "$TMUX" ] && command -v tmux >/dev/null 2>&1; then
+    if [ "$TMUX_SPLIT_FOLLOW_PWD" = "false" ]; then
+        tmux bind-key % split-window -h
+        tmux bind-key '"' split-window -v
+    fi
+fi
+
 # ============================================================================
 # TOOL INTEGRATION FUNCTIONS
 # ============================================================================

@@ -63,6 +63,7 @@ Set these in `config/envi_env`:
 |----------|---------|-------------|
 | `TMUX_ENABLED` | `false` | Auto-start tmux on shell launch |
 | `TMUX_AUTO_ATTACH` | `false` | Attach to existing session instead of creating new |
+| `TMUX_SPLIT_FOLLOW_PWD` | `true` | New tmux splits open in current pane directory (`false` = tmux default split behavior) |
 | `ENVI_TMUX_ONLY` | `false` | Minimal init outside tmux, full init inside (faster startup, prevents double initialization in tmux panes) |
 | `SSH_AGENT_ENABLED` | `true` | Auto-start SSH agent for interactive shells |
 | `OHMYZSH_ENABLED` | `true` | Load Oh-My-Zsh framework (zsh only) |
