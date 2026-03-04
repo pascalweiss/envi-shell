@@ -180,7 +180,7 @@ Envi automatically detects and configures the following tools when present:
 │   ├── envi_env                  User feature flags and environment variables
 │   ├── envi_locations            User directory shortcuts
 │   └── envi_shortcuts            User aliases and functions
-├── tool-integrations/            Modular initialization scripts per tool
+├── integrations/                 Modular initialization scripts per tool
 │   ├── angular/                  Angular CLI setup
 │   ├── flux/                     Flux CLI setup
 │   ├── git/                      Git configuration

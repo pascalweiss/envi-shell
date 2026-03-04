@@ -5,7 +5,7 @@
 - `setup/`: Installation automation (`run_setup.sh`, `_func_*.sh`). Scripts are sourced by the installer.
 - `defaults/`: Baseline config loaded first (env, locations, shortcuts, neovim). User overrides live in `config/`.
 - `config/`: User-editable copies (`.envi_env`, `.envi_locations`, `.envi_shortcuts`, `.envi_rc`).
-- `tool-integrations/`: Self-contained init for tools (homebrew, zsh, neovim, node, tmux, etc.).
+- `integrations/`: Self-contained init for tools (homebrew, zsh, neovim, node, tmux, etc.).
 - `test/`: Docker-based smoke tests (`test_installation.sh`).
 
 ## Build, Test, and Development Commands

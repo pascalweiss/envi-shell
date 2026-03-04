@@ -104,6 +104,7 @@ if [ -n "$TMUX" ] && command -v tmux >/dev/null 2>&1; then
         tmux bind-key % split-window -h
         tmux bind-key '"' split-window -v
     fi
+
 fi
 
 # ============================================================================
@@ -112,18 +113,18 @@ fi
 
 # Minimal initialization - essential tools only
 envi_minimal_init() {
-    source "$ENVI_HOME/tool-integrations/homebrew/init.sh"
-    source "$ENVI_HOME/tool-integrations/ssh/init.sh"
+    source "$ENVI_HOME/integrations/homebrew/init.sh"
+    source "$ENVI_HOME/integrations/ssh/init.sh"
 }
 
 # Full initialization - all tool integrations
 envi_full_init() {
     envi_minimal_init
-    source "$ENVI_HOME/tool-integrations/neovim/init.sh"
-    source "$ENVI_HOME/tool-integrations/zsh/init.sh"
-    source "$ENVI_HOME/tool-integrations/node/init.sh"
-    source "$ENVI_HOME/tool-integrations/flux/init.sh"
-    source "$ENVI_HOME/tool-integrations/angular/init.sh"
+    source "$ENVI_HOME/integrations/neovim/init.sh"
+    source "$ENVI_HOME/integrations/zsh/init.sh"
+    source "$ENVI_HOME/integrations/node/init.sh"
+    source "$ENVI_HOME/integrations/flux/init.sh"
+    source "$ENVI_HOME/integrations/angular/init.sh"
 }
 
 # ============================================================================
@@ -159,7 +160,7 @@ fi
 
 # Tmux auto-start (interactive shells only)
 if [ -n "$PS1" ]; then
-    source "$ENVI_HOME/tool-integrations/tmux/init.sh"
+    source "$ENVI_HOME/integrations/tmux/init.sh"
 fi
 
 # ============================================================================

@@ -15,18 +15,18 @@ function backup_file () {
 
 function replace_zshrc () {
     backup_file "$HOME/.zshrc" $BACKUP_DIR
-    add_symlink "$DIR/tool-integrations/zsh/zshrc" "$HOME/.zshrc"
+    add_symlink "$DIR/integrations/zsh/zshrc" "$HOME/.zshrc"
 }
 
 # Vim configuration removed - using neovim with VIMINIT approach
 
 function replace_gitconfig () {
     backup_file "$HOME/.gitconfig" $BACKUP_DIR
-    add_symlink "$DIR/tool-integrations/git/gitconfig" "$HOME/.gitconfig"
+    add_symlink "$DIR/integrations/git/gitconfig" "$HOME/.gitconfig"
 }
 
 function replace_tmux () {
     backup_file "$HOME/.tmux.conf" $BACKUP_DIR
-    add_symlink "$DIR/tool-integrations/tmux/tmux.conf" "$HOME/.tmux.conf"
-    add_symlink "$DIR/tool-integrations/tmux/tmux-small.conf" "$HOME/.tmux-small.conf"
+    add_symlink "$DIR/integrations/tmux/tmux.conf" "$HOME/.tmux.conf"
+    add_symlink "$DIR/integrations/tmux/tmux-small.conf" "$HOME/.tmux-small.conf"
 }

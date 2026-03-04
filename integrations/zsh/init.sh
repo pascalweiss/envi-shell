@@ -24,8 +24,8 @@ if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
     # Theme linking - creates symlinks for custom themes BEFORE loading Oh-My-Zsh
     if [ "$OHMYZSH_THEME_LINKING" = "true" ] && [ -n "$ZSH_THEME" ]; then
         # Create symlink from envi themes to Oh-My-Zsh themes directory
-        if [ -e "$ZSH" ] && [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ] && [ -e "$ENVI_HOME/tool-integrations/zsh/themes/$ZSH_THEME.zsh-theme" ]; then
-            ln -s "$ENVI_HOME/tool-integrations/zsh/themes/$ZSH_THEME.zsh-theme" "$ZSH/themes/"
+        if [ -e "$ZSH" ] && [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ] && [ -e "$ENVI_HOME/integrations/zsh/themes/$ZSH_THEME.zsh-theme" ]; then
+            ln -sf "$ENVI_HOME/integrations/zsh/themes/$ZSH_THEME.zsh-theme" "$ZSH/themes/"
         fi
         # Fallback to default theme if custom theme is not available
         if [ ! -e "$ZSH/themes/$ZSH_THEME.zsh-theme" ]; then

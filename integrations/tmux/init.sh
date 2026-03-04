@@ -13,7 +13,7 @@ if [ "$TMUX_ENABLED" = "true" ] \
     && [ -n "$PS1" ]; then
     if command -v tmux &> /dev/null; then
         # Use single tmux config for all terminal sizes
-        TMUX_CONFIG_FILE="$HOME/.envi/tool-integrations/tmux/tmux.conf"
+        TMUX_CONFIG_FILE="$HOME/.envi/integrations/tmux/tmux.conf"
 
         # Check if tmux session chooser is requested
         # Set LC_IDENTIFICATION=tmux-menu to trigger (passes through SSH via AcceptEnv LC_*)
