@@ -24,10 +24,17 @@ export TMUX_SHOW_HELP=false
 export TMUX_SPLIT_FOLLOW_PWD=true
 export ENVI_TMUX_ONLY=false
 
+# Atuin shell history (Warp-style searchable history popup on Up / Ctrl+R)
+export ATUIN_ENABLED=true
+
+# fzf-tab: replaces zsh tab-completion menu with an fzf popup
+export FZF_TAB_ENABLED=true
+
 # Oh-My-Zsh configuration
 export OHMYZSH_ENABLED=true
 export OHMYZSH_THEME_LINKING=true
-export OHMYZSH_PLUGINS="git kubectl zsh-autosuggestions"
+# fzf-tab must be last so it wraps completion-related widgets registered by earlier plugins.
+export OHMYZSH_PLUGINS="git kubectl zsh-autosuggestions fzf-tab"
 export OHMYZSH_GIT_PROMPT_CACHE=true
 export ZSH_THEME="envi-minimal"  # Minimal theme for tmux integration
 

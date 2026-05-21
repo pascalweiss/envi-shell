@@ -122,6 +122,8 @@ envi_full_init() {
     envi_minimal_init
     source "$ENVI_HOME/integrations/neovim/init.sh"
     source "$ENVI_HOME/integrations/zsh/init.sh"
+    source "$ENVI_HOME/integrations/fzf-tab/init.sh"
+    source "$ENVI_HOME/integrations/atuin/init.sh"
     source "$ENVI_HOME/integrations/node/init.sh"
     source "$ENVI_HOME/integrations/flux/init.sh"
     source "$ENVI_HOME/integrations/angular/init.sh"

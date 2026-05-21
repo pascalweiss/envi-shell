@@ -12,3 +12,4 @@ xclip
 ripgrep
 ffmpeg
 git-delta
+atuin
