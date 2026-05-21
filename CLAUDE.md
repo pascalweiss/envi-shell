@@ -93,10 +93,11 @@ enviinit: Complete environment initialization
   ├── Set PATH, colors, UTF-8 locale
   ├── Tool integrations (conditional based on ENVI_TMUX_ONLY)
   │   ├── Minimal mode (ENVI_TMUX_ONLY=true, outside tmux): Homebrew, SSH only
-  │   └── Full mode (default or inside tmux): All tools including Oh-My-Zsh, fzf-tab, Atuin, Node, etc.
+  │   └── Full mode (default or inside tmux): All tools including Oh-My-Zsh, fzf-tab, Atuin, zoxide, bat, eza, Node, etc.
   │       → Oh-My-Zsh loads HERE → compdef becomes available
   │       → fzf-tab zstyles applied AFTER OMZ (plugin itself is loaded via OHMYZSH_PLUGINS)
   │       → Atuin loads AFTER Oh-My-Zsh so its Up/Ctrl+R bindings win
+  │       → zoxide/bat/eza follow; each integration is a no-op if its binary is missing
   ├── Shortcuts and completions (AFTER tool integrations!)
   │   ├── defaults/default_shortcuts.sh
   │   └── config/envi_shortcuts  ← compdef is available here

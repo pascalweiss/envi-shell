@@ -24,11 +24,20 @@ export TMUX_SHOW_HELP=false
 export TMUX_SPLIT_FOLLOW_PWD=true
 export ENVI_TMUX_ONLY=false
 
-# Atuin shell history (Warp-style searchable history popup on Up / Ctrl+R)
+# Atuin shell history (searchable history popup on Up / Ctrl+R)
 export ATUIN_ENABLED=true
 
 # fzf-tab: replaces zsh tab-completion menu with an fzf popup
 export FZF_TAB_ENABLED=true
+
+# zoxide: smarter cd, `z foo` jumps to most-frecent dir matching "foo"
+export ZOXIDE_ENABLED=true
+
+# bat: use bat as MANPAGER for syntax-highlighted man pages
+export BAT_ENABLED=true
+
+# eza: modern ls replacement, installs ls/ll/la/lt aliases
+export EZA_ENABLED=true
 
 # Oh-My-Zsh configuration
 export OHMYZSH_ENABLED=true

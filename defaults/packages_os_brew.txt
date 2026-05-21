@@ -13,3 +13,4 @@ ripgrep
 ffmpeg
 git-delta
 atuin
+zoxide
