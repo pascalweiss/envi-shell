@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<USAGE
+usage: $(basename "$0") <session-name|all>
+
+Opens a Ghostty tab per tmux session and attaches to it.
+
+  all              open one tab for every existing tmux session
+  <session-name>   open a single tab attached to that session
+USAGE
+  exit "${1:-1}"
+}
+
+[ $# -eq 1 ] || usage
+arg="$1"
+case "$arg" in
+  -h|--help) usage 0 ;;
+esac
+
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "tmux not found in PATH" >&2
+  exit 1
+fi
+
+available=()
+while IFS= read -r s; do
+  [ -n "$s" ] && available+=("$s")
+done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null || true)
+
+if [ "${#available[@]}" -eq 0 ]; then
+  echo "no tmux sessions to open" >&2
+  exit 0
+fi
+
+sessions=()
+if [ "$arg" = "all" ]; then
+  sessions=("${available[@]}")
+else
+  found=0
+  for s in "${available[@]}"; do
+    if [ "$s" = "$arg" ]; then
+      sessions=("$s")
+      found=1
+      break
+    fi
+  done
+  if [ "$found" -eq 0 ]; then
+    echo "session '$arg' not found. available:" >&2
+    printf '  %s\n' "${available[@]}" >&2
+    exit 1
+  fi
+fi
+
+escape_as() {
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
+script=$(mktemp -t ghostty-tmux-tabs.XXXXXX.applescript)
+trap 'rm -f "$script"' EXIT
+
+{
+  echo 'tell application "Ghostty"'
+  echo '  activate'
+  echo '  set hasWin to (count of windows) > 0'
+  for i in "${!sessions[@]}"; do
+    name=$(escape_as "${sessions[$i]}")
+    echo "  set cfg to new surface configuration"
+    echo "  set environment variables of cfg to {\"ENVI_DISABLE_TMUX_AUTOSTART=true\"}"
+    echo "  set initial input of cfg to \"tmux attach -t \\\"$name\\\"\" & linefeed"
+    if [ "$i" -eq 0 ]; then
+      echo '  if hasWin then'
+      echo '    new tab in front window with configuration cfg'
+      echo '  else'
+      echo '    new window with configuration cfg'
+      echo '  end if'
+    else
+      echo '  new tab in front window with configuration cfg'
+    fi
+  done
+  echo 'end tell'
+} > "$script"
+
+osascript "$script"
