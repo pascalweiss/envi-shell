@@ -57,7 +57,7 @@ escape_as() {
   printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
 }
 
-script=$(mktemp -t ghostty-tmux-tabs.XXXXXX.applescript)
+script=$(mktemp -t tmux-session-open.XXXXXX.applescript)
 trap 'rm -f "$script"' EXIT
 
 {
