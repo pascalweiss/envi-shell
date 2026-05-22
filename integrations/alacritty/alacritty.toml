@@ -1,0 +1,56 @@
+[window]
+padding.x = 8
+padding.y = 8
+decorations = "full"
+dynamic_title = true
+
+[font]
+normal.family = "FiraCode Nerd Font"
+size = 14.0
+
+[cursor]
+style = "Beam"
+unfocused_hollow = true
+
+[colors.primary]
+background = "#1e1e2e"
+foreground = "#b4bcd0"
+dim_foreground = "#a6adc8"
+
+[colors.cursor]
+text = "#1e1e2e"
+cursor = "#b4bcd0"
+
+[colors.normal]
+black   = "#45475a"
+red     = "#d08898"
+green   = "#98c89e"
+yellow  = "#d8cea0"
+blue    = "#84a8d4"
+magenta = "#b8a0d2"
+cyan    = "#8abcb4"
+white   = "#a6adc8"
+
+[colors.bright]
+black   = "#585b70"
+red     = "#dba0ac"
+green   = "#a8d4ac"
+yellow  = "#e2d8b0"
+blue    = "#96b8de"
+magenta = "#c4aede"
+cyan    = "#9cc8c0"
+white   = "#b4bcd0"
+
+[scrolling]
+history = 10000
+multiplier = 3
+
+[[keyboard.bindings]]
+key = "Left"
+mods = "Alt"
+chars = "\u001bb"
+
+[[keyboard.bindings]]
+key = "Right"
+mods = "Alt"
+chars = "\u001bf"
