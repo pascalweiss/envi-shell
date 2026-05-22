@@ -47,6 +47,17 @@ fi
 # Single PATH export with proper quoting
 export PATH="$ENVI_PATHS:$PATH"
 
+# Envi-shipped PATH baseline (standard locations every envi shell expects).
+# Prepended here so they sit between envi's binaries and the system PATH.
+# Users can prepend further entries via config/envi_env.
+export PATH="$HOME/.local/bin:\
+/opt/local/bin:\
+/opt/local/sbin:\
+$HOME/.pyenv/shims:\
+/usr/games:\
+$HOME/.vimpkg/bin:\
+$PATH"
+
 # ============================================================================
 # DEFAULT CONFIGURATIONS AND COMMON UTILITIES
 # ============================================================================

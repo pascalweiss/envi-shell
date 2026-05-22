@@ -43,11 +43,7 @@
 # export EZA_ENABLED=false                  # ls/ll/la/lt aliases via eza
 # export GHOSTTY_ENABLED=false              # symlink ghostty config from envi
 
-# --- PATH extensions (envi-shipped baseline; appended on every shell) ---
-export PATH="$HOME/.local/bin:\
-/opt/local/bin:\
-/opt/local/sbin:\
-$HOME/.pyenv/shims:\
-/usr/games:\
-$HOME/.vimpkg/bin:\
-$PATH"
+# --- PATH extensions ---
+# The envi-shipped PATH baseline (~/.local/bin, /opt/local/bin, pyenv shims, ...)
+# is set in enviinit. Prepend your own entries here:
+# export PATH="$HOME/dev/tools/bin:$PATH"
