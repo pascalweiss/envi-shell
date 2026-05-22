@@ -8,6 +8,10 @@
 #
 # Controlled via ATUIN_ENABLED (default: true). Requires zsh + atuin binary.
 # On first run (no atuin DB yet), the existing zsh history is auto-imported.
+#
+# Config is symlinked to integrations/atuin/config.toml so edits are
+# versioned in git and shared across machines. Any pre-existing local
+# config is backed up to ~/dotfiles_backup/ before the symlink is created.
 
 if [ "$ATUIN_ENABLED" != "true" ]; then
     return 0 2>/dev/null || exit 0
@@ -30,12 +34,12 @@ if [ ! -f "$ATUIN_DB" ]; then
     atuin import auto >/dev/null 2>&1 || true
 fi
 
-# Install envi's default config on first run (compact inline TUI).
-# Never overwrites an existing user config.
-ATUIN_CFG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/atuin"
-if [ ! -f "$ATUIN_CFG_DIR/config.toml" ] && [ -f "$ENVI_HOME/integrations/atuin/config.toml" ]; then
-    mkdir -p "$ATUIN_CFG_DIR"
-    cp "$ENVI_HOME/integrations/atuin/config.toml" "$ATUIN_CFG_DIR/config.toml"
+# Symlink envi's tracked config into atuin's expected location. Idempotent:
+# correct symlink -> no-op; wrong symlink -> replace; regular file -> back
+# up first, then symlink.
+if [ -f "$ENVI_HOME/integrations/atuin/config.toml" ]; then
+    link_with_backup "$ENVI_HOME/integrations/atuin/config.toml" \
+        "${XDG_CONFIG_HOME:-$HOME/.config}/atuin/config.toml"
 fi
 
 # Binds Up-arrow and Ctrl+R to the atuin search TUI.

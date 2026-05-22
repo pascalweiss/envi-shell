@@ -1,10 +1,18 @@
-# Envi default atuin config.
-# Installed on first run if ~/.config/atuin/config.toml does not exist.
-# Edit freely afterwards; envi will not overwrite an existing file.
+# Envi-managed atuin config — single source of truth across machines.
+# Symlinked to ~/.config/atuin/config.toml by integrations/atuin/init.sh.
+# Edit this file (or the symlink), commit, push; other machines pick it up
+# on their next `git pull && exec zsh`.
 
 style = "compact"
 inline_height = 10
 show_numeric_shortcuts = false
+
+# Atuin's own "new install" safety defaults — pinned here so the behaviour
+# stays stable even if upstream changes their compiled-in defaults.
+enter_accept = true
+
+[sync]
+records = true
 
 [ui]
 columns = ["time", "command"]

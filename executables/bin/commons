@@ -17,6 +17,29 @@ function add_symlink () {
     ln -s $1 $2
 }
 
+# Idempotently make $2 a symlink to $1. If $2 is already that symlink, no-op.
+# If $2 is a wrong symlink, replace it. If $2 is a regular file or directory,
+# move it into $HOME/dotfiles_backup/ with a timestamp before symlinking.
+function link_with_backup () {
+    local src="$1"
+    local dst="$2"
+    local backup_dir="$HOME/dotfiles_backup"
+
+    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
+        return 0
+    fi
+
+    if [ -L "$dst" ]; then
+        rm "$dst"
+    elif [ -e "$dst" ]; then
+        mkdir -p "$backup_dir"
+        mv "$dst" "$backup_dir/$(basename "$dst").$(date +%Y%m%d_%H%M%S)"
+    fi
+
+    mkdir -p "$(dirname "$dst")"
+    ln -s "$src" "$dst"
+}
+
 function 256colors () {
     if [ "$1" = "true" ]; then 
         TERM=xterm-256color
