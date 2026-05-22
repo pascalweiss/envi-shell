@@ -8,6 +8,7 @@ SETUP_DOTFILES="$DIR/setup/_func_dotfiles.sh"
 ARGS=("${@}")
 
 source "$DIR/setup/_func_preparation.sh"
+source "$DIR/setup/_func_console_output.sh"
 source "$DIR/executables/bin/commons"
 
 # Variables to store user decisions
@@ -62,11 +63,24 @@ fi
 
 mkdir -p "$DIR/config"
 
-# Copy default configuration files to config directory for user customization
-cp "$DIR/defaults/default_env_user.sh" "$DIR/config/envi_env"
-cp "$DIR/defaults/default_locations.sh" "$DIR/config/envi_locations"
-cp "$DIR/defaults/default_shortcuts.sh" "$DIR/config/envi_shortcuts"
-cp "$DIR/defaults/default_nvim.lua" "$DIR/config/envi_nvim"
+# Copy default configuration files to config directory for user customization.
+# Only seeded on first run — existing user configs are preserved so this
+# script can be re-run safely on existing installations (e.g. after a
+# `git pull` that brings new defaults).
+seed_config() {
+    local src="$1" dst="$2"
+    if [ -f "$dst" ]; then
+        echo -e "${YELLOW}Keeping existing config: $(basename "$dst") (defaults not copied)${NC}"
+    else
+        cp "$src" "$dst"
+        echo -e "${GREEN}Seeded config: $(basename "$dst")${NC}"
+    fi
+}
+
+seed_config "$DIR/defaults/default_env_user.sh" "$DIR/config/envi_env"
+seed_config "$DIR/defaults/default_locations.sh" "$DIR/config/envi_locations"
+seed_config "$DIR/defaults/default_shortcuts.sh" "$DIR/config/envi_shortcuts"
+seed_config "$DIR/defaults/default_nvim.lua" "$DIR/config/envi_nvim"
 
 # Create minimal envi_rc bootstrap file
 cat > "$DIR/config/envi_rc" << 'EOF'
