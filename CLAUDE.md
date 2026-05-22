@@ -12,7 +12,7 @@ Envi Shell is a cross-platform development environment setup system written in B
 - **Setup System** (`setup/`): Modular installation with interactive user configuration
 - **Runtime Environment** (`executables/sbin/enviinit`): Environment initialization loaded by shell
 - **Configuration Management**: User configs in `config/`, defaults in `defaults/`
-- **Integrations** (`integrations/`): Modular, per-tool configuration and initialization (one subfolder per tool, each with an `init.sh` and any tool-specific config files like `tmux.conf`, `gitconfig`, or `config.toml`). Any setting that belongs to a specific external tool should live here, not in `enviinit` or `defaults/`. Tool configs that should be the same on every machine (atuin, tmux, zsh, git) are symlinked from the repo into the tool's expected location via the `link_with_backup` helper, so edits are versioned in git and synced across machines.
+- **Integrations** (`integrations/`): Modular, per-tool configuration and initialization (one subfolder per tool, each with an `init.sh` and any tool-specific config files like `tmux.conf`, `gitconfig`, or `config.toml`). Any setting that belongs to a specific external tool should live here, not in `enviinit` or `defaults/`. Tool configs that should be the same on every machine (atuin, tmux, zsh, git, ghostty, alacritty) are symlinked from the repo into the tool's expected location via the `link_with_backup` helper, so edits are versioned in git and synced across machines.
 
 **Key Design Patterns:**
 - Modular setup functions (`setup/_func_*.sh`) for different installation components
