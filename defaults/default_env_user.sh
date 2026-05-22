@@ -1,58 +1,49 @@
 #!/usr/bin/env bash
 #
-# ENVI DEFAULT ENVIRONMENT SETTINGS
-# =================================
-# Default feature controls and PATH extensions - copied to ~/.envi/config/envi_env during setup
-# User config overrides these defaults. See CLAUDE.md for loading order details.
+# ENVI PER-MACHINE ENVIRONMENT OVERRIDES
+# ======================================
+# Seeded into ~/.envi/config/envi_env on first install (only if missing).
+#
+# All envi defaults now live next to their consumers (each integration's
+# init.sh, or enviinit for envi-wide settings). This file is purely for
+# per-machine overrides — set a variable here to deviate from the envi
+# default on THIS machine only.
+#
+# Loading order (see CLAUDE.md): defaults → this file → integrations.
+# Integrations use `: "${VAR:=default}"` so anything you set here wins.
+#
+# Common overrides — uncomment and edit as needed:
 
-# Feature Controls (true/false)
+# --- Envi core (enviinit) ---
+# export ENVI_256_COLORS=false              # disable 256-color terminal
+# export ENVI_UTF_8=false                   # disable LC_ALL=en_US.UTF-8
+# export ENVI_TMUX_ONLY=true                # minimal init outside tmux; fast shells
 
-# Core environment features
-export ENVI_256_COLORS=true
-export ENVI_DEBUG=false
-export ENVI_UTF_8=true
+# --- SSH (integrations/ssh) ---
+# export SSH_AGENT_ENABLED=false            # disable ssh-agent auto-start
 
+# --- Tmux (integrations/tmux + enviinit) ---
+# export TMUX_ENABLED=true                  # auto-start tmux on shell login
+# export TMUX_AUTO_ATTACH=true              # attach to existing session on login
+# export TMUX_SHOW_HELP=true                # send tmux-help command on attach
+# export TMUX_SPLIT_FOLLOW_PWD=false        # rebind splits to not follow cwd
 
-# SSH agent auto-start for interactive shells
-export SSH_AGENT_ENABLED=true
-export SSH_AUTO_ADD_KEY=false
+# --- Oh-My-Zsh (integrations/zsh) ---
+# export OHMYZSH_ENABLED=false              # disable OMZ entirely
+# export OHMYZSH_PLUGINS="git fzf-tab"      # override the default plugin list
+# export ZSH_THEME=robbyrussell             # pick a different OMZ theme
+# export OHMYZSH_GIT_PROMPT_CACHE=false     # disable git prompt cache
+# export OHMYZSH_THEME_LINKING=false        # disable envi custom-theme symlinking
 
-# Tmux session management
-export TMUX_ENABLED=false
-export TMUX_AUTO_ATTACH=false
-export TMUX_SHOW_HELP=false
-export TMUX_SPLIT_FOLLOW_PWD=true
-export ENVI_TMUX_ONLY=false
+# --- Tool toggles (default: all enabled) ---
+# export ATUIN_ENABLED=false
+# export FZF_TAB_ENABLED=false
+# export ZOXIDE_ENABLED=false
+# export BAT_ENABLED=false                  # bat as MANPAGER
+# export EZA_ENABLED=false                  # ls/ll/la/lt aliases via eza
+# export GHOSTTY_ENABLED=false              # symlink ghostty config from envi
 
-# Atuin shell history (searchable history popup on Up / Ctrl+R)
-export ATUIN_ENABLED=true
-
-# fzf-tab: replaces zsh tab-completion menu with an fzf popup
-export FZF_TAB_ENABLED=true
-
-# zoxide: smarter cd, `z foo` jumps to most-frecent dir matching "foo"
-export ZOXIDE_ENABLED=true
-
-# bat: use bat as MANPAGER for syntax-highlighted man pages
-export BAT_ENABLED=true
-
-# eza: modern ls replacement, installs ls/ll/la/lt aliases
-export EZA_ENABLED=true
-
-# Ghostty (macOS terminal): symlink ~/.config/ghostty/config to the
-# envi-tracked file so edits sync across machines via git
-export GHOSTTY_ENABLED=true
-
-# Oh-My-Zsh configuration
-export OHMYZSH_ENABLED=true
-export OHMYZSH_THEME_LINKING=true
-# fzf-tab must be last so it wraps completion-related widgets registered by earlier plugins.
-export OHMYZSH_PLUGINS="git kubectl zsh-autosuggestions fzf-tab"
-export OHMYZSH_GIT_PROMPT_CACHE=true
-export ZSH_THEME="envi-minimal"  # Minimal theme for tmux integration
-
-# PATH Extensions
-
+# --- PATH extensions (envi-shipped baseline; appended on every shell) ---
 export PATH="$HOME/.local/bin:\
 /opt/local/bin:\
 /opt/local/sbin:\

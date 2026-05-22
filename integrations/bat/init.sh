@@ -9,6 +9,9 @@
 # Controlled via BAT_ENABLED (default: true). No-op if bat is not
 # installed. On Ubuntu the binary is `batcat`; we handle both.
 
+: "${BAT_ENABLED:=true}"
+export BAT_ENABLED
+
 if [ "$BAT_ENABLED" != "true" ]; then
     return 0 2>/dev/null || exit 0
 fi

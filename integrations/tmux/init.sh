@@ -5,6 +5,23 @@
 # Tmux session management and auto-start functionality
 # Called from enviinit for interactive shells only
 
+# Defaults — TMUX_ENABLED itself is defined in enviinit because the
+# minimal/full init decision uses it before this file is loaded.
+: "${TMUX_AUTO_ATTACH:=false}"
+: "${TMUX_SHOW_HELP:=false}"
+: "${TMUX_SPLIT_FOLLOW_PWD:=true}"
+export TMUX_AUTO_ATTACH TMUX_SHOW_HELP TMUX_SPLIT_FOLLOW_PWD
+
+# Apply runtime tmux settings that depend on envi environment variables.
+# Runs inside tmux where the shell environment is fully available — unlike
+# if-shell in tmux.conf, which executes before enviinit sets the env.
+if [ -n "$TMUX" ] && command -v tmux >/dev/null 2>&1; then
+    if [ "$TMUX_SPLIT_FOLLOW_PWD" = "false" ]; then
+        tmux bind-key % split-window -h
+        tmux bind-key '"' split-window -v
+    fi
+fi
+
 # Tmux auto-start (only for interactive shells)
 # Set ENVI_DISABLE_TMUX_AUTOSTART=true (e.g. in VS Code terminal env) to skip auto-start.
 if [ "$TMUX_ENABLED" = "true" ] \

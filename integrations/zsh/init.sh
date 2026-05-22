@@ -5,6 +5,16 @@
 # Configures and loads Oh-My-Zsh framework with envi customizations
 # Called from enviinit when OHMYZSH_ENABLED=true
 
+# Defaults — overridden only if user sets them in config/envi_env.
+# fzf-tab must be last so it wraps completion-related widgets registered
+# by earlier plugins.
+: "${OHMYZSH_ENABLED:=true}"
+: "${OHMYZSH_THEME_LINKING:=true}"
+: "${OHMYZSH_PLUGINS:=git kubectl zsh-autosuggestions fzf-tab}"
+: "${OHMYZSH_GIT_PROMPT_CACHE:=true}"
+: "${ZSH_THEME:=envi-minimal}"
+export OHMYZSH_ENABLED OHMYZSH_THEME_LINKING OHMYZSH_PLUGINS OHMYZSH_GIT_PROMPT_CACHE ZSH_THEME
+
 # Oh-My-Zsh framework loading and configuration (zsh only)
 if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
     # Set custom directory for Oh-My-Zsh plugins and themes BEFORE configuring plugins

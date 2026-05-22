@@ -9,6 +9,9 @@
 # Controlled via ZOXIDE_ENABLED (default: true). No-op if zoxide is not
 # installed.
 
+: "${ZOXIDE_ENABLED:=true}"
+export ZOXIDE_ENABLED
+
 if [ "$ZOXIDE_ENABLED" != "true" ]; then
     return 0 2>/dev/null || exit 0
 fi

@@ -12,6 +12,9 @@
 # Controlled via FZF_TAB_ENABLED (default: true). No-op when fzf-tab is
 # not installed or when running outside zsh.
 
+: "${FZF_TAB_ENABLED:=true}"
+export FZF_TAB_ENABLED
+
 if [ "$FZF_TAB_ENABLED" != "true" ]; then
     return 0 2>/dev/null || exit 0
 fi

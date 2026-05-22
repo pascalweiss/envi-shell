@@ -13,6 +13,9 @@
 # versioned in git and shared across machines. Any pre-existing local
 # config is backed up to ~/dotfiles_backup/ before the symlink is created.
 
+: "${ATUIN_ENABLED:=true}"
+export ATUIN_ENABLED
+
 if [ "$ATUIN_ENABLED" != "true" ]; then
     return 0 2>/dev/null || exit 0
 fi

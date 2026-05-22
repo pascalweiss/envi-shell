@@ -112,7 +112,13 @@ Shortcuts are intentionally loaded AFTER tool integrations so that Oh-My-Zsh (an
 
 ### Feature Control Variables
 
-All features can be enabled/disabled via environment variables in `config/envi_env`.
+Envi-shipped defaults live next to their consumers using `: "${VAR:=default}"`:
+
+- **enviinit** defines defaults for envi-wide vars it consumes: `ENVI_256_COLORS`, `ENVI_UTF_8`, `ENVI_TMUX_ONLY`, `TMUX_ENABLED`.
+- **Each `integrations/<tool>/init.sh`** defines defaults for that tool: e.g. `OHMYZSH_PLUGINS` in zsh, `ATUIN_ENABLED` in atuin, `SSH_AGENT_ENABLED` in ssh, `TMUX_AUTO_ATTACH`/`TMUX_SHOW_HELP`/`TMUX_SPLIT_FOLLOW_PWD` in tmux.
+- **`config/envi_env`** is for per-machine overrides only. Set a variable there to deviate from the envi default on that machine. Because `:=` only assigns when the var is unset, the user value wins.
+
+This means new envi-shipped defaults (e.g. a new entry in `OHMYZSH_PLUGINS`) propagate to every machine on next `git pull && exec zsh`, without needing to edit each machine's `config/envi_env`. Per-machine pinning is still possible by setting the variable explicitly.
 
 **Performance Optimization:**
 - **`ENVI_TMUX_ONLY=false`** (default): Full initialization in all shells

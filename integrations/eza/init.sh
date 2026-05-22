@@ -8,6 +8,9 @@
 # Controlled via EZA_ENABLED (default: true). No-op if eza is not
 # installed.
 
+: "${EZA_ENABLED:=true}"
+export EZA_ENABLED
+
 if [ "$EZA_ENABLED" != "true" ]; then
     return 0 2>/dev/null || exit 0
 fi

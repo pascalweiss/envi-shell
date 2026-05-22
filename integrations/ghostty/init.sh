@@ -10,6 +10,9 @@
 # Controlled via GHOSTTY_ENABLED (default: true). No-op on Linux and
 # whenever the source config is missing.
 
+: "${GHOSTTY_ENABLED:=true}"
+export GHOSTTY_ENABLED
+
 if [ "$GHOSTTY_ENABLED" != "true" ]; then
     return 0 2>/dev/null || exit 0
 fi

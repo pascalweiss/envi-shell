@@ -5,6 +5,9 @@
 # SSH agent management and auto-start functionality
 # Called from enviinit for all shells
 
+: "${SSH_AGENT_ENABLED:=true}"
+export SSH_AGENT_ENABLED
+
 # SSH Agent management (interactive shells only)
 if [ "$SSH_AGENT_ENABLED" = "true" ] && [ -z "$SSH_AUTH_SOCK" ] && [ -n "$PS1" ]; then
     eval "$(ssh-agent -s)" > /dev/null 2>&1
