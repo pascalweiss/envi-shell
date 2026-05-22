@@ -12,6 +12,7 @@ source "$DIR/setup/_func_console_output.sh"
 source "$DIR/executables/bin/commons"
 
 # Variables to store user decisions
+CREATE_BACKUP=false
 CONFIGURE_TIMEZONE=false
 UPDATE_PACKAGE_MANAGER=false
 INSTALL_DEPENDENCIES=false
@@ -25,6 +26,11 @@ REPLACE_GITCONFIG=false
 REPLACE_TMUX=false
 
 # Collect all decisions upfront
+if ! contains "--backup=no" "${ARGS[@]}"; then
+    read -ep "Do you want to back up existing envi configs and dotfiles before changes? Type (Y/n): " ANSWER
+    CREATE_BACKUP=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
+fi
+
 if ! contains "--configure-timezone=no" "${ARGS[@]}"; then
     read -ep "Do you want to configure the timezone? Type (Y/n): " ANSWER
     CONFIGURE_TIMEZONE=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
@@ -57,6 +63,28 @@ read -ep "Do you want to replace your .tmux.conf? Type (Y/n): " ANSWER
 REPLACE_TMUX=$( [[ "$ANSWER" =~ ^[Yy]$ || "$ANSWER" == "" ]] && echo true || echo false )
 
 # Execute the decisions
+
+# Backup runs before anything else can touch existing files.
+if $CREATE_BACKUP; then
+    BACKUP_ROOT="$HOME/dotfiles_backup/$(date +%Y-%m-%d_%H%M%S)"
+    mkdir -p "$BACKUP_ROOT"
+    echo -e "${BLUE}Creating backup in $BACKUP_ROOT${NC}"
+
+    if [ -d "$DIR/config" ]; then
+        cp -R "$DIR/config" "$BACKUP_ROOT/envi-config"
+        echo -e "${GREEN}Backed up: ~/.envi/config/${NC}"
+    fi
+
+    for f in "$HOME/.zshrc" "$HOME/.gitconfig" "$HOME/.tmux.conf" \
+             "$HOME/.envi_rc" "$HOME/.envi_env" "$HOME/.envi_locations" "$HOME/.envi_shortcuts"; do
+        if [ -e "$f" ] || [ -L "$f" ]; then
+            # Preserve symlinks rather than dereferencing them.
+            cp -RP "$f" "$BACKUP_ROOT/"
+            echo -e "${GREEN}Backed up: $(basename "$f")${NC}"
+        fi
+    done
+fi
+
 if $CONFIGURE_TIMEZONE; then
     source "$SETUP_OS" && configure_timezone
 fi
