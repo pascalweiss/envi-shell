@@ -70,7 +70,8 @@ git push
 
 ## Configuration Files
 
-- **`defaults/packages_os.txt`**: OS packages installed during setup
+- **`defaults/packages_os_brew.txt`**: Homebrew formulas installed during setup (cross-platform)
+- **`defaults/packages_os_brew_casks.txt`**: Homebrew casks (fonts, GUI apps); macOS-only, skipped on Linux
 - **`config/envi_rc`**: Main environment configuration bootstrap file
 - **`config/envi_shortcuts`**: User-defined aliases and functions
 - **`executables/sbin/enviinit`**: Runtime initialization sourced by shell

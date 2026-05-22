@@ -1,0 +1,100 @@
+# Ghostty configuration
+# Standard location: ~/.config/ghostty/config (read automatically by Ghostty on macOS)
+#
+# Style: FiraCode Nerd Font + bar cursor + Carbonfox theme (cool neutral
+# background, strong contrast, blue/cyan-leaning accents — no purple tint).
+# Swap themes by changing the `theme = ` line; alternatives are listed there.
+
+# ─── Performance ──────────────────────────────────────────────────────────────
+# Prioritize input responsiveness over vsync alignment.
+# Trade-off: minor screen tearing possible during fast redraws (usually invisible).
+window-vsync = false
+
+# Native opaque titlebar. macOS will stretch tabs to fill the window width
+# when few are open — live with it. The `tabs` style would keep them compact,
+# but it bakes the tab number into the right edge of each tab, leaving a wide
+# gap between title and number on a stretched tab. Native renders the number
+# as a small badge next to the title, which reads better.
+macos-titlebar-style = native
+
+# Note: macos-secure-input-indicator is silently ignored by this Ghostty
+# version (does not appear in `ghostty +show-config`). Removed.
+# If you ever feel lag, check System Settings + every app's menubar for
+# "Secure Keyboard Entry" — it's a global macOS state that any app can toggle.
+
+
+# ─── Font ─────────────────────────────────────────────────────────────────────
+# Use the Mono variant — that's the name Ghostty's font discovery actually
+# resolves (`ghostty +list-fonts` only lists the Mono variants of patched
+# Nerd Fonts). Without `Mono` here, Ghostty silently falls back to a
+# different font and Nerd Font glyphs in the prompt don't render properly.
+font-family = "FiraCode Nerd Font Mono"
+font-size = 14
+font-feature = +liga, +calt
+
+# Math / misc-symbol fallback. FiraCode doesn't ship glyphs for ranges like
+# Miscellaneous Mathematical Symbols-A (contains ⟐ U+27D0); macOS's auto
+# fallback picks Apple Symbols, which is proportional — Ghostty does not
+# rescale fallback glyphs, so they render oversized and break cell alignment
+# in tmux status bars. JuliaMono is true monospace with full math/misc-symbol
+# coverage and matches the terminal cell metrics. Installed via
+# `brew install --cask font-juliamono`.
+font-codepoint-map = U+2200-U+22FF,U+2300-U+23FF,U+2440-U+245F,U+25A0-U+25FF,U+2600-U+26FF,U+2700-U+27BF,U+27C0-U+27FF,U+2900-U+29FF,U+2A00-U+2AFF=JuliaMono
+
+
+# ─── Colors ───────────────────────────────────────────────────────────────────
+# Carbonfox: cool neutral #161616 background, bright #f2f4f8 foreground,
+# blue/cyan-leaning accents. Strong contrast, no purple tint in the bg.
+# Alternatives if you want to try something else:
+#   theme = "GitHub Dark High Contrast"  — even sharper contrast, very cool
+#   theme = "Tokyo Night"                — bluer, slightly purple-leaning
+#   theme = "Ayu Mirage"                 — warmer pastel, lower contrast
+theme = "Carbonfox"
+
+
+# ─── Window & padding ─────────────────────────────────────────────────────────
+window-padding-x = 8
+window-padding-y = 8
+window-padding-balance = true
+window-padding-color = background
+window-save-state = always
+
+# Subtle transparency + blur on macOS. Opacity stays high so text remains crisp.
+# Drop to 0.88 for more punch, or set opacity = 1.0 and blur = 0 to disable.
+background-opacity = 0.96
+background-blur-radius = 18
+
+# Quieter unfocused split.
+unfocused-split-opacity = 0.85
+
+
+# ─── Cursor ───────────────────────────────────────────────────────────────────
+cursor-style = bar
+cursor-style-blink = false
+
+
+# ─── Scrollback & mouse ───────────────────────────────────────────────────────
+scrollback-limit = 10000000
+mouse-hide-while-typing = true
+copy-on-select = clipboard
+
+
+# ─── Bell ─────────────────────────────────────────────────────────────────────
+# Silent. Flash the window border + bounce the dock icon for attention.
+bell-features = no-system,no-audio,border,attention,title
+
+
+# ─── Close behavior ───────────────────────────────────────────────────────────
+# Close tabs / windows / app immediately without the "Are you sure?" prompt,
+# even if a process is detected as running. Default is `true` (prompt always).
+confirm-close-surface = false
+
+
+# ─── macOS niceties ───────────────────────────────────────────────────────────
+# Both Option keys act as the system modifier so DE-layout dead keys
+# work everywhere: ~ (right-opt+N), | (right-opt+7), \ (right-opt+shift+7),
+# {} (right-opt+8/9), @ (right-opt+L), [] (right-opt+5/6).
+# Trade-off: no Alt-key bindings via Option in vim/zsh/atuin — use Esc+key
+# (vim's documented Alt fallback) or Cmd-bindings instead.
+macos-option-as-alt = false
+macos-non-native-fullscreen = visible-menu

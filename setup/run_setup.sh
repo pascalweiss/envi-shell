@@ -128,7 +128,7 @@ if $INSTALL_DEPENDENCIES; then
 fi
 
 if $INSTALL_OS_PACKAGES; then
-    source "$SETUP_OS" && install_packages
+    source "$SETUP_OS" && install_packages && install_cask_packages
 fi
 
 if $INSTALL_PYTHON_PACKAGES; then

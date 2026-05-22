@@ -39,6 +39,10 @@ export BAT_ENABLED=true
 # eza: modern ls replacement, installs ls/ll/la/lt aliases
 export EZA_ENABLED=true
 
+# Ghostty (macOS terminal): symlink ~/.config/ghostty/config to the
+# envi-tracked file so edits sync across machines via git
+export GHOSTTY_ENABLED=true
+
 # Oh-My-Zsh configuration
 export OHMYZSH_ENABLED=true
 export OHMYZSH_THEME_LINKING=true

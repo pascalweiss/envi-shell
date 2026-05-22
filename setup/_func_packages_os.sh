@@ -63,9 +63,32 @@ function install_dependencies () {
 }
 
 function install_packages () {
-    readarray -t PACKAGES < "$DIR/defaults/packages_os_brew.txt" # read Homebrew packages
+    local PACKAGES=()
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] && PACKAGES+=("$line")
+    done < "$DIR/defaults/packages_os_brew.txt"
+    [ "${#PACKAGES[@]}" -eq 0 ] && return 0
     print_packages "OS packages" "${PACKAGES[@]}"
     install_all "${PACKAGES[@]}"
+}
+
+function install_cask_packages () {
+    # Casks are macOS-only (fonts, GUI apps).
+    if ! is_darwin; then
+        return 0
+    fi
+    if [ ! -f "$DIR/defaults/packages_os_brew_casks.txt" ]; then
+        return 0
+    fi
+    local CASKS=()
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] && CASKS+=("$line")
+    done < "$DIR/defaults/packages_os_brew_casks.txt"
+    [ "${#CASKS[@]}" -eq 0 ] && return 0
+    print_packages "Homebrew casks" "${CASKS[@]}"
+    for C in "${CASKS[@]}"; do
+        exec_cask_install "$C"
+    done
 }
 
 function install_python () {
@@ -135,4 +158,15 @@ function install_all () {
     for P in "${@}"; do
         exec_install "${P}"
     done
+}
+
+function exec_cask_install () {
+    # Casks aren't on $PATH like formulas, so check via `brew list --cask` instead.
+    if brew list --cask "${1}" >/dev/null 2>&1; then
+        echo -e "${GREEN}Already installed: ${1}${NC}"
+    else
+        echo -e "${BLUE}Install cask ${1}.${NC}"
+        HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask "${1}"
+        install_error_print "${1}" "$?"
+    fi
 }
