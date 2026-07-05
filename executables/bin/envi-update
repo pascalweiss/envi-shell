@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+#
+# envi-update — pull the latest envi and re-run the idempotent setup bits.
+#
+# For machines that already have envi installed and need to catch up with new
+# changes (new commands, new tool dependencies, enviinit tweaks). It:
+#   1. fetches + fast-forwards the envi repo (auto-stashing local changes)
+#   2. installs any new OS packages from defaults/packages_os_brew.txt (idempotent)
+#   3. makes sure the executables are runnable
+#   4. optionally re-asserts the config symlinks (--relink)
+#
+# It intentionally does NOT do the destructive/interactive first-install steps
+# (chsh, replacing your ~/.zshrc / ~/.gitconfig, backups prompts).
+#
+# Usage:
+#   envi-update                # pull + install new packages
+#   envi-update --no-packages  # pull only (fast, skip brew)  [alias: --code-only]
+#   envi-update --relink       # also re-assert the config symlinks
+#
+# Note: git auth uses your normal SSH setup; if you have several keys and git
+# keeps prompting for the wrong one's passphrase, run it as:
+#   GIT_SSH_COMMAND="ssh -o BatchMode=yes" envi-update
+#
+# NB: no `set -e` on purpose — the reused setup functions (e.g. check_installation)
+# return non-zero by design for the "already installed" case.
+
+ENVI_HOME="${ENVI_HOME:-$HOME/.envi}"
+DIR="$ENVI_HOME"          # the setup/_func_*.sh helpers expect $DIR
+cd "$DIR" 2>/dev/null || { echo "envi not found at $DIR" >&2; exit 1; }
+
+do_packages=true
+do_relink=false
+for a in "$@"; do
+  case "$a" in
+    --no-packages|--code-only) do_packages=false ;;
+    --relink)                  do_relink=true ;;
+    -h|--help) echo "usage: envi-update [--no-packages|--code-only] [--relink]"; exit 0 ;;
+    *) echo "unknown option: $a" >&2; exit 2 ;;
+  esac
+done
+
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+say() { printf "${BLUE}==> %s${NC}\n" "$1"; }
+
+# --- 1. update the repo -----------------------------------------------------
+say "Updating envi repo ($DIR)"
+branch="$(git rev-parse --abbrev-ref HEAD)"
+if ! git fetch origin; then
+  echo -e "${RED}git fetch failed — check your SSH access to GitHub.${NC}" >&2
+  exit 1
+fi
+
+remote="origin/$branch"
+if ! git rev-parse --verify "$remote" >/dev/null 2>&1; then
+  echo -e "${RED}No upstream $remote to update from.${NC}" >&2
+  exit 1
+fi
+
+local_sha="$(git rev-parse @)"
+remote_sha="$(git rev-parse "$remote")"
+base_sha="$(git merge-base @ "$remote")"
+
+if [ "$local_sha" = "$remote_sha" ]; then
+  echo -e "${GREEN}Already up to date ($branch @ ${local_sha:0:7}).${NC}"
+elif [ "$remote_sha" = "$base_sha" ]; then
+  echo -e "${YELLOW}Local branch is ahead of $remote — nothing to pull.${NC}"
+elif [ "$local_sha" = "$base_sha" ]; then
+  stashed=false
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    say "Stashing local changes"
+    git stash push -m "envi-update ${local_sha:0:7}" >/dev/null && stashed=true
+  fi
+  say "Fast-forwarding $branch ${local_sha:0:7} -> ${remote_sha:0:7}"
+  if ! git merge --ff-only "$remote"; then
+    echo -e "${RED}Fast-forward failed.${NC}" >&2
+    $stashed && git stash pop
+    exit 1
+  fi
+  if $stashed; then
+    say "Restoring local changes"
+    if ! git stash pop; then
+      echo -e "${YELLOW}Your local changes are kept in 'git stash' — resolve the conflict, then 'git stash pop'.${NC}"
+    fi
+  fi
+else
+  echo -e "${RED}Local and $remote have diverged. Resolve manually, then re-run.${NC}" >&2
+  exit 1
+fi
+
+# --- 2. new OS packages (idempotent) ----------------------------------------
+if $do_packages; then
+  say "Installing any new OS packages"
+  # shellcheck source=/dev/null
+  source "$DIR/setup/_func_packages_os.sh"
+  install_packages
+  install_cask_packages
+fi
+
+# --- 3. make sure executables are runnable (safety net) ---------------------
+for b in bin sbin lib macbin linuxbin; do
+  [ -d "$DIR/executables/$b" ] && chmod u+x "$DIR/executables/$b/"* 2>/dev/null
+done
+
+# --- 4. optionally re-assert config symlinks --------------------------------
+if $do_relink; then
+  say "Re-asserting config symlinks"
+  # shellcheck source=/dev/null
+  source "$DIR/executables/bin/commons"
+  link_with_backup "$DIR/config/envi_env"        "$HOME/.envi_env"
+  link_with_backup "$DIR/config/envi_locations"  "$HOME/.envi_locations"
+  link_with_backup "$DIR/config/envi_rc"         "$HOME/.envi_rc"
+  link_with_backup "$DIR/config/envi_shortcuts"  "$HOME/.envi_shortcuts"
+fi
+
+echo -e "${GREEN}envi update complete.${NC} Run 'exec zsh' to load the changes."
