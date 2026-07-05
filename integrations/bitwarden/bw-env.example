@@ -1,0 +1,18 @@
+# .bw-env — references to secrets in the dedicated AI Bitwarden vault.
+# Contains NO secrets (only item names/IDs), so it is safe to commit if you want
+# the reference list synced across machines.
+#
+# Format:  ENV_VAR_NAME=<reference>
+# Reference syntax:
+#   password:<item>       (default if no prefix)  -> the item's password
+#   username:<item>                                -> the item's username
+#   totp:<item>                                    -> current TOTP code
+#   notes:<item>                                   -> the item's notes
+#   field:<name>:<item>                            -> a custom field (needs jq)
+# <item> is the Bitwarden item name or item ID.
+
+GITLAB_TOKEN=password:ai-gitlab-token
+OPENROUTER_API_KEY=password:openrouter-key
+PAPERLESS_TOKEN=password:paperless-api-token
+# ATLASSIAN_EMAIL=username:atlassian
+# ATLASSIAN_API_TOKEN=field:api-token:atlassian

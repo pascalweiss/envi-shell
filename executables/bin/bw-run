@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#
+# bw-run — system-wide launcher for the Bitwarden secret agent.
+#
+# Lives in executables/bin (universal, on envi's PATH), so `bw-run` is available
+# in every shell and script that inherits envi's PATH — not just interactive zsh.
+# It simply execs the real wrapper in the bitwarden integration folder.
+#
+#   bw-run <command> [args...]
+#   bw-run --agent-status
+#   bw-run --stop-agent
+
+exec "${ENVI_HOME:-$HOME/.envi}/integrations/bitwarden/with-secrets.sh" "$@"

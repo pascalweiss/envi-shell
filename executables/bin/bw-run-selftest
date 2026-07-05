@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# bw-run-selftest — leak-free health check for the Bitwarden secret agent.
+#
+# Runs `bw-run` over the variables listed in bw-env and reports, for each, only
+# whether it resolved and its length — NEVER the value. Safe to paste anywhere.
+#
+#   bw-run-selftest
+
+set -euo pipefail
+
+ENVI_HOME="${ENVI_HOME:-$HOME/.envi}"
+BW_ENV_FILE="${BW_ENV_FILE:-$ENVI_HOME/integrations/bitwarden/bw-env}"
+[ -f "$BW_ENV_FILE" ] || { echo "bw-env not found at $BW_ENV_FILE" >&2; exit 1; }
+
+# Collect the env var names (left of '=') from bw-env, skipping comments/blanks.
+CHECK_VARS=$(grep -vE '^[[:space:]]*#|^[[:space:]]*$' "$BW_ENV_FILE" | sed -E 's/[[:space:]]*=.*$//')
+export CHECK_VARS
+
+# Delegate to bw-run so the same unlock/serve path is exercised. The inner shell
+# inherits CHECK_VARS (exported) plus the injected secrets, and prints lengths.
+exec "$ENVI_HOME/executables/bin/bw-run" bash -c '
+ok=0; miss=0
+for v in $CHECK_VARS; do
+  val="${!v}"
+  if [ -n "$val" ]; then
+    printf "%-24s = SET (len %s)\n" "$v" "${#val}"; ok=$((ok+1))
+  else
+    printf "%-24s = MISSING\n" "$v"; miss=$((miss+1))
+  fi
+done
+echo "----"
+echo "resolved: $ok, missing: $miss"'
