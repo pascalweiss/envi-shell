@@ -143,6 +143,7 @@ envi_full_init() {
     source "$ENVI_HOME/integrations/node/init.sh"
     source "$ENVI_HOME/integrations/flux/init.sh"
     source "$ENVI_HOME/integrations/angular/init.sh"
+    source "$ENVI_HOME/integrations/bitwarden/init.sh"
 }
 
 # ============================================================================

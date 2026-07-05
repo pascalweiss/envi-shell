@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+#
+# envi-agent-notes — point every installed coding agent at the machine's single
+# agent-instruction file, by injecting only a short LINK (not the full text).
+#
+# The canonical instructions live in ONE file in the envi repo:
+#   ~/.envi/agent-instructions.md
+# This tool writes a small managed block (between HTML-comment markers) into each
+# installed agent's global instruction file, containing just a pointer to that file:
+#   Claude Code  -> ~/.claude/CLAUDE.md
+#   Codex        -> ~/.codex/AGENTS.md
+#   Gemini CLI   -> ~/.gemini/GEMINI.md
+#   OpenCode     -> ~/.config/opencode/AGENTS.md
+#
+# Because only a link is injected, you can edit agent-instructions.md any time and the
+# change takes effect with no re-injection. Re-run this only when adding a new agent.
+#
+# Usage:
+#   envi-agent-notes             # inject / update the link (idempotent)
+#   envi-agent-notes --dry-run   # show what would change, write nothing
+#   envi-agent-notes --uninstall # remove the managed block everywhere
+
+set -euo pipefail
+
+ENVI_HOME="${ENVI_HOME:-$HOME/.envi}"
+LINK_TARGET="${ENVI_AGENT_NOTES_FILE:-$ENVI_HOME/agent-instructions.md}"
+
+# Markers kept stable (incl. across the earlier full-text version) so re-running
+# cleanly replaces any previously injected block.
+BEGIN="<!-- >>> bw-run agent notes (managed by envi — do not edit inside) >>> -->"
+END="<!-- <<< bw-run agent notes <<< -->"
+
+# name | global instruction file | dir that must exist for the agent to count
+TARGETS=(
+  "Claude Code|$HOME/.claude/CLAUDE.md|$HOME/.claude"
+  "Codex|$HOME/.codex/AGENTS.md|$HOME/.codex"
+  "Gemini CLI|$HOME/.gemini/GEMINI.md|$HOME/.gemini"
+  "OpenCode|$HOME/.config/opencode/AGENTS.md|$HOME/.config/opencode"
+)
+
+mode="install"
+case "${1:-}" in
+  --uninstall) mode="uninstall" ;;
+  --dry-run)   mode="dry-run" ;;
+  "")          ;;
+  *) echo "unknown option: $1" >&2; exit 2 ;;
+esac
+
+if [ "$mode" != "uninstall" ] && [ ! -f "$LINK_TARGET" ]; then
+  echo "agent-instruction file not found at $LINK_TARGET" >&2
+  exit 1
+fi
+
+# The managed block: only a pointer to the single instruction file. No prose that
+# would need re-injection when the instructions change.
+build_block() {
+  printf '%s\n' "$BEGIN"
+  cat <<EOF
+## Agent instructions for this machine (managed by envi)
+
+Before any task that needs a secret, token, API key or credential, read and follow:
+
+    $LINK_TARGET
+
+Summary: this machine has a secret broker \`bw-run\`, use it to inject secrets as
+environment variables into a command, and NEVER print or read a secret value into your
+output or logs. Usage patterns and details are in the file above.
+EOF
+  printf '%s\n' "$END"
+}
+
+# Print a file with any existing managed block stripped out.
+strip_block() {
+  local f="$1"
+  [ -f "$f" ] || return 0
+  awk -v b="$BEGIN" -v e="$END" '
+    $0==b {skip=1; next}
+    $0==e {skip=0; next}
+    skip!=1 {print}
+  ' "$f"
+}
+
+changed=0 skipped=0
+for entry in "${TARGETS[@]}"; do
+  IFS='|' read -r name file dir <<< "$entry"
+
+  if [ ! -d "$dir" ]; then
+    printf '  skip   %-12s (not installed: %s absent)\n' "$name" "$dir"
+    skipped=$((skipped+1))
+    continue
+  fi
+
+  stripped="$(strip_block "$file")"
+  if [ "$mode" = "uninstall" ]; then
+    new="$stripped"
+  elif [ -n "$stripped" ]; then
+    new="$stripped"$'\n\n'"$(build_block)"
+  else
+    new="$(build_block)"
+  fi
+
+  if [ "$mode" = "dry-run" ]; then
+    printf '  would update %-12s -> %s\n' "$name" "$file"
+    changed=$((changed+1))
+    continue
+  fi
+
+  mkdir -p "$(dirname "$file")"
+  printf '%s\n' "$new" > "$file"
+  if [ "$mode" = "uninstall" ]; then
+    printf '  removed  %-12s from %s\n' "$name" "$file"
+  else
+    printf '  linked   %-12s -> %s\n' "$name" "$file"
+  fi
+  changed=$((changed+1))
+done
+
+echo "----"
+echo "$mode: $changed target(s) affected, $skipped skipped. Link -> $LINK_TARGET"
