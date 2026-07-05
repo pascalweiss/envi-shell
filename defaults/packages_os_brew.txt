@@ -14,3 +14,4 @@ ffmpeg
 git-delta
 atuin
 zoxide
+bitwarden-cli
