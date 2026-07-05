@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+#
+# erun — run a command on a remote host that the USER already has an open,
+# interactive ssh session to, by reusing that session's multiplexed master
+# connection (see ~/.envi/integrations/ssh/config).
+#
+# The point: an AI agent (or any non-interactive shell) gets clean stdout,
+# stderr and a real exit code from the remote host, WITHOUT any credentials of
+# its own. It piggybacks on the connection you authenticated interactively, so
+# it works for hosts the agent has never seen and has no key/password for
+# (fresh k8s nodes, random servers behind a jump host, 2FA logins, ...).
+#
+# Usage:
+#   erun --list                 list hosts you currently have ssh sessions to
+#   erun <target> <cmd...>      run <cmd...> on <target>
+#
+# <target> is exactly what you would pass to ssh (user@host, host, or a Host
+# alias from ~/.ssh/config). It MUST match how the interactive session was
+# opened (ssh keys the master socket on user+host+port), so prefer copying the
+# target string straight from `erun --list`.
+#
+# erun never prompts for a password: if no reusable session exists it fails fast
+# with guidance instead of blocking. It passes the remote command's exit code
+# straight through (a connection failure surfaces as 255).
+
+set -o pipefail
+prog=$(basename "$0")
+
+# Print the header comment (usage) as help text.
+_usage() {
+    sed -n '3,29p' "$0" | sed 's/^#\{1,2\} \{0,1\}//; s/^#$//'
+}
+
+# List the user's interactive ssh CLIENT sessions by inspecting running
+# processes and extracting each ssh invocation's target host. Best-effort:
+# this is a discovery hint; execution correctness does not depend on it.
+_list_targets() {
+    ps -axo command= 2>/dev/null \
+      | grep -E '(^|/)ssh( |$)' \
+      | grep -vE 'ssh-agent|ssh-add|/sshd|[[:space:]]sshd|/erun|[[:space:]]-O[[:space:]]' \
+      | while IFS= read -r line; do
+            target=""
+            # shellcheck disable=SC2086
+            set -- $line
+            while [ "$#" -gt 0 ]; do
+                case "$1" in
+                    ssh|*/ssh) : ;;                 # the binary itself
+                    -o) shift ;;                    # skip "-o" and its value
+                    -[bcDeFIiJLlmOopQRSWw]) shift ;; # option flags that take an argument
+                    -*) : ;;                        # other flags (no argument)
+                    *=*) : ;;                       # env-style tokens
+                    *) target="$1" ;;               # candidate host (keep last)
+                esac
+                shift
+            done
+            [ -n "$target" ] && printf '%s\n' "$target"
+        done | sort -u
+}
+
+case "${1:-}" in
+    ""|-h|--help)
+        _usage
+        exit 0
+        ;;
+    -l|--list)
+        targets=$(_list_targets)
+        if [ -z "$targets" ]; then
+            echo "$prog: no open ssh sessions found." >&2
+            echo "Open one interactively first (e.g. in a tmux pane): ssh user@host" >&2
+            exit 1
+        fi
+        echo "Open ssh sessions you can erun into:"
+        printf '%s\n' "$targets" | while IFS= read -r h; do
+            if ssh -o BatchMode=yes -O check "$h" >/dev/null 2>&1; then
+                printf '  %-40s [master live, reusable]\n' "$h"
+            else
+                printf '  %-40s [no master — reopen the session]\n' "$h"
+            fi
+        done
+        exit 0
+        ;;
+esac
+
+target="$1"; shift
+if [ "$#" -eq 0 ]; then
+    echo "$prog: no command given." >&2
+    echo "Usage: $prog <target> <cmd...>   (try: $prog --list)" >&2
+    exit 2
+fi
+
+# Is a reusable master already live for this exact target? (fast, no auth)
+have_master=false
+ssh -o BatchMode=yes -O check "$target" >/dev/null 2>&1 && have_master=true
+
+# BatchMode=yes: reuse the master if present; otherwise fail fast instead of
+# hanging on a password prompt.
+ssh -o BatchMode=yes "$target" "$@"
+rc=$?
+
+if [ "$rc" -eq 255 ] && [ "$have_master" = false ]; then
+    {
+        echo "$prog: cannot reach '$target' non-interactively (no reusable ssh session)."
+        echo "Open an interactive session to it first, then retry:"
+        echo "    ssh $target"
+        echo "erun reuses that session's connection; it has no credentials of its own."
+        echo "Tip: run '$prog --list' to see the exact target strings you can use."
+    } >&2
+fi
+exit "$rc"
