@@ -18,6 +18,18 @@ This clones the repository to `~/.envi` and runs an interactive setup where you 
 
 > **Note:** The installation requires root rights for system package installation. Review the setup scripts before running if you have concerns.
 
+## Updating
+
+Machines that already have envi installed can catch up with new changes using a single command (no need to re-run the interactive first-time setup):
+
+```bash
+envi-update                # fetch + fast-forward, then install any new tool dependencies
+envi-update --no-packages  # code only, skip the package step (faster)
+envi-update --relink       # also re-assert the config symlinks
+```
+
+`envi-update` auto-stashes local changes before fast-forwarding and restores them afterward, and reuses the same idempotent package install as first-time setup, so new dependencies (like a newly added CLI) are picked up automatically. It does not change your shell or replace your dotfiles. Run `exec zsh` afterward to load the changes.
+
 ## How It Works
 
 Envi hooks into your shell startup and loads a layered configuration system:
