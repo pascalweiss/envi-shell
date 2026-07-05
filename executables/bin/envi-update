@@ -103,13 +103,31 @@ done
 
 # --- 4. optionally re-assert config symlinks --------------------------------
 if $do_relink; then
-  say "Re-asserting config symlinks"
+  say "Re-asserting envi symlinks"
   # shellcheck source=/dev/null
   source "$DIR/executables/bin/commons"
-  link_with_backup "$DIR/config/envi_env"        "$HOME/.envi_env"
-  link_with_backup "$DIR/config/envi_locations"  "$HOME/.envi_locations"
-  link_with_backup "$DIR/config/envi_rc"         "$HOME/.envi_rc"
-  link_with_backup "$DIR/config/envi_shortcuts"  "$HOME/.envi_shortcuts"
+
+  # Only fix envi-managed links: repair a broken/wrong symlink or create a
+  # missing one, but never clobber a real file the user keeps themselves.
+  # (A broken symlink fails -e, so it still gets repaired.)
+  relink() {
+    local src="$1" dst="$2"
+    if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+      printf '  skip %s (your own file, not an envi symlink)\n' "$dst"
+      return
+    fi
+    link_with_backup "$src" "$dst"
+  }
+
+  # config symlinks
+  relink "$DIR/config/envi_env"        "$HOME/.envi_env"
+  relink "$DIR/config/envi_locations"  "$HOME/.envi_locations"
+  relink "$DIR/config/envi_rc"         "$HOME/.envi_rc"
+  relink "$DIR/config/envi_shortcuts"  "$HOME/.envi_shortcuts"
+  # dotfile symlinks (these break when integration folders get renamed)
+  relink "$DIR/integrations/zsh/zshrc"      "$HOME/.zshrc"
+  relink "$DIR/integrations/git/gitconfig"  "$HOME/.gitconfig"
+  relink "$DIR/integrations/tmux/tmux.conf" "$HOME/.tmux.conf"
 fi
 
 echo -e "${GREEN}envi update complete.${NC} Run 'exec zsh' to load the changes."
