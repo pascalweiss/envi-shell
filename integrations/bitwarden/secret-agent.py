@@ -8,10 +8,10 @@ ssh-agent-style daemon: secrets are resolved once from Bitwarden (a single
 connect via Unix domain socket to retrieve them. No secrets are written to disk.
 
 This file is a verbatim port of the AgentFactory secret-agent — it is backend
-agnostic. Only the resolution layer (in with-secrets.sh) differs: 1Password's
+agnostic. Only the resolution layer (in bw-run.sh) differs: 1Password's
 `op read` (Touch ID) is replaced by `bw unlock` + `bw get` (master password).
 
-Usage (normally called by with-secrets.sh, not directly):
+Usage (normally called by bw-run.sh, not directly):
     # Start agent with secrets as JSON on stdin:
     echo '{"KEY":"val"}' | python3 secret-agent.py <socket_path> <pid_file> <ttl_seconds>
 
