@@ -1,0 +1,21 @@
+# Managed by envi (integrations/ssh/config). Included from ~/.ssh/config.
+#
+# Connection multiplexing (ControlMaster)
+# =======================================
+# The first interactive ssh to a host opens a long-lived "master" socket under
+# ~/.ssh/cm/. Any later ssh to the SAME target (from any shell, e.g. an AI agent
+# via `erun`) reuses that already-authenticated connection as a new channel, with
+# no re-auth: no key, no password, no 2FA prompt.
+#
+# This is what lets an agent run commands on hosts YOU opened interactively,
+# including hosts the agent has never seen and has no credentials for. You do the
+# human auth once (password / 2FA / jump host); the agent piggybacks on it.
+#
+# - ControlPath uses %C (a hash of user+host+port), so the socket path never
+#   exceeds the ~104-char unix-socket limit, even for long FQDNs or ProxyJump.
+# - ControlPersist keeps the master alive for 30m after the last client exits,
+#   so the agent can keep working briefly after you close the interactive pane.
+Host *
+    ControlMaster auto
+    ControlPath ~/.ssh/cm/%C
+    ControlPersist 30m
