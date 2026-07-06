@@ -14,10 +14,10 @@
 #   erun --list                 list hosts you currently have ssh sessions to
 #   erun <target> <cmd...>      run <cmd...> on <target>
 #
-# <target> is exactly what you would pass to ssh (user@host, host, or a Host
-# alias from ~/.ssh/config). It MUST match how the interactive session was
-# opened (ssh keys the master socket on user+host+port), so prefer copying the
-# target string straight from `erun --list`.
+# <target> is what you would pass to ssh (user@host, host, or a Host alias). It
+# need not match the interactive session's spelling verbatim: if it resolves to
+# the same host+user+port as an open session, erun reuses that master. Still,
+# copying the target straight from `erun --list` is the surest.
 #
 # erun never prompts for a password: if no reusable session exists it fails fast
 # with guidance instead of blocking. It passes the remote command's exit code
@@ -57,6 +57,45 @@ _list_targets() {
         done | sort -u
 }
 
+# Resolve a host name to a comparable address, cross-platform and best-effort.
+# Returns the name unchanged if it is already an IP literal; empty output means
+# "could not resolve" and the caller then declines to match on it.
+_resolve_ip() {
+    name="$1"
+    case "$name" in
+        *:*) printf '%s\n' "$name"; return 0 ;;   # IPv6 literal
+    esac
+    case "$name" in
+        *[!0-9.]*) : ;;                           # has non-[digit/dot] → a name
+        *) printf '%s\n' "$name"; return 0 ;;     # pure digits/dots → IPv4 literal
+    esac
+    ip=""
+    if command -v getent >/dev/null 2>&1; then   # Linux (glibc)
+        ip=$(getent ahostsv4 "$name" 2>/dev/null | awk 'NR==1{print $1}')
+        [ -z "$ip" ] && ip=$(getent hosts "$name" 2>/dev/null | awk 'NR==1{print $1}')
+    fi
+    if [ -z "$ip" ] && command -v dscacheutil >/dev/null 2>&1; then   # macOS
+        ip=$(dscacheutil -q host -a name "$name" 2>/dev/null \
+             | awk '/^ip_address:/{print $2; exit}')
+    fi
+    if [ -z "$ip" ] && command -v perl >/dev/null 2>&1; then          # portable fallback
+        ip=$(perl -MSocket -e 'my @a=gethostbyname($ARGV[0]); print inet_ntoa($a[4]) if @a>4' \
+             "$name" 2>/dev/null)
+    fi
+    printf '%s\n' "$ip"
+}
+
+# Canonical identity of a target as "ip|user|port", using the EFFECTIVE ssh
+# config (so a Host alias and its underlying HostName compare equal). A leading
+# "|" (empty ip) marks an unresolvable target the caller must not match on.
+_canon_id() {
+    cfg=$(ssh -G "$1" 2>/dev/null)
+    h=$(printf '%s\n' "$cfg" | awk 'tolower($1)=="hostname"{print $2; exit}')
+    u=$(printf '%s\n' "$cfg" | awk 'tolower($1)=="user"{print $2; exit}')
+    p=$(printf '%s\n' "$cfg" | awk 'tolower($1)=="port"{print $2; exit}')
+    printf '%s|%s|%s\n' "$(_resolve_ip "$h")" "$u" "$p"
+}
+
 case "${1:-}" in
     ""|-h|--help)
         _usage
@@ -91,6 +130,32 @@ fi
 # Is a reusable master already live for this exact target? (fast, no auth)
 have_master=false
 ssh -o BatchMode=yes -O check "$target" >/dev/null 2>&1 && have_master=true
+
+# Slow path: no master for the exact spelling. The session may have been opened
+# under a different spelling of the same host (an IP vs a DNS name or alias).
+# Match open sessions by canonical identity (resolved ip+user+port) and reuse
+# the one that points at the same host, so `erun forum0` finds a master that was
+# opened as `ssh 10.0.0.5`. Only runs on a miss, so the fast path pays nothing.
+if [ "$have_master" = false ]; then
+    want=$(_canon_id "$target")
+    case "$want" in
+        "|"*) : ;;   # target's host did not resolve → cannot match safely
+        *)
+            while IFS= read -r cand; do
+                [ -z "$cand" ] && continue
+                [ "$cand" = "$target" ] && continue
+                if [ "$(_canon_id "$cand")" = "$want" ] \
+                   && ssh -o BatchMode=yes -O check "$cand" >/dev/null 2>&1; then
+                    echo "$prog: reusing open session '$cand' for '$target' (same host)." >&2
+                    target="$cand"; have_master=true
+                    break
+                fi
+            done <<EOF
+$(_list_targets)
+EOF
+            ;;
+    esac
+fi
 
 # BatchMode=yes: reuse the master if present; otherwise fail fast instead of
 # hanging on a password prompt.
