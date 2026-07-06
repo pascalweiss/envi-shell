@@ -10,4 +10,4 @@
 #   bw-run --agent-status
 #   bw-run --stop-agent
 
-exec "${ENVI_HOME:-$HOME/.envi}/integrations/bitwarden/with-secrets.sh" "$@"
+exec "${ENVI_HOME:-$HOME/.envi}/integrations/bitwarden/bw-run.sh" "$@"

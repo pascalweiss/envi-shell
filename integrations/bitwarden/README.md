@@ -5,14 +5,16 @@ with your master password, then scripts and AI tools read the listed secrets
 from an in-memory daemon (Unix socket, TTL) without re-authenticating. Secrets
 are never written to disk.
 
-Cross-platform by design: the unlock is `bw unlock` (master password on the CLI),
-identical on macOS and headless Linux, no biometrics, no platform-specific code.
+Cross-platform by design: the default unlock is `bw unlock` (master password on
+the CLI), identical on macOS and headless Linux, no platform-specific code. On
+macOS you can optionally unlock with **Touch ID** instead (see below).
 
 ## Files
 | File | Purpose |
 |------|---------|
-| `with-secrets.sh` | Wrapper behind the `bw-run` command: unlock + resolve + inject env |
+| `bw-run.sh` | Wrapper behind the `bw-run` command: unlock + resolve + inject env |
 | `secret-agent.py` | Background daemon holding secrets in memory (backend-agnostic) |
+| `keychain-touchid.swift` | macOS-only: store/read the master password behind a Touch ID check |
 | `bw-env.example`  | Copy to `bw-env`, list your secret references (no secrets) |
 | `init.sh` | Exposes the `bw-run` command; defaults `BW_SECRET_AGENT_TTL` |
 
@@ -55,6 +57,35 @@ Never print the value: avoid `env`, `echo $VAR`, `curl -v`.
 - TTL: `BW_SECRET_AGENT_TTL` seconds (default 3600). Per-machine override in `config/envi_env`.
 - Disable entirely: `BW_SECRETS_ENABLED=false`.
 - Socket/PID live in `$XDG_RUNTIME_DIR` (Linux) or `$TMPDIR` (macOS), never secrets.
+
+## Touch ID unlock (macOS)
+Replace the once-per-TTL master-password prompt with a fingerprint. Opt-in:
+
+```bash
+bw-run --setup-touchid    # type the master password once; it is stored + verified
+bw-run --touchid-status   # show whether the next unlock uses Touch ID
+bw-run --remove-touchid   # delete the stored password, back to password prompts
+```
+
+After setup, the first `bw-run` per TTL shows a Touch ID sheet instead of asking
+for the master password. Everything else is unchanged. Needs the Swift toolchain
+(Xcode Command Line Tools) and a Mac with Touch ID.
+
+**Control:** `BW_TOUCHID_ENABLED` — `auto` (default: use it once a password is
+stored), or `false` to force the password prompt on a given machine. On Linux the
+whole path is skipped, so servers keep prompting for the password as before.
+
+**How, and its limit.** The master password is kept in the login Keychain
+(`WhenUnlockedThisDeviceOnly`, never synced) and handed back only after this
+tool's `LAContext.evaluatePolicy` Touch ID check succeeds. Note this is an
+**app-level** gate, not an OS-enforced biometric ACL: macOS only enforces a
+`.biometryAny` keychain ACL for apps signed with an Apple Developer Team ID +
+`keychain-access-groups` entitlement, which an unsigned CLI cannot have (ad-hoc
+signing that entitlement gets the process killed). So another local app could, in
+principle, reach the item via a login-keychain-password prompt without Touch ID.
+Trade-off: the master password now lives at rest (Keychain-encrypted) instead of
+never being stored. The dedicated AI-only account keeps the blast radius bounded;
+if you are not comfortable with the password at rest, do not run `--setup-touchid`.
 
 ## Teaching coding agents about `bw-run`
 So that every coding agent on a machine knows to use `bw-run` (instead of asking you
