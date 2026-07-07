@@ -8,11 +8,13 @@
 // TTL. Runs interpreted (no compiled binary is checked in); needs the Swift
 // toolchain (Xcode Command Line Tools). ~1s start, but only once per unlock.
 //
-//   keychain-touchid.swift store   <account>   # secret read from stdin (raw, no newline added)
-//   keychain-touchid.swift get     <account>   # Touch ID prompt, then prints secret to stdout
-//   keychain-touchid.swift delete  <account>   # removes the item
-//   keychain-touchid.swift check   <account>   # exit 0 if item exists (no prompt), 1 otherwise
-//   keychain-touchid.swift canauth             # exit 0 if biometrics are available (no prompt)
+//   keychain-touchid.swift store   <account>          # secret read from stdin (raw, no newline added)
+//   keychain-touchid.swift get     <account> [timeout] # Touch ID prompt, then prints secret to stdout
+//   keychain-touchid.swift delete  <account>          # removes the item
+//   keychain-touchid.swift check   <account>          # exit 0 if item exists (no prompt), 1 otherwise
+//   keychain-touchid.swift canauth                    # exit 0 if biometrics are available (no prompt)
+//
+// [timeout] on `get` is optional seconds (float). 0 or omitted = wait forever.
 //
 // Security model — read this before trusting it. macOS only enforces a biometric
 // keychain ACL (kSecAccessControl .biometryAny) for apps signed with an Apple
@@ -48,8 +50,11 @@ func baseQuery(_ account: String) -> [String: Any] {
 }
 
 // Show the Touch ID sheet and block until the user responds. Exits (3) on
-// cancel/failure; returns only on success.
-func requireTouchID(reason: String) {
+// cancel/failure; returns only on success. A positive timeout invalidates the
+// context (dismissing the sheet) and exits (3) if untouched in time; this is the
+// backstop for non-interactive callers. The interactive caller usually kills this
+// process on a keypress before the timeout fires.
+func requireTouchID(reason: String, timeout: Double) {
     let ctx = LAContext()
     var canErr: NSError?
     guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &canErr) else {
@@ -63,7 +68,14 @@ func requireTouchID(reason: String) {
         evalErr = err
         sem.signal()
     }
-    sem.wait()
+    if timeout > 0 {
+        if sem.wait(timeout: .now() + timeout) == .timedOut {
+            ctx.invalidate()
+            fail("timed out waiting for Touch ID", 3)
+        }
+    } else {
+        sem.wait()
+    }
     guard ok else {
         if let e = evalErr as NSError?,
            e.code == LAError.userCancel.rawValue || e.code == LAError.appCancel.rawValue || e.code == LAError.systemCancel.rawValue {
@@ -108,7 +120,8 @@ case "store":
 
 case "get":
     let account = requireAccount()
-    requireTouchID(reason: "Unlock the Bitwarden AI vault")
+    let timeout = args.count >= 4 ? (Double(args[3]) ?? 0) : 0
+    requireTouchID(reason: "Unlock the Bitwarden AI vault", timeout: timeout)
     var q = baseQuery(account)
     q[kSecReturnData as String] = true
     q[kSecMatchLimit as String] = kSecMatchLimitOne

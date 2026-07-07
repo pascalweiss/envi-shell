@@ -68,22 +68,29 @@ bw-run --remove-touchid   # delete the stored password, back to password prompts
 ```
 
 After setup, the first `bw-run` per TTL shows a Touch ID sheet instead of asking
-for the master password. Everything else is unchanged. Needs the Swift toolchain
+for the master password:
+
+```
+Touch ID to unlock, or press any key for the master password...
+```
+
+Tap to unlock with a fingerprint, or **press any key** to fall straight through to
+the master-password prompt. Everything else is unchanged. Needs the Swift toolchain
 (Xcode Command Line Tools) and a Mac with Touch ID.
 
-**Control:** `BW_TOUCHID_ENABLED` is `auto` (default: use it once a password is
-stored) or `false` to force the password prompt on a given machine. On Linux the
-whole path is skipped, so servers keep prompting for the password as before.
+**Over SSH / in tmux:** you cannot tap Touch ID over SSH, so just press any key and
+type the master password instead. There is no local-vs-remote auto-detection on
+purpose: with a persistent tmux server attached from both the console and SSH (and
+env vars going stale), it cannot be guessed reliably, so the choice is left to you
+per unlock. If nobody responds, the sheet times out after `BW_TOUCHID_TIMEOUT`
+seconds and also falls back to the password. When there is no controlling terminal
+at all (a script or coding agent invoking `bw-run`), Touch ID is skipped outright
+and it behaves exactly as before the feature.
 
-**Over SSH:** when you SSH into the Mac there is no console to show the Touch ID
-sheet, so `bw-run` detects the SSH session (`SSH_CONNECTION` / `SSH_TTY`) and goes
-straight to the master-password prompt, which works fine on the SSH tty. So yes,
-the tool is fully usable over SSH, just with the password instead of a fingerprint.
-Caveat: this detection reads env vars, which tmux can carry over stale, so inside
-tmux it may occasionally guess wrong. Wrong either way is safe (the password
-prompt always works); if a stray Touch ID sheet ever pops on the physical screen
-from a remote session, it auto-cancels after ~30s, or set `BW_TOUCHID_ENABLED=false`
-for that session.
+**Control:** `BW_TOUCHID_ENABLED` is `auto` (default: use it once a password is
+stored) or `false` to force the password prompt on a given machine.
+`BW_TOUCHID_TIMEOUT` (default 30) bounds the sheet wait. On Linux the whole path is
+skipped, so servers keep prompting for the password as before.
 
 **How, and its limit.** The master password is kept in the login Keychain
 (`WhenUnlockedThisDeviceOnly`, never synced) and handed back only after this
