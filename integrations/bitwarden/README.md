@@ -67,25 +67,26 @@ bw-run --touchid-status   # show whether the next unlock uses Touch ID
 bw-run --remove-touchid   # delete the stored password, back to password prompts
 ```
 
-After setup, the first `bw-run` per TTL shows a Touch ID sheet instead of asking
-for the master password:
+After setup, the first `bw-run` per TTL asks how to unlock:
 
 ```
-Touch ID to unlock, or press any key for the master password...
+Unlock: press Enter for Touch ID, or type p then Enter for the password:
 ```
 
-Tap to unlock with a fingerprint, or **press any key** to fall straight through to
-the master-password prompt. Everything else is unchanged. Needs the Swift toolchain
-(Xcode Command Line Tools) and a Mac with Touch ID.
+Press **Enter**, then tap the fingerprint sensor. Or type **p** then Enter to use
+the master password instead. Everything else is unchanged. Needs the Swift
+toolchain (Xcode Command Line Tools) and a Mac with Touch ID.
 
-**Over SSH / in tmux:** you cannot tap Touch ID over SSH, so just press any key and
-type the master password instead. There is no local-vs-remote auto-detection on
-purpose: with a persistent tmux server attached from both the console and SSH (and
-env vars going stale), it cannot be guessed reliably, so the choice is left to you
-per unlock. If nobody responds, the sheet times out after `BW_TOUCHID_TIMEOUT`
-seconds and also falls back to the password. When there is no controlling terminal
-at all (a script or coding agent invoking `bw-run`), Touch ID is skipped outright
-and it behaves exactly as before the feature.
+**Over SSH / in tmux:** you cannot tap Touch ID over SSH, so type `p` and use the
+master password. There is no local-vs-remote auto-detection on purpose: with a
+persistent tmux server attached from both the console and SSH (and env vars going
+stale), it cannot be guessed reliably, so the choice is a plain per-unlock prompt.
+It is a line-based prompt (not a raw keypress), so nothing you type ever leaks into
+the following password prompt. If you pick Touch ID and then neither tap nor cancel
+the sheet, it times out after `BW_TOUCHID_TIMEOUT` seconds and falls back to the
+password. When there is no controlling terminal at all (a script or coding agent
+invoking `bw-run`), Touch ID is skipped outright and it behaves exactly as before
+the feature.
 
 **Control:** `BW_TOUCHID_ENABLED` is `auto` (default: use it once a password is
 stored) or `false` to force the password prompt on a given machine.
