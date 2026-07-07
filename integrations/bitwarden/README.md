@@ -15,6 +15,7 @@ macOS you can optionally unlock with **Touch ID** instead (see below).
 | `bw-run.sh` | Wrapper behind the `bw-run` command: unlock + resolve + inject env |
 | `secret-agent.py` | Background daemon holding secrets in memory (backend-agnostic) |
 | `keychain-touchid.swift` | macOS-only: store/read the master password behind a Touch ID check |
+| `touchid-race.py` | macOS-only: race the Touch ID sheet against a keypress (finger vs. any key) |
 | `bw-env.example`  | Copy to `bw-env`, list your secret references (no secrets) |
 | `init.sh` | Exposes the `bw-run` command; defaults `BW_SECRET_AGENT_TTL` |
 
@@ -67,26 +68,26 @@ bw-run --touchid-status   # show whether the next unlock uses Touch ID
 bw-run --remove-touchid   # delete the stored password, back to password prompts
 ```
 
-After setup, the first `bw-run` per TTL asks how to unlock:
+After setup, the first `bw-run` per TTL shows a Touch ID sheet:
 
 ```
-Unlock: press Enter for Touch ID, or type p then Enter for the password:
+Touch ID: place your finger on the sensor, or press any key to use the password...
 ```
 
-Press **Enter**, then tap the fingerprint sensor. Or type **p** then Enter to use
-the master password instead. Everything else is unchanged. Needs the Swift
-toolchain (Xcode Command Line Tools) and a Mac with Touch ID.
+Just **place your finger**, no keyboard needed. Or **press any key** to abort to the
+master-password prompt. Everything else is unchanged. Needs the Swift toolchain
+(Xcode Command Line Tools) and a Mac with Touch ID.
 
-**Over SSH / in tmux:** you cannot tap Touch ID over SSH, so type `p` and use the
-master password. There is no local-vs-remote auto-detection on purpose: with a
-persistent tmux server attached from both the console and SSH (and env vars going
-stale), it cannot be guessed reliably, so the choice is a plain per-unlock prompt.
-It is a line-based prompt (not a raw keypress), so nothing you type ever leaks into
-the following password prompt. If you pick Touch ID and then neither tap nor cancel
-the sheet, it times out after `BW_TOUCHID_TIMEOUT` seconds and falls back to the
-password. When there is no controlling terminal at all (a script or coding agent
-invoking `bw-run`), Touch ID is skipped outright and it behaves exactly as before
-the feature.
+**Over SSH / in tmux:** you cannot tap Touch ID over SSH, so press any key and type
+the master password instead. There is no local-vs-remote auto-detection on purpose:
+with a persistent tmux server attached from both the console and SSH (and env vars
+going stale), it cannot be guessed reliably, so the keypress is the manual escape.
+The keys you press to abort are flushed from the terminal before the password
+prompt, so nothing you type leaks into it. If you neither tap nor press a key, the
+sheet times out after `BW_TOUCHID_TIMEOUT` seconds and falls back to the password.
+When there is no controlling terminal at all (a script or coding agent invoking
+`bw-run`), Touch ID is skipped outright and it behaves exactly as before the
+feature.
 
 **Control:** `BW_TOUCHID_ENABLED` is `auto` (default: use it once a password is
 stored) or `false` to force the password prompt on a given machine.
