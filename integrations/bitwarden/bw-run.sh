@@ -48,6 +48,7 @@ BW_ENV_FILE="${BW_ENV_FILE:-$SCRIPT_DIR/bw-env}"
 AGENT_SCRIPT="$SCRIPT_DIR/secret-agent.py"
 AGENT_TTL="${BW_SECRET_AGENT_TTL:-3600}" # 1 hour default
 KEYCHAIN_HELPER="$SCRIPT_DIR/keychain-touchid.swift"
+TOUCHID_RACE="$SCRIPT_DIR/touchid-race.py"
 
 # Touch ID unlock (macOS only): store the master password in the login Keychain,
 # release it only after a Touch ID check, so unlocking needs a fingerprint instead
@@ -113,36 +114,19 @@ _touchid_should_use() {
   return 0
 }
 
-# Ask on the tty how to unlock: Enter (or anything else) = Touch ID, "p" = master
-# password. A line-based read (normal echo, and it consumes the whole line
-# including the newline) so no keystrokes can leak into a later password prompt,
-# which is the bug a raw keypress race caused. No usable controlling terminal
-# (script/agent/cron): answer "password" so it behaves exactly as before the
-# feature. Probe the tty in a subshell because a plain `[ -r /dev/tty ]` lies (it
-# can pass while an actual open fails with "Device not configured").
-unlock_choose() {
-  ( : </dev/tty ) 2>/dev/null || { printf 'password'; return; }
-  local ans=""
-  printf 'Unlock: press Enter for Touch ID, or type p then Enter for the password: ' >&2
-  IFS= read -r ans </dev/tty || ans=""
-  case "$ans" in
-    p|P|pw|pass|password) printf 'password' ;;
-    *) printf 'touchid' ;;
-  esac
-}
-
-# Obtain a bw session key. On macOS with Touch ID configured, ask how to unlock; a
-# fingerprint releases the stored master password and unlocks non-interactively.
-# Otherwise (password chosen, or cancel/timeout/rotation) fall back to `bw unlock`'s
-# master-password prompt. Writes the raw session key to stdout; diagnostics to
-# stderr.
+# Obtain a bw session key. On macOS with Touch ID configured, run the Python helper
+# that shows the sheet and races the fingerprint against a keypress: place your
+# finger to unlock (no keyboard), or press any key to abort to the master password
+# (the only escape over SSH). On a tap the helper prints the stored master password
+# on stdout (exit 0); anything else (keypress / cancel / timeout / no tty) falls
+# back to `bw unlock`'s prompt. The helper owns the terminal (no-echo, and it
+# flushes typed-ahead), so nothing typed can leak into the password prompt. Writes
+# the raw session key to stdout; diagnostics to stderr.
 unlock_session() {
   local account pw session
-  if touchid_should_use && [ "$(unlock_choose)" = touchid ]; then
+  if touchid_should_use && command -v python3 >/dev/null 2>&1; then
     account=$(bw_account_email)
-    echo "Waiting for Touch ID (or press its Cancel button to use the password)..." >&2
-    if pw=$(swift "$KEYCHAIN_HELPER" get "$account" "$BW_TOUCHID_TIMEOUT" 2>/dev/null); then
-      echo "  -> Touch ID accepted. Unlocking the vault (this can take a few seconds)..." >&2
+    if pw=$(python3 "$TOUCHID_RACE" "$KEYCHAIN_HELPER" "$account" "$BW_TOUCHID_TIMEOUT") && [ -n "$pw" ]; then
       if session=$(BW_MASTER_PW="$pw" bw unlock --passwordenv BW_MASTER_PW --raw 2>/dev/null); then
         unset pw
         printf '%s' "$session"
@@ -151,8 +135,6 @@ unlock_session() {
       unset pw
       echo "warning: stored master password did not unlock (rotated?)." >&2
       echo "         Re-run 'bw-run --setup-touchid' to update it. Using the prompt." >&2
-    else
-      echo "  -> Touch ID cancelled or timed out. Using the master password." >&2
     fi
   fi
   bw unlock --raw
@@ -211,7 +193,7 @@ touchid_status() {
   echo "  password stored for account  = $stored ($account)"
   echo "  sheet timeout (BW_TOUCHID_TIMEOUT) = ${BW_TOUCHID_TIMEOUT}s"
   if touchid_should_use; then
-    echo "  -> next unlock: asks 'Enter for Touch ID, or p for the master password'"
+    echo "  -> next unlock: Touch ID sheet (tap to unlock, or press any key for the password)"
   else
     echo "  -> next unlock: master-password prompt"
   fi
