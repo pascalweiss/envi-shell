@@ -56,10 +56,9 @@ KEYCHAIN_HELPER="$SCRIPT_DIR/keychain-touchid.swift"
 #   true  = same as auto (kept for symmetry)
 #   false = never use it (always prompt for the master password)
 : "${BW_TOUCHID_ENABLED:=auto}"
-# Backstop timeout (seconds) for the Touch ID sheet. When configured, the unlock
-# shows the sheet AND watches for a keypress: tap to unlock, or press any key to
-# skip straight to the master password (handy over SSH, where you cannot tap).
-# If neither happens within this many seconds, it falls back to the password too.
+# Backstop timeout (seconds) for the Touch ID sheet. When you choose Touch ID at
+# the unlock prompt and then neither tap nor cancel, the sheet is dismissed after
+# this many seconds and it falls back to the master password.
 : "${BW_TOUCHID_TIMEOUT:=30}"
 
 # Prefer XDG_RUNTIME_DIR (Linux: tmpfs, per-user, short path — ideal for sockets),
@@ -114,78 +113,36 @@ _touchid_should_use() {
   return 0
 }
 
-# Fetch the master password from the Keychain, racing the Touch ID sheet against
-# a keypress: tap to unlock with a fingerprint, or press any key to skip straight
-# to the master-password prompt (so an SSH session, where you cannot tap, is never
-# stuck). Echoes the password on a successful tap; returns 1 on skip / timeout /
-# unavailable / not-stored. The secret travels through a FIFO (a kernel pipe,
-# unlinked immediately) so it never lands on disk.
-touchid_get_interactive() {
-  local account="$1" pw="" rc key fifo tid_pid keypressed=0
-
-  # Need a usable controlling terminal to offer the keypress-skip. Probe it in a
-  # subshell (a plain `[ -r /dev/tty ]` lies: it can pass while an actual open
-  # fails with "Device not configured" in a script/agent/cron context). Without a
-  # tty there is no human at this session, so skip Touch ID entirely and let the
-  # caller fall back to `bw unlock`, exactly as before the feature.
-  ( : </dev/tty ) 2>/dev/null || return 1
-
-  fifo="$RUNTIME_DIR/.bw-touchid.$$.fifo"
-  rm -f "$fifo"
-  mkfifo -m 600 "$fifo" 2>/dev/null || return 1
-
-  echo "Touch ID to unlock, or press any key for the master password..." >&2
-
-  # Background writer (blocks on open until we open the read end), then reader fd 3.
-  swift "$KEYCHAIN_HELPER" get "$account" "$BW_TOUCHID_TIMEOUT" >"$fifo" 2>/dev/null &
-  tid_pid=$!
-  exec 3<"$fifo"
-  rm -f "$fifo"   # unlink now; the open fds keep the pipe alive
-
-  # Race the fingerprint against a keypress. Integer -t for bash 3.2. Classify the
-  # read result so a broken tty cannot busy-spin: 0 = key pressed (skip to the
-  # password), >128 = timed out with no key (keep watching), else = EOF/error on
-  # the tty (stop racing and just wait for the sheet / its timeout).
-  while kill -0 "$tid_pid" 2>/dev/null; do
-    IFS= read -rsn1 -t 1 key </dev/tty
-    rc=$?
-    if [ "$rc" -eq 0 ]; then
-      keypressed=1
-      kill "$tid_pid" 2>/dev/null
-      break
-    elif [ "$rc" -le 128 ]; then
-      break
-    fi
-  done
-
-  pw=$(cat <&3 2>/dev/null) || true
-  { exec 3<&-; } 2>/dev/null || true   # close fd 3; group-scope the redirect so
-                                       # stderr is NOT silenced for the rest of the fn
-  wait "$tid_pid" 2>/dev/null; rc=$?
-
-  if [ "$keypressed" -eq 1 ]; then
-    echo "  -> key pressed: switching to the master password." >&2
-    return 1
-  fi
-  if [ "${rc:-1}" -eq 0 ] && [ -n "$pw" ]; then
-    echo "  -> Touch ID accepted." >&2
-    printf '%s' "$pw"
-    return 0
-  fi
-  echo "  -> no fingerprint (cancelled or timed out): using the master password." >&2
-  return 1
+# Ask on the tty how to unlock: Enter (or anything else) = Touch ID, "p" = master
+# password. A line-based read (normal echo, and it consumes the whole line
+# including the newline) so no keystrokes can leak into a later password prompt,
+# which is the bug a raw keypress race caused. No usable controlling terminal
+# (script/agent/cron): answer "password" so it behaves exactly as before the
+# feature. Probe the tty in a subshell because a plain `[ -r /dev/tty ]` lies (it
+# can pass while an actual open fails with "Device not configured").
+unlock_choose() {
+  ( : </dev/tty ) 2>/dev/null || { printf 'password'; return; }
+  local ans=""
+  printf 'Unlock: press Enter for Touch ID, or type p then Enter for the password: ' >&2
+  IFS= read -r ans </dev/tty || ans=""
+  case "$ans" in
+    p|P|pw|pass|password) printf 'password' ;;
+    *) printf 'touchid' ;;
+  esac
 }
 
-# Obtain a bw session key. On macOS with Touch ID configured, fetch the master
-# password from the Keychain (Touch ID or keypress-skip) and unlock
-# non-interactively; otherwise fall back to an interactive `bw unlock`
-# master-password prompt. Writes the raw session key to stdout; diagnostics go to
+# Obtain a bw session key. On macOS with Touch ID configured, ask how to unlock; a
+# fingerprint releases the stored master password and unlocks non-interactively.
+# Otherwise (password chosen, or cancel/timeout/rotation) fall back to `bw unlock`'s
+# master-password prompt. Writes the raw session key to stdout; diagnostics to
 # stderr.
 unlock_session() {
   local account pw session
-  if touchid_should_use; then
+  if touchid_should_use && [ "$(unlock_choose)" = touchid ]; then
     account=$(bw_account_email)
-    if pw=$(touchid_get_interactive "$account"); then
+    echo "Waiting for Touch ID (or press its Cancel button to use the password)..." >&2
+    if pw=$(swift "$KEYCHAIN_HELPER" get "$account" "$BW_TOUCHID_TIMEOUT" 2>/dev/null); then
+      echo "  -> Touch ID accepted. Unlocking the vault (this can take a few seconds)..." >&2
       if session=$(BW_MASTER_PW="$pw" bw unlock --passwordenv BW_MASTER_PW --raw 2>/dev/null); then
         unset pw
         printf '%s' "$session"
@@ -193,7 +150,9 @@ unlock_session() {
       fi
       unset pw
       echo "warning: stored master password did not unlock (rotated?)." >&2
-      echo "         Re-run 'bw-run --setup-touchid' to update it. Falling back to prompt." >&2
+      echo "         Re-run 'bw-run --setup-touchid' to update it. Using the prompt." >&2
+    else
+      echo "  -> Touch ID cancelled or timed out. Using the master password." >&2
     fi
   fi
   bw unlock --raw
@@ -252,7 +211,7 @@ touchid_status() {
   echo "  password stored for account  = $stored ($account)"
   echo "  sheet timeout (BW_TOUCHID_TIMEOUT) = ${BW_TOUCHID_TIMEOUT}s"
   if touchid_should_use; then
-    echo "  -> next unlock: Touch ID sheet (tap to unlock, or press any key for the password)"
+    echo "  -> next unlock: asks 'Enter for Touch ID, or p for the master password'"
   else
     echo "  -> next unlock: master-password prompt"
   fi
@@ -322,6 +281,8 @@ resolve_secrets_json() {
   local session
   session=$(unlock_session) || die "bw unlock failed (wrong master password?)"
   [ -n "$session" ] || die "bw unlock returned an empty session key"
+
+  echo "Syncing vault and fetching secrets (a few seconds)..." >&2
 
   # Refresh the local vault cache so newly-added items are visible. Best-effort:
   # if offline, keep going with whatever is cached rather than failing the run.
