@@ -102,6 +102,12 @@ touchid_should_use() {
 _touchid_should_use() {
   [ "$(uname -s)" = "Darwin" ] || return 1
   case "$BW_TOUCHID_ENABLED" in false|0|no|off) return 1 ;; esac
+  # Over SSH there is no console to present the Touch ID sheet (and a stray prompt
+  # could pop on the physical screen). Go straight to the master-password prompt,
+  # which works fine on the SSH tty. Set BW_TOUCHID_ENABLED=false to force this too.
+  if [ -n "${SSH_CONNECTION:-}" ] || [ -n "${SSH_TTY:-}" ]; then
+    return 1
+  fi
   command -v swift >/dev/null 2>&1 || return 1
   [ -f "$KEYCHAIN_HELPER" ] || return 1
   # Only engage once a password has actually been stored for this account.
@@ -184,6 +190,9 @@ touchid_status() {
   echo "  BW_TOUCHID_ENABLED           = $BW_TOUCHID_ENABLED"
   echo "  biometrics available         = $bio"
   echo "  password stored for account  = $stored ($account)"
+  if [ -n "${SSH_CONNECTION:-}" ] || [ -n "${SSH_TTY:-}" ]; then
+    echo "  ssh session detected         = yes (Touch ID skipped over SSH)"
+  fi
   if touchid_should_use; then
     echo "  -> next unlock: TOUCH ID"
   else

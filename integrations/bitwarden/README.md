@@ -71,9 +71,19 @@ After setup, the first `bw-run` per TTL shows a Touch ID sheet instead of asking
 for the master password. Everything else is unchanged. Needs the Swift toolchain
 (Xcode Command Line Tools) and a Mac with Touch ID.
 
-**Control:** `BW_TOUCHID_ENABLED` — `auto` (default: use it once a password is
-stored), or `false` to force the password prompt on a given machine. On Linux the
+**Control:** `BW_TOUCHID_ENABLED` is `auto` (default: use it once a password is
+stored) or `false` to force the password prompt on a given machine. On Linux the
 whole path is skipped, so servers keep prompting for the password as before.
+
+**Over SSH:** when you SSH into the Mac there is no console to show the Touch ID
+sheet, so `bw-run` detects the SSH session (`SSH_CONNECTION` / `SSH_TTY`) and goes
+straight to the master-password prompt, which works fine on the SSH tty. So yes,
+the tool is fully usable over SSH, just with the password instead of a fingerprint.
+Caveat: this detection reads env vars, which tmux can carry over stale, so inside
+tmux it may occasionally guess wrong. Wrong either way is safe (the password
+prompt always works); if a stray Touch ID sheet ever pops on the physical screen
+from a remote session, it auto-cancels after ~30s, or set `BW_TOUCHID_ENABLED=false`
+for that session.
 
 **How, and its limit.** The master password is kept in the login Keychain
 (`WhenUnlockedThisDeviceOnly`, never synced) and handed back only after this
