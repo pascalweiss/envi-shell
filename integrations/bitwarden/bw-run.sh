@@ -121,7 +121,7 @@ _touchid_should_use() {
 # unavailable / not-stored. The secret travels through a FIFO (a kernel pipe,
 # unlinked immediately) so it never lands on disk.
 touchid_get_interactive() {
-  local account="$1" pw="" rc key fifo tid_pid
+  local account="$1" pw="" rc key fifo tid_pid keypressed=0
 
   # Need a usable controlling terminal to offer the keypress-skip. Probe it in a
   # subshell (a plain `[ -r /dev/tty ]` lies: it can pass while an actual open
@@ -150,6 +150,7 @@ touchid_get_interactive() {
     IFS= read -rsn1 -t 1 key </dev/tty
     rc=$?
     if [ "$rc" -eq 0 ]; then
+      keypressed=1
       kill "$tid_pid" 2>/dev/null
       break
     elif [ "$rc" -le 128 ]; then
@@ -158,13 +159,20 @@ touchid_get_interactive() {
   done
 
   pw=$(cat <&3 2>/dev/null) || true
-  exec 3<&- 2>/dev/null || true
+  { exec 3<&-; } 2>/dev/null || true   # close fd 3; group-scope the redirect so
+                                       # stderr is NOT silenced for the rest of the fn
   wait "$tid_pid" 2>/dev/null; rc=$?
 
+  if [ "$keypressed" -eq 1 ]; then
+    echo "  -> key pressed: switching to the master password." >&2
+    return 1
+  fi
   if [ "${rc:-1}" -eq 0 ] && [ -n "$pw" ]; then
+    echo "  -> Touch ID accepted." >&2
     printf '%s' "$pw"
     return 0
   fi
+  echo "  -> no fingerprint (cancelled or timed out): using the master password." >&2
   return 1
 }
 
@@ -186,8 +194,6 @@ unlock_session() {
       unset pw
       echo "warning: stored master password did not unlock (rotated?)." >&2
       echo "         Re-run 'bw-run --setup-touchid' to update it. Falling back to prompt." >&2
-    else
-      echo "Using the master password." >&2
     fi
   fi
   bw unlock --raw
@@ -297,7 +303,7 @@ resolve_secrets_json() {
   echo "" >&2
   echo "=== Bitwarden Secret Agent ===" >&2
   if touchid_should_use; then
-    echo "Unlocking the AI vault (Touch ID, or press any key for the password)." >&2
+    echo "Unlocking the AI vault." >&2
   else
     echo "Unlocking the AI vault. Enter your master password when prompted." >&2
   fi
