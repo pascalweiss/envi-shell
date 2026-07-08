@@ -17,15 +17,23 @@ and restore it reliably. `select` + `termios` do that cleanly and portably;
 the bash equivalent (FIFO + raw `read` race) leaked typed-ahead into the later
 password prompt and could not disable echo safely.
 
+When there is no controlling terminal (a script or coding agent invoking
+bw-run), there is no keyboard for the keypress escape. By default we bail so the
+caller falls back to the master-password prompt. But if the optional [headless]
+flag is truthy, we instead show a *bare* Touch ID sheet (no keypress race, no
+tty): a local human can still tap the sensor to unlock, bounded by the timeout.
+This is the path that lets an agent trigger the fingerprint prompt.
+
 Usage (called by bw-run.sh, not directly):
-    touchid-race.py <swift_helper_path> <account> <timeout_seconds>
+    touchid-race.py <swift_helper_path> <account> <timeout_seconds> [headless]
 
 Contract:
     stdout : the master password, ONLY on a successful fingerprint (exit 0)
     stderr : human-readable progress lines
     exit 0 : fingerprint accepted; password written to stdout
     exit 10: a key was pressed; caller should prompt for the master password
-    exit 11: no fingerprint (cancelled / timed out) or no usable terminal
+    exit 11: no fingerprint (cancelled / timed out), or no terminal and headless
+             unlock is disabled
     exit 1 : usage / internal error
 
 The password is only ever written to stdout and is never logged.
@@ -49,18 +57,47 @@ def eprint(msg):
     sys.stderr.flush()
 
 
+def truthy(v):
+    return str(v).strip().lower() in ("1", "true", "yes", "on")
+
+
+def run_headless(helper, account, timeout):
+    """No controlling terminal, but headless Touch ID is enabled: show the sheet
+    with no keypress escape (a script/agent caller has no keyboard here; the
+    human at the physical Mac taps the sensor). Bounded by `timeout`, which the
+    swift helper enforces by invalidating the sheet. Same stdout/exit contract as
+    the race path: password on stdout + exit 0 on success, else exit 11."""
+    eprint("Touch ID: place your finger on the sensor to unlock the vault (no terminal here)...")
+    proc = subprocess.run(
+        ["swift", helper, "get", account, timeout],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    if proc.returncode == 0 and proc.stdout:
+        eprint("  -> Touch ID accepted. Unlocking the vault (this can take a few seconds)...")
+        sys.stdout.buffer.write(proc.stdout)
+        sys.stdout.flush()
+        return 0
+    eprint("  -> no fingerprint (cancelled or timed out): falling back to the master password.")
+    return 11
+
+
 def main():
     if len(sys.argv) < 4:
-        eprint("usage: touchid-race.py <swift_helper> <account> <timeout>")
+        eprint("usage: touchid-race.py <swift_helper> <account> <timeout> [headless]")
         return 1
     helper, account, timeout = sys.argv[1], sys.argv[2], sys.argv[3]
+    headless = len(sys.argv) >= 5 and truthy(sys.argv[4])
 
-    # Need a controlling terminal for the keypress escape. Without one (a script
-    # or coding agent invoking bw-run) there is no human here: skip Touch ID and
-    # let the caller fall back to `bw unlock`, exactly as before the feature.
+    # The keypress escape needs a controlling terminal. Without one (a script or
+    # coding agent invoking bw-run) there is no keyboard to press: either show a
+    # bare Touch ID sheet (headless, opt-in) so a local human can still tap to
+    # unlock, or bail and let the caller fall back to `bw unlock`.
     try:
         tty_fd = os.open("/dev/tty", os.O_RDONLY | os.O_NONBLOCK)
     except OSError:
+        if headless:
+            return run_headless(helper, account, timeout)
         return 11
 
     saved = None

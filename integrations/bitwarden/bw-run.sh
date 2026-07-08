@@ -8,7 +8,7 @@
 # any command. Uses a background agent (ssh-agent pattern) to hold the secrets
 # in memory. Secrets are NEVER written to disk.
 #
-# Cross-platform: pure bash + bw + python3 (+ jq for field: refs). By default the
+# Cross-platform: pure bash + bw + python3. By default the
 # unlock is `bw unlock` with the master password on the CLI, identical on macOS
 # and Linux, so this runs unchanged on headless Linux servers (no biometrics).
 # On macOS you can opt into Touch ID unlock (see `bw-run --setup-touchid` and
@@ -37,7 +37,7 @@
 #   runtime-dir = $XDG_RUNTIME_DIR (Linux) or $TMPDIR (macOS) or /tmp
 #
 # Prerequisites:
-#   - Bitwarden CLI (bw), python3, and jq (only for field: references)
+#   - Bitwarden CLI (bw) and python3
 #   - Logged in to the AI-only account ONCE:  bw login <email>
 #     (the bw CLI is single-account; keep it logged into the AI vault only)
 
@@ -49,6 +49,7 @@ AGENT_SCRIPT="$SCRIPT_DIR/secret-agent.py"
 AGENT_TTL="${BW_SECRET_AGENT_TTL:-3600}" # 1 hour default
 KEYCHAIN_HELPER="$SCRIPT_DIR/keychain-touchid.swift"
 TOUCHID_RACE="$SCRIPT_DIR/touchid-race.py"
+RESOLVE_REFS="$SCRIPT_DIR/resolve-refs.py"
 
 # Touch ID unlock (macOS only): store the master password in the login Keychain,
 # release it only after a Touch ID check, so unlocking needs a fingerprint instead
@@ -61,6 +62,14 @@ TOUCHID_RACE="$SCRIPT_DIR/touchid-race.py"
 # the unlock prompt and then neither tap nor cancel, the sheet is dismissed after
 # this many seconds and it falls back to the master password.
 : "${BW_TOUCHID_TIMEOUT:=30}"
+# Headless Touch ID: when bw-run is invoked WITHOUT a controlling terminal (a
+# script or coding agent, which has no keyboard for the keypress escape), still
+# pop a bare Touch ID sheet on the Mac so a local human can unlock by tapping the
+# sensor. `true` enables it; default `false` keeps the old behaviour (no tty ->
+# skip Touch ID -> master-password prompt, which an agent cannot answer). Set to
+# `true` in config/envi_env on a Mac you sit at; leave `false` on machines you
+# only reach over SSH (else an agent there would pop a sheet nobody can tap).
+: "${BW_TOUCHID_HEADLESS:=false}"
 
 # Prefer XDG_RUNTIME_DIR (Linux: tmpfs, per-user, short path — ideal for sockets),
 # then TMPDIR (macOS), then /tmp. Short paths matter: AF_UNIX caps at ~104 chars.
@@ -85,11 +94,24 @@ agent_is_running() {
 
 # ~~~~~~~~~~~~~~~~ Touch ID unlock (macOS) ~~~~~~~~~~~~~~~ #
 
+# `bw status` costs a full bw (Node) cold start (~2-3s) and is consulted more than
+# once per unlock (account email for Touch ID, plus the login check). Run it at
+# most once per process and cache the raw JSON; every consumer parses this string.
+# Safe to cache: the only field that changes on unlock is `status`, which is read
+# before unlocking anyway; the account email is unlock-invariant.
+_BW_STATUS_JSON=""
+bw_status_json() {
+  if [ -z "$_BW_STATUS_JSON" ]; then
+    _BW_STATUS_JSON=$(bw status 2>/dev/null || true)
+  fi
+  printf '%s' "$_BW_STATUS_JSON"
+}
+
 # Keychain account = the bw account email, so the stored password is scoped to the
 # exact account the CLI is logged into (fixed label fallback if bw is unavailable).
 bw_account_email() {
   local email
-  email=$(bw status 2>/dev/null \
+  email=$(bw_status_json \
     | python3 -c "import json,sys;print(json.load(sys.stdin).get('userEmail') or '')" 2>/dev/null) || email=""
   [ -n "$email" ] && printf '%s' "$email" || printf '%s' "bw-master"
 }
@@ -118,15 +140,17 @@ _touchid_should_use() {
 # that shows the sheet and races the fingerprint against a keypress: place your
 # finger to unlock (no keyboard), or press any key to abort to the master password
 # (the only escape over SSH). On a tap the helper prints the stored master password
-# on stdout (exit 0); anything else (keypress / cancel / timeout / no tty) falls
-# back to `bw unlock`'s prompt. The helper owns the terminal (no-echo, and it
-# flushes typed-ahead), so nothing typed can leak into the password prompt. Writes
-# the raw session key to stdout; diagnostics to stderr.
+# on stdout (exit 0); anything else (keypress / cancel / timeout) falls back to
+# `bw unlock`'s prompt. The helper owns the terminal (no-echo, and it flushes
+# typed-ahead), so nothing typed can leak into the password prompt. With no
+# controlling terminal (agent/script) the helper skips Touch ID unless
+# BW_TOUCHID_HEADLESS=true, in which case it shows a bare sheet the local user can
+# tap. Writes the raw session key to stdout; diagnostics to stderr.
 unlock_session() {
   local account pw session
   if touchid_should_use && command -v python3 >/dev/null 2>&1; then
     account=$(bw_account_email)
-    if pw=$(python3 "$TOUCHID_RACE" "$KEYCHAIN_HELPER" "$account" "$BW_TOUCHID_TIMEOUT") && [ -n "$pw" ]; then
+    if pw=$(python3 "$TOUCHID_RACE" "$KEYCHAIN_HELPER" "$account" "$BW_TOUCHID_TIMEOUT" "$BW_TOUCHID_HEADLESS") && [ -n "$pw" ]; then
       if session=$(BW_MASTER_PW="$pw" bw unlock --passwordenv BW_MASTER_PW --raw 2>/dev/null); then
         unset pw
         printf '%s' "$session"
@@ -191,6 +215,7 @@ touchid_status() {
   echo "  BW_TOUCHID_ENABLED           = $BW_TOUCHID_ENABLED"
   echo "  biometrics available         = $bio"
   echo "  password stored for account  = $stored ($account)"
+  echo "  headless unlock (no-TTY)     = $BW_TOUCHID_HEADLESS (agent/script pops a bare sheet if true)"
   echo "  sheet timeout (BW_TOUCHID_TIMEOUT) = ${BW_TOUCHID_TIMEOUT}s"
   if touchid_should_use; then
     echo "  -> next unlock: Touch ID sheet (tap to unlock, or press any key for the password)"
@@ -199,17 +224,20 @@ touchid_status() {
   fi
 }
 
-# Resolve one .bw-env reference to its value, given a session key.
+# Resolve one .bw-env reference to its value. All kinds except totp are extracted
+# locally from a single pre-fetched `bw list items` dump ($3, on stdin to the
+# helper), so the whole file costs ONE `bw` spawn instead of one per line. totp
+# must be computed from its seed, so it still calls `bw get totp`.
 # Supported reference syntax (right-hand side of each .bw-env line):
-#   password:<item>        -> bw get password <item>   (also the default, no prefix)
-#   username:<item>        -> bw get username <item>
-#   totp:<item>            -> bw get totp <item>
-#   notes:<item>           -> bw get notes <item>
-#   field:<name>:<item>    -> custom field <name> of <item> (via bw get item + jq)
+#   password:<item>        -> the item's login password   (also the default, no prefix)
+#   username:<item>        -> the item's login username
+#   totp:<item>            -> bw get totp <item>           (computed, not extracted)
+#   notes:<item>           -> the item's notes
+#   field:<name>:<item>    -> custom field <name> of <item>
 # <item> may be an item name or an item ID.
 resolve_one() {
-  local ref="$1" session="$2"
-  local kind rest item
+  local ref="$1" session="$2" items_json="$3"
+  local kind rest
 
   if [[ "$ref" == *:* ]]; then
     kind="${ref%%:*}"
@@ -220,18 +248,11 @@ resolve_one() {
   fi
 
   case "$kind" in
-    password|username|totp|notes)
-      item="$rest"
-      bw get "$kind" "$item" --session "$session"
+    totp)
+      bw get totp "$rest" --session "$session"
       ;;
-    field)
-      # field:<name>:<item>
-      local fname="${rest%%:*}"
-      item="${rest#*:}"
-      [ "$item" != "$rest" ] || die "field reference needs form field:<name>:<item>: $ref"
-      command -v jq >/dev/null 2>&1 || die "jq is required for field: references (brew install jq / apt install jq)"
-      bw get item "$item" --session "$session" \
-        | jq -r --arg n "$fname" '.fields[] | select(.name==$n) | .value'
+    password|username|notes|field)
+      printf '%s' "$items_json" | python3 "$RESOLVE_REFS" "$kind" "$rest"
       ;;
     *)
       die "unknown reference kind '$kind' in .bw-env (use password|username|totp|notes|field)"
@@ -251,9 +272,9 @@ resolve_secrets_json() {
   echo "==============================" >&2
   echo "" >&2
 
-  # Fail early if not logged in.
+  # Fail early if not logged in (reads the cached `bw status`, no extra spawn).
   local status
-  status=$(bw status 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+  status=$(bw_status_json | python3 -c "import json,sys;print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
   if [ "$status" = "unauthenticated" ] || [ -z "$status" ]; then
     die "bw is not logged in. Run once: bw login <ai-account-email>"
   fi
@@ -272,6 +293,13 @@ resolve_secrets_json() {
     echo "warning: bw sync failed (offline?) — using cached vault" >&2
   fi
 
+  # Fetch the whole (AI-only) vault ONCE; every non-totp reference is then
+  # extracted locally by resolve_one, instead of spawning `bw get` per secret.
+  local all_items
+  if ! all_items=$(bw list items --session "$session" 2>/dev/null); then
+    die "bw list items failed (session invalid or vault locked?)"
+  fi
+
   local json="{"
   local first=true
 
@@ -285,7 +313,7 @@ resolve_secrets_json() {
     secret_ref="${secret_ref#"${secret_ref%%[![:space:]]*}"}"  # ltrim ws
 
     local value
-    if ! value=$(resolve_one "$secret_ref" "$session" 2>&1); then
+    if ! value=$(resolve_one "$secret_ref" "$session" "$all_items" 2>&1); then
       die "Failed to resolve $var_name ($secret_ref) from Bitwarden: $value"
     fi
     [ -n "$value" ] || die "Resolved an empty value for $var_name ($secret_ref)"
@@ -298,7 +326,7 @@ resolve_secrets_json() {
 
   json+="}"
 
-  unset session   # drop the session key from this shell immediately
+  unset session all_items   # drop the session key + vault dump from this shell
   echo "$json"
 }
 

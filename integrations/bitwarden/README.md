@@ -16,14 +16,15 @@ macOS you can optionally unlock with **Touch ID** instead (see below).
 | `secret-agent.py` | Background daemon holding secrets in memory (backend-agnostic) |
 | `keychain-touchid.swift` | macOS-only: store/read the master password behind a Touch ID check |
 | `touchid-race.py` | macOS-only: race the Touch ID sheet against a keypress (finger vs. any key) |
+| `resolve-refs.py` | Extract one bw-env reference from a single `bw list items` dump (no per-secret `bw get`) |
 | `bw-env.example`  | Copy to `bw-env`, list your secret references (no secrets) |
 | `init.sh` | Exposes the `bw-run` command; defaults `BW_SECRET_AGENT_TTL` |
 
 ## One-time setup (per machine)
 ```bash
-# Tooling: bw + python3 (+ jq for field: references)
-brew install bitwarden-cli jq          # macOS
-# apt install jq  &&  install bw CLI    # Linux
+# Tooling: bw + python3
+brew install bitwarden-cli             # macOS
+# install bw CLI                       # Linux
 
 bw login <ai-account-email>            # log the CLI into the DEDICATED AI account
 cp integrations/bitwarden/bw-env.example integrations/bitwarden/bw-env
@@ -85,14 +86,24 @@ going stale), it cannot be guessed reliably, so the keypress is the manual escap
 The keys you press to abort are flushed from the terminal before the password
 prompt, so nothing you type leaks into it. If you neither tap nor press a key, the
 sheet times out after `BW_TOUCHID_TIMEOUT` seconds and falls back to the password.
-When there is no controlling terminal at all (a script or coding agent invoking
-`bw-run`), Touch ID is skipped outright and it behaves exactly as before the
-feature.
+
+**No controlling terminal (scripts / coding agents).** A script or coding agent
+running `bw-run` has no keyboard for the keypress escape. By default Touch ID is
+then skipped and it falls back to the master-password prompt (which the agent
+cannot answer). Set `BW_TOUCHID_HEADLESS=true` and it instead pops a **bare Touch
+ID sheet** on the Mac (no keypress escape, still bounded by `BW_TOUCHID_TIMEOUT`):
+the agent runs `bw-run`, you tap the sensor, and the unlock completes, no extra
+terminal needed. Enable this only on a Mac you physically sit at. Leave it `false`
+on any machine you reach over SSH, otherwise an agent running there would pop a
+sheet on the remote Mac that nobody is present to tap (unlock those the normal
+way: SSH in yourself and answer the keypress/password prompt).
 
 **Control:** `BW_TOUCHID_ENABLED` is `auto` (default: use it once a password is
 stored) or `false` to force the password prompt on a given machine.
-`BW_TOUCHID_TIMEOUT` (default 30) bounds the sheet wait. On Linux the whole path is
-skipped, so servers keep prompting for the password as before.
+`BW_TOUCHID_HEADLESS` (default `false`) gates the bare-sheet path above for
+terminal-less callers. `BW_TOUCHID_TIMEOUT` (default 30) bounds the sheet wait. On
+Linux the whole path is skipped, so servers keep prompting for the password as
+before.
 
 **How, and its limit.** The master password is kept in the login Keychain
 (`WhenUnlockedThisDeviceOnly`, never synced) and handed back only after this

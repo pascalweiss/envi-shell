@@ -5,6 +5,19 @@ running on this machine. This is the single source of truth: agents are pointed 
 by a permanent link injected into their config, so you can edit this file freely and
 changes take effect immediately, with no re-provisioning.
 
+## Quick routing: symptom → tool
+
+Before falling back to asking the user, map the situation to the right tool. The trigger
+is the *symptom*, not the word "secret": an ssh push failure or a "need a token" situation
+is a credential task even when it does not look like one.
+
+| Situation / symptom | Reach for |
+| --- | --- |
+| Need a token / API key / credential (GitLab, GitHub, Atlassian/Jira, Paperless, …) | `bw-run <cmd>` (see Secrets below) |
+| `git push` / `git fetch` fails with `Permission denied (publickey)`, the ssh-agent has no key, or a key is passphrase-protected | push over HTTPS with `bw-run` (recipe below) instead of asking the user to `ssh-add` |
+| A command needs to run on a remote host (server, k8s node) | `erun <target> <cmd>` (see below) |
+| A CLI already carries its own auth (e.g. `glab` logged in, `kubectl` with a working kubeconfig) | just use it, no `bw-run` needed |
+
 ## Secrets: use `bw-run`, never ask the user to paste them
 
 This machine has a secret broker called **`bw-run`** (an ssh-agent-style tool backed by
@@ -27,14 +40,25 @@ a secret is set, print its length, never its content.
 - Inject into a tool that does NOT read the env (e.g. a curl header). Single-quote so
   the CHILD shell expands the variable, not yours:
     bw-run bash -c 'curl -H "Authorization: Token $PAPERLESS_TOKEN" https://.../api/'
+- Git push/fetch when you have no usable ssh key (SSH uses keys, not env vars, so bridge
+  via an HTTPS remote + token). Single-quote so the CHILD shell expands the token, and it
+  never lands in your output. This pushes the current HEAD once without changing the
+  repo's configured remote:
+    bw-run bash -c 'git push https://oauth2:$GITLAB_TOKEN@git.pwlab.dev/<group>/<repo>.git HEAD:main'
+    bw-run bash -c 'git push https://x-access-token:$GITHUB_TOKEN_NEO@github.com/<owner>/<repo>.git HEAD:main'
 - Interactive shell with secrets loaded, then use $VAR normally:
     bw-run --shell
 
 ### Availability
 - Check first: `bw-run --agent-status`. If it says "not running", the vault is locked.
-- You CANNOT unlock it yourself: it needs the user's master password, typed locally. Ask
-  the user to run any `bw-run …` once to unlock; never try to supply the password, and
-  never put a password on a command line or in the environment.
+- To unlock, just run the `bw-run <cmd>` you need (e.g. `bw-run true`). On a Mac with
+  headless Touch ID enabled (`BW_TOUCHID_HEADLESS=true`, see `bw-run --touchid-status`),
+  this pops a Touch ID sheet on the Mac: tell the user to tap the sensor, and the unlock
+  completes without a new terminal. The sheet auto-dismisses after `BW_TOUCHID_TIMEOUT`s.
+- If headless Touch ID is off, or the sheet times out, or you get a "readline was closed"
+  style failure (no terminal, so the master-password prompt can't be answered), fall back
+  to asking the user to run any `bw-run …` once to unlock. Never try to supply the
+  password, and never put a password on a command line or in the environment.
 - `bw-run --stop-agent` wipes the secrets from memory; the agent also auto-expires.
 
 ### Which secrets exist
