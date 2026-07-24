@@ -1,32 +1,45 @@
 #!/usr/bin/env bash
 #
-# envi-agent-notes — point every installed coding agent at the machine's single
-# agent-instruction file, by injecting only a short LINK (not the full text).
+# envi-agent-notes — tell every installed coding agent which envi tools this machine
+# provides, by injecting a small managed ROUTING BLOCK (links, not full prose).
 #
-# The canonical instructions live in ONE file in the envi repo:
-#   ~/.envi/agent-instructions.md
-# This tool writes a small managed block (between HTML-comment markers) into each
-# installed agent's global instruction file, containing just a pointer to that file:
+# Per-tool docs live one file each under:
+#   ~/.envi/agent-instructions/<tool>.md
+# each starting with a header line:
+#   <!-- envi-tool: <name> | <one-line when-to-use> -->
+# The top-level index is ~/.envi/agent-instructions.md.
+#
+# This tool writes a managed block (between HTML-comment markers) into each installed
+# agent's global instruction file:
 #   Claude Code  -> ~/.claude/CLAUDE.md
 #   Codex        -> ~/.codex/AGENTS.md
 #   Gemini CLI   -> ~/.gemini/GEMINI.md
 #   OpenCode     -> ~/.config/opencode/AGENTS.md
+# The block is a routing table (symptom -> which tool file to read). Because only links
+# are injected, editing a tool doc takes effect immediately with no re-injection.
 #
-# Because only a link is injected, you can edit agent-instructions.md any time and the
-# change takes effect with no re-injection. Re-run this only when adding a new agent.
+# WHICH tools are injected is per-machine, via ENVI_AGENT_TOOLS (set in config/envi_env):
+#   ENVI_AGENT_TOOLS="all"           (default) inject every tool found
+#   ENVI_AGENT_TOOLS="erun gitscan"  inject only these; others never mentioned
+#   ENVI_AGENT_TOOLS="none"          inject nothing (equivalent to removing the block)
+# Re-run this after changing the variable or adding a new agent/tool.
 #
 # Usage:
-#   envi-agent-notes             # inject / update the link (idempotent)
+#   envi-agent-notes             # inject / update the routing block (idempotent)
 #   envi-agent-notes --dry-run   # show what would change, write nothing
 #   envi-agent-notes --uninstall # remove the managed block everywhere
 
 set -euo pipefail
 
 ENVI_HOME="${ENVI_HOME:-$HOME/.envi}"
-LINK_TARGET="${ENVI_AGENT_NOTES_FILE:-$ENVI_HOME/agent-instructions.md}"
+TOOLS_DIR="$ENVI_HOME/agent-instructions"
+INDEX_FILE="$ENVI_HOME/agent-instructions.md"
 
-# Markers kept stable (incl. across the earlier full-text version) so re-running
-# cleanly replaces any previously injected block.
+# Per-machine selection. Default: all tools. Override in config/envi_env.
+: "${ENVI_AGENT_TOOLS:=all}"
+
+# Markers kept stable (incl. across earlier versions) so re-running cleanly replaces any
+# previously injected block. Do not change these strings.
 BEGIN="<!-- >>> bw-run agent notes (managed by envi — do not edit inside) >>> -->"
 END="<!-- <<< bw-run agent notes <<< -->"
 
@@ -46,26 +59,62 @@ case "${1:-}" in
   *) echo "unknown option: $1" >&2; exit 2 ;;
 esac
 
-if [ "$mode" != "uninstall" ] && [ ! -f "$LINK_TARGET" ]; then
-  echo "agent-instruction file not found at $LINK_TARGET" >&2
-  exit 1
-fi
+# trim leading/trailing whitespace (bash 3.2 compatible, no subprocess)
+trim() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"; printf '%s' "$s"; }
 
-# The managed block: only a pointer to the single instruction file. No prose that
-# would need re-injection when the instructions change.
+# Emit "name<TAB>when<TAB>path" for every tool doc, sorted by name.
+collect_all_tools() {
+  local f line meta name when
+  for f in "$TOOLS_DIR"/*.md; do
+    [ -f "$f" ] || continue
+    line="$(grep -m1 '<!-- envi-tool:' "$f" 2>/dev/null)" || continue
+    [ -n "$line" ] || continue
+    meta="${line#*envi-tool:}"; meta="${meta%%-->*}"
+    name="$(trim "${meta%%|*}")"
+    when="$(trim "${meta#*|}")"
+    [ -n "$name" ] || continue
+    printf '%s\t%s\t%s\n' "$name" "$when" "$f"
+  done | sort
+}
+
+# Apply the ENVI_AGENT_TOOLS selection to the collected tools.
+# Prints the selected "name<TAB>when<TAB>path" lines (possibly empty).
+select_tools() {
+  local all t line
+  all="$(collect_all_tools)"
+  case "$ENVI_AGENT_TOOLS" in
+    all)         printf '%s\n' "$all" ;;
+    none|"")     : ;;   # nothing
+    *)
+      for t in $ENVI_AGENT_TOOLS; do
+        line="$(printf '%s\n' "$all" | awk -F'\t' -v n="$t" '$1==n')"
+        if [ -n "$line" ]; then
+          printf '%s\n' "$line"
+        else
+          echo "  warn   unknown tool in ENVI_AGENT_TOOLS: '$t' (no $TOOLS_DIR/$t.md)" >&2
+        fi
+      done
+      ;;
+  esac
+}
+
+# Build the managed block from a set of selected tool lines (on stdin).
 build_block() {
+  local selected="$1"
   printf '%s\n' "$BEGIN"
   cat <<EOF
-## Agent instructions for this machine (managed by envi)
+## Envi tooling on this machine (managed by envi)
 
-Before any task that needs a secret, token, API key or credential, read and follow:
+This machine ships helper tools via envi. When a task matches a row below, read and
+follow the linked file before falling back to asking the user. Full index: $INDEX_FILE
 
-    $LINK_TARGET
-
-Summary: this machine has a secret broker \`bw-run\`, use it to inject secrets as
-environment variables into a command, and NEVER print or read a secret value into your
-output or logs. Usage patterns and details are in the file above.
+| When you need to... | Read |
+| --- | --- |
 EOF
+  printf '%s\n' "$selected" | while IFS=$'\t' read -r name when path; do
+    [ -n "$name" ] || continue
+    printf '| %s | `%s` |\n' "$when" "$path"
+  done
   printf '%s\n' "$END"
 }
 
@@ -80,6 +129,20 @@ strip_block() {
   ' "$f"
 }
 
+# Resolve the selection once up front.
+SELECTED=""
+if [ "$mode" != "uninstall" ]; then
+  if [ ! -d "$TOOLS_DIR" ]; then
+    echo "tool docs directory not found at $TOOLS_DIR" >&2
+    exit 1
+  fi
+  SELECTED="$(select_tools)"
+fi
+
+# How many tools got selected (for the summary line).
+n_sel=0
+[ -n "$SELECTED" ] && n_sel="$(printf '%s\n' "$SELECTED" | grep -c $'\t' || true)"
+
 changed=0 skipped=0
 for entry in "${TARGETS[@]}"; do
   IFS='|' read -r name file dir <<< "$entry"
@@ -91,24 +154,32 @@ for entry in "${TARGETS[@]}"; do
   fi
 
   stripped="$(strip_block "$file")"
-  if [ "$mode" = "uninstall" ]; then
+  if [ "$mode" = "uninstall" ] || [ -z "$SELECTED" ]; then
+    # uninstall, or ENVI_AGENT_TOOLS=none: leave the file with no managed block
     new="$stripped"
-  elif [ -n "$stripped" ]; then
-    new="$stripped"$'\n\n'"$(build_block)"
   else
-    new="$(build_block)"
+    block="$(build_block "$SELECTED")"
+    if [ -n "$stripped" ]; then
+      new="$stripped"$'\n\n'"$block"
+    else
+      new="$block"
+    fi
   fi
 
   if [ "$mode" = "dry-run" ]; then
-    printf '  would update %-12s -> %s\n' "$name" "$file"
+    if [ "$mode" != "uninstall" ] && [ -z "$SELECTED" ]; then
+      printf '  would clear  %-12s -> %s (ENVI_AGENT_TOOLS=none)\n' "$name" "$file"
+    else
+      printf '  would update %-12s -> %s\n' "$name" "$file"
+    fi
     changed=$((changed+1))
     continue
   fi
 
   mkdir -p "$(dirname "$file")"
   printf '%s\n' "$new" > "$file"
-  if [ "$mode" = "uninstall" ]; then
-    printf '  removed  %-12s from %s\n' "$name" "$file"
+  if [ "$mode" = "uninstall" ] || [ -z "$SELECTED" ]; then
+    printf '  cleared  %-12s in %s\n' "$name" "$file"
   else
     printf '  linked   %-12s -> %s\n' "$name" "$file"
   fi
@@ -116,4 +187,8 @@ for entry in "${TARGETS[@]}"; do
 done
 
 echo "----"
-echo "$mode: $changed target(s) affected, $skipped skipped. Link -> $LINK_TARGET"
+if [ "$mode" = "uninstall" ]; then
+  echo "uninstall: $changed target(s) affected, $skipped skipped."
+else
+  echo "$mode: $changed target(s) affected, $skipped skipped. Tools selected (ENVI_AGENT_TOOLS=$ENVI_AGENT_TOOLS): $n_sel"
+fi
