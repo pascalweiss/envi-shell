@@ -1,0 +1,468 @@
+#!/usr/bin/env bash
+#
+# gitscan — find every git repo on this machine and report what still needs
+#           committing, pushing or pulling.
+# =============================================================================
+# Envi ships this so a coding agent (or you) can answer, in one command,
+# "which repos did I forget to commit or push?". It discovers repos under a set
+# of search roots, classifies each as a MAIN checkout, a linked WORKTREE, or a
+# BARE repo, and shows dirty state + ahead/behind vs. the upstream.
+#
+# Output is made to be read by BOTH humans and coding agents:
+#   - default:      aligned table, colored on a TTY, plain when piped
+#   - --json:       one JSON array of objects (stable field names)
+#   - --porcelain:  tab-separated columns, one repo per line (stable, scriptable)
+#
+# By default only repos that NEED ATTENTION are shown (uncommitted changes,
+# unpushed/unpulled commits, or a branch that was never pushed). Use --all to
+# list clean repos too.
+#
+# DISCOVERY IS PRUNED FOR SPEED: heavy directory names (node_modules, .gradle,
+# target, Library, .oh-my-zsh, ...) are never descended into. This keeps a
+# full $HOME scan to a few seconds. Ahead/behind uses the LAST fetched state
+# of the remote (no network) unless you pass --fetch.
+#
+# ---------------------------------------------------------------------------
+# Configuration (envi convention: baked defaults, override in config/envi_env)
+#
+#   GITSCAN_ROOTS       Space-separated search roots.        default: $HOME
+#   GITSCAN_MAX_DEPTH   find maxdepth (directory levels).    default: 12
+#   GITSCAN_PRUNE       EXTRA directory basenames to skip,   default: (empty)
+#                       space-separated, added to the built-in prune list.
+#   GITSCAN_JOBS        Parallel git inspections.            default: #CPUs
+#
+# CLI flags override the env vars; see --help.
+# =============================================================================
+
+set -uo pipefail
+
+# --- resolve our own absolute path (we re-invoke ourselves for --inspect) ----
+self_src="${BASH_SOURCE[0]}"
+while [ -h "$self_src" ]; do
+    dir="$(cd -P "$(dirname "$self_src")" && pwd)"
+    self_src="$(readlink "$self_src")"
+    [ "${self_src#/}" = "$self_src" ] && self_src="$dir/$self_src"
+done
+SELF="$(cd -P "$(dirname "$self_src")" && pwd)/$(basename "$self_src")"
+
+# --- built-in prune list: directory basenames we never descend into ----------
+BUILTIN_PRUNE=(
+    node_modules bower_components .pnpm-store .yarn .npm
+    .gradle .m2 target build dist out .output
+    .venv venv env __pycache__ .tox .mypy_cache .pytest_cache .ruff_cache
+    .cargo .rustup .stack-work
+    vendor Pods .cocoapods Carthage
+    .terraform .terragrunt-cache
+    .next .nuxt .svelte-kit .angular .parcel-cache .cache .turbo
+    .gradle-cache .m2-cache coverage .nyc_output
+    .oh-my-zsh .zinit .zplug .antigen .cache-omz
+    .idea .vscode .Trash .Trashes
+    Library "Application Support"
+    go
+)
+
+# ============================================================================ #
+#  --inspect MODE: examine ONE repo working dir, print one TSV record.
+#  Fields (tab separated):
+#   mainpath  repopath  type  branch  staged  modified  untracked \
+#   ahead  behind  upstream  stash
+# ============================================================================ #
+inspect_one() {
+    local dir="$1"
+    cd "$dir" 2>/dev/null || return 0
+    # Canonicalize to the physical path so a main repo's own path and the
+    # mainpath its worktrees derive (via git, which resolves symlinks like
+    # /tmp -> /private/tmp) are the SAME string, and thus group together.
+    dir="$(pwd -P)"
+
+    # git-common-dir tells us the "main" .git; if it differs from git-dir this
+    # is a linked worktree. Resolve both to absolute paths for a safe compare.
+    local gitdir commondir mainpath type bare
+    gitdir="$(git rev-parse --absolute-git-dir 2>/dev/null)" || return 0
+    commondir="$(git -C "$dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+    [ -z "$commondir" ] && commondir="$gitdir"
+
+    bare="$(git rev-parse --is-bare-repository 2>/dev/null)"
+    if [ "$bare" = "true" ]; then
+        type="bare"
+        mainpath="$dir"
+    elif [ "$gitdir" != "$commondir" ]; then
+        type="worktree"
+        # main working dir is the parent of the common .git dir
+        mainpath="$(dirname "$commondir")"
+    else
+        type="main"
+        mainpath="$dir"
+    fi
+
+    # branch (empty => detached HEAD)
+    local branch
+    branch="$(git symbolic-ref --quiet --short HEAD 2>/dev/null)" || branch=""
+
+    # dirty counts (skip for bare — no working tree)
+    local staged=0 modified=0 untracked=0
+    if [ "$bare" != "true" ]; then
+        # single awk pass over porcelain v1: X=index col, Y=worktree col
+        local counts
+        counts="$(git status --porcelain=v1 2>/dev/null | awk '
+            { x=substr($0,1,1); y=substr($0,2,1) }
+            x=="?" && y=="?" { u++; next }
+            x!=" " && x!="?" { s++ }
+            y!=" " && y!="?" { m++ }
+            END { printf "%d %d %d", s+0, m+0, u+0 }')"
+        read -r staged modified untracked <<<"$counts"
+    fi
+
+    # ahead / behind vs upstream (uses last-fetched refs; no network)
+    local upstream="-" ahead=0 behind=0 lr
+    upstream="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)" || upstream="-"
+    [ -z "$upstream" ] && upstream="-"
+    if [ "$upstream" != "-" ]; then
+        lr="$(git rev-list --left-right --count '@{upstream}...HEAD' 2>/dev/null)"
+        # left = upstream-only = behind ; right = HEAD-only = ahead
+        [ -n "$lr" ] && read -r behind ahead <<<"$lr"
+    fi
+
+    # stashes belong to the common repo; report count (informational)
+    local stash=0
+    stash="$(git stash list 2>/dev/null | wc -l | tr -d ' ')"
+
+    # Internal records use the Unit Separator (\037), NOT tab: tab is an IFS
+    # whitespace char, so `read` would collapse empty fields (e.g. a detached
+    # HEAD's empty branch) and shift every column. \037 is not whitespace, so
+    # empty fields survive. User-facing --porcelain/--json are built separately.
+    printf '%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\n' \
+        "$mainpath" "$dir" "$type" "${branch:-}" \
+        "$staged" "$modified" "$untracked" \
+        "$ahead" "$behind" "$upstream" "$stash"
+}
+
+# ============================================================================ #
+#  Helpers for the driver
+# ============================================================================ #
+abbrev_home() { case "$1" in "$HOME"/*) printf '~%s' "${1#"$HOME"}";; "$HOME") printf '~';; *) printf '%s' "$1";; esac; }
+
+# minimal JSON string escaping: backslash and double-quote (paths may contain
+# them; git refs cannot, but we escape uniformly to be safe).
+json_escape() { local s=$1; s=${s//\\/\\\\}; s=${s//\"/\\\"}; printf '%s' "$s"; }
+
+needs_attention() { # staged modified untracked ahead behind upstream branch type
+    local s=$1 m=$2 u=$3 a=$4 b=$5 up=$6 br=$7 ty=$8
+    [ "$ty" = "bare" ] && return 1
+    (( s+m+u > 0 )) && return 0
+    (( a > 0 || b > 0 )) && return 0
+    # a real branch that was never pushed (no upstream) is worth flagging
+    [ -n "$br" ] && [ "$up" = "-" ] && return 0
+    return 1
+}
+
+usage() {
+    cat <<'EOF'
+gitscan — find every git repo and report uncommitted / unpushed / unpulled work.
+
+USAGE
+    gitscan [OPTIONS] [ROOT ...]
+
+    With no ROOT, searches $GITSCAN_ROOTS (default: your home directory).
+
+OPTIONS
+    -a, --all         Show clean repos too (default: only repos needing action).
+    -f, --fetch       git fetch each repo first, so behind counts are current
+                      (slower, needs network).
+    -j, --json        Emit a JSON array (stable field names) for agents/scripts.
+    -p, --porcelain   Emit tab-separated columns, one repo per line.
+        --no-color    Disable ANSI colors (also auto-off when piped).
+    -d, --depth N     Max directory depth to search (default: 12).
+    -J, --jobs N      Parallel git inspections (default: number of CPUs).
+    -h, --help        This help.
+
+OUTPUT TOKENS (default / table view)
+    TYPE     main | wt (worktree) | bare
+    CHANGES  clean, or S<n> M<n> U<n>  (staged / modified / untracked)
+    REMOTE   synced | ↑<ahead> ↓<behind> | no-upstream | detached | no-remote
+    NOTE     extra flags: bare, detached, stash:<n>
+
+CONFIG (override in ~/.envi/config/envi_env)
+    GITSCAN_ROOTS  GITSCAN_MAX_DEPTH  GITSCAN_PRUNE  GITSCAN_JOBS
+
+EXAMPLES
+    gitscan                 # what needs action under $HOME
+    gitscan --all ~/dev     # every repo under ~/dev
+    gitscan --json | jq .   # machine-readable
+    gitscan --fetch         # refresh behind counts from remotes first
+EOF
+}
+
+# ============================================================================ #
+#  Argument parsing
+# ============================================================================ #
+: "${GITSCAN_ROOTS:=$HOME}"
+: "${GITSCAN_MAX_DEPTH:=12}"
+: "${GITSCAN_PRUNE:=}"
+: "${GITSCAN_JOBS:=}"
+
+if [ -z "$GITSCAN_JOBS" ]; then
+    GITSCAN_JOBS="$( (command -v nproc >/dev/null && nproc) || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+fi
+
+SHOW_ALL=false
+DO_FETCH=false
+FORMAT="table"       # table | json | porcelain
+USE_COLOR=auto
+declare -a ROOTS=()
+
+# hidden internal mode
+if [ "${1:-}" = "--inspect" ]; then
+    inspect_one "$2"
+    exit 0
+fi
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -a|--all)        SHOW_ALL=true ;;
+        -f|--fetch)      DO_FETCH=true ;;
+        -j|--json)       FORMAT="json" ;;
+        -p|--porcelain)  FORMAT="porcelain" ;;
+        --no-color)      USE_COLOR=off ;;
+        -d|--depth)      shift; GITSCAN_MAX_DEPTH="$1" ;;
+        -J|--jobs)       shift; GITSCAN_JOBS="$1" ;;
+        -h|--help)       usage; exit 0 ;;
+        --)              shift; while [ $# -gt 0 ]; do ROOTS+=("$1"); shift; done; break ;;
+        -*)              echo "gitscan: unknown option '$1' (see --help)" >&2; exit 2 ;;
+        *)               ROOTS+=("$1") ;;
+    esac
+    shift
+done
+
+if [ "${#ROOTS[@]}" -eq 0 ]; then
+    # split GITSCAN_ROOTS on whitespace
+    read -r -a ROOTS <<<"$GITSCAN_ROOTS"
+fi
+
+# color setup
+if [ "$USE_COLOR" = auto ]; then
+    [ -t 1 ] && USE_COLOR=on || USE_COLOR=off
+fi
+if [ "$USE_COLOR" = on ]; then
+    C_RST=$'\e[0m'; C_DIM=$'\e[2m'; C_RED=$'\e[31m'; C_GRN=$'\e[32m'
+    C_YEL=$'\e[33m'; C_BLU=$'\e[34m'; C_CYN=$'\e[36m'; C_BLD=$'\e[1m'
+else
+    C_RST=; C_DIM=; C_RED=; C_GRN=; C_YEL=; C_BLU=; C_CYN=; C_BLD=
+fi
+
+# ============================================================================ #
+#  1) DISCOVER repos: find every .git (dir=main/bare, file=worktree)
+# ============================================================================ #
+# Build the find prune sub-expression as an argument array:
+#   ( -name node_modules -o -name .gradle -o ... )
+declare -a PRUNE_ARGS=('(')
+{
+    prune_names=("${BUILTIN_PRUNE[@]}")
+    # shellcheck disable=SC2206
+    [ -n "$GITSCAN_PRUNE" ] && prune_names+=($GITSCAN_PRUNE)
+    _pf=1
+    for _n in "${prune_names[@]}"; do
+        [ $_pf -eq 1 ] && _pf=0 || PRUNE_ARGS+=(-o)
+        PRUNE_ARGS+=(-name "$_n")
+    done
+    PRUNE_ARGS+=(')')
+}
+
+declare -a GITPATHS=()
+for root in "${ROOTS[@]}"; do
+    [ -d "$root" ] || { echo "gitscan: root not found: $root" >&2; continue; }
+    # Prune heavy dirs; print any .git we hit (dir=main/bare, file=worktree),
+    # and prune the .git dir itself so we never descend into git internals.
+    while IFS= read -r gp; do
+        GITPATHS+=("$gp")
+    done < <(find "$root" -maxdepth "$GITSCAN_MAX_DEPTH" \
+                '(' -type d "${PRUNE_ARGS[@]}" -prune ')' \
+                -o -name .git -print -prune 2>/dev/null)
+done
+
+if [ "${#GITPATHS[@]}" -eq 0 ]; then
+    echo "gitscan: no git repositories found under: ${ROOTS[*]}" >&2
+    exit 0
+fi
+
+# repo working dir = strip the trailing /.git from each entry, dedup.
+# (bash 3.2 on macOS has no associative arrays, so dedup via sort -u.)
+declare -a REPODIRS=()
+while IFS= read -r rd; do
+    [ -n "$rd" ] && REPODIRS+=("$rd")
+done < <(for gp in "${GITPATHS[@]}"; do printf '%s\n' "${gp%/.git}"; done | sort -u)
+
+# ============================================================================ #
+#  2) OPTIONAL fetch, then INSPECT each repo in parallel
+# ============================================================================ #
+if [ "$DO_FETCH" = true ]; then
+    printf '%s\0' "${REPODIRS[@]}" | \
+        xargs -0 -P "$GITSCAN_JOBS" -I{} git -C {} fetch --quiet --all 2>/dev/null
+fi
+
+RECORDS="$(printf '%s\0' "${REPODIRS[@]}" | \
+    xargs -0 -P "$GITSCAN_JOBS" -I{} "$SELF" --inspect {})"
+
+# sort: group by mainpath, main row before its worktrees, then by repopath.
+# Records are \037-separated; we prepend three TAB-separated sort keys, sort,
+# then cut them off, leaving the original \037-separated record intact.
+RECORDS="$(printf '%s\n' "$RECORDS" | awk -F'\037' 'NF>=11{
+        order = ($3=="main"||$3=="bare") ? 0 : 1
+        printf "%s\t%d\t%s\t%s\n", $1, order, $2, $0
+    }' | sort -t$'\t' -k1,1 -k2,2n -k3,3 | cut -f4-)"
+
+# ============================================================================ #
+#  3) FILTER + RENDER
+# ============================================================================ #
+total=0; shown=0; n_dirty=0; n_ahead=0; n_behind=0; n_noups=0
+
+# First pass: decide which rows to show, remember column widths (table mode)
+declare -a ROWS=()          # each entry: preformatted table cells, tab-joined
+w_repo=4; w_type=4; w_branch=6; w_chg=7; w_rem=6
+
+json_first=1
+[ "$FORMAT" = json ] && printf '['
+
+while IFS=$'\037' read -r mainpath repopath type branch staged modified untracked ahead behind upstream stash; do
+    [ -z "$repopath" ] && continue
+    total=$((total+1))
+
+    att=1
+    needs_attention "$staged" "$modified" "$untracked" "$ahead" "$behind" "$upstream" "$branch" "$type" || att=0
+
+    if [ "$att" = 1 ]; then
+        (( staged+modified+untracked > 0 )) && n_dirty=$((n_dirty+1))
+        (( ahead  > 0 )) && n_ahead=$((n_ahead+1))
+        (( behind > 0 )) && n_behind=$((n_behind+1))
+        [ -n "$branch" ] && [ "$upstream" = "-" ] && n_noups=$((n_noups+1))
+    fi
+
+    if [ "$SHOW_ALL" != true ] && [ "$att" != 1 ]; then
+        continue
+    fi
+    shown=$((shown+1))
+
+    # ---- build display tokens (shared) ----
+    disp_path="$(abbrev_home "$repopath")"
+    case "$type" in
+        worktree) type_tok="wt";  disp_path="  ↳ $disp_path" ;;
+        bare)     type_tok="bare" ;;
+        *)        type_tok="main" ;;
+    esac
+    disp_branch="${branch:-"(detached)"}"
+
+    # changes token
+    if (( staged+modified+untracked == 0 )); then
+        chg_tok="clean"
+    else
+        chg_tok=""
+        (( staged   > 0 )) && chg_tok="${chg_tok}S${staged} "
+        (( modified > 0 )) && chg_tok="${chg_tok}M${modified} "
+        (( untracked> 0 )) && chg_tok="${chg_tok}U${untracked} "
+        chg_tok="${chg_tok% }"
+    fi
+
+    # remote token
+    if [ "$type" = "bare" ]; then
+        rem_tok="-"
+    elif [ -z "$branch" ]; then
+        rem_tok="detached"
+    elif [ "$upstream" = "-" ]; then
+        rem_tok="no-upstream"
+    elif (( ahead == 0 && behind == 0 )); then
+        rem_tok="synced"
+    else
+        rem_tok=""
+        (( ahead  > 0 )) && rem_tok="${rem_tok}↑${ahead}"
+        (( behind > 0 )) && rem_tok="${rem_tok}↓${behind}"
+    fi
+
+    # note token
+    note=""
+    [ "$type" = bare ] && note="bare"
+    [ -z "$branch" ] && [ "$type" != bare ] && note="${note:+$note }detached"
+    (( stash > 0 )) && note="${note:+$note }stash:${stash}"
+
+    case "$FORMAT" in
+        json)
+            [ $json_first -eq 1 ] && json_first=0 || printf ','
+            printf '\n  {"path":"%s","main":"%s","type":"%s","branch":"%s","staged":%s,"modified":%s,"untracked":%s,"ahead":%s,"behind":%s,"upstream":"%s","stash":%s,"attention":%s}' \
+                "$(json_escape "$repopath")" "$(json_escape "$mainpath")" "$type" "$(json_escape "$branch")" \
+                "$staged" "$modified" "$untracked" "$ahead" "$behind" \
+                "$upstream" "$stash" "$( [ "$att" = 1 ] && echo true || echo false )"
+            ;;
+        porcelain)
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$repopath" "$type" "$branch" "$staged" "$modified" "$untracked" \
+                "$ahead" "$behind" "$upstream" "$stash" \
+                "$( [ "$att" = 1 ] && echo attention || echo ok )"
+            ;;
+        table)
+            ROWS+=("$disp_path"$'\037'"$type_tok"$'\037'"$disp_branch"$'\037'"$chg_tok"$'\037'"$rem_tok"$'\037'"$note"$'\037'"$att")
+            # track widths on the raw (uncolored) token lengths
+            [ ${#disp_path}   -gt $w_repo ]   && w_repo=${#disp_path}
+            [ ${#type_tok}    -gt $w_type ]   && w_type=${#type_tok}
+            [ ${#disp_branch} -gt $w_branch ] && w_branch=${#disp_branch}
+            [ ${#chg_tok}     -gt $w_chg ]    && w_chg=${#chg_tok}
+            [ ${#rem_tok}     -gt $w_rem ]    && w_rem=${#rem_tok}
+            ;;
+    esac
+done <<<"$RECORDS"
+
+if [ "$FORMAT" = json ]; then
+    printf '\n]\n'
+    exit 0
+fi
+if [ "$FORMAT" = porcelain ]; then
+    exit 0
+fi
+
+# ---- table rendering (second pass, now that widths are known) ----
+if [ "$shown" -eq 0 ]; then
+    printf '%s✓ all clean%s — %d repos scanned, nothing to commit or push.\n' \
+        "$C_GRN" "$C_RST" "$total"
+    exit 0
+fi
+
+# header
+printf '%s%-*s  %-*s  %-*s  %-*s  %-*s  %s%s\n' \
+    "$C_DIM$C_BLD" "$w_repo" "REPO" "$w_type" "TYPE" "$w_branch" "BRANCH" \
+    "$w_chg" "CHANGES" "$w_rem" "REMOTE" "NOTE" "$C_RST"
+
+for row in "${ROWS[@]}"; do
+    IFS=$'\037' read -r c_path c_type c_branch c_chg c_rem c_note c_att <<<"$row"
+
+    # colorize tokens
+    col_path="$c_path"
+    case "$c_type" in wt) col_type="$C_CYN$c_type$C_RST";; bare) col_type="$C_DIM$c_type$C_RST";; *) col_type="$C_BLU$c_type$C_RST";; esac
+    col_branch="$c_branch"
+    if [ "$c_chg" = clean ]; then col_chg="$C_DIM$c_chg$C_RST"; else col_chg="$C_RED$c_chg$C_RST"; fi
+    case "$c_rem" in
+        synced)      col_rem="$C_DIM$c_rem$C_RST" ;;
+        no-upstream) col_rem="$C_YEL$c_rem$C_RST" ;;
+        detached|-)  col_rem="$C_DIM$c_rem$C_RST" ;;
+        *)           col_rem="$C_YEL$c_rem$C_RST" ;;
+    esac
+    col_note="$C_DIM$c_note$C_RST"
+
+    # pad using RAW widths, then substitute colored strings (printf %-*s counts
+    # ANSI bytes, so pad first with plain text then swap in color)
+    pad() { printf '%-*s' "$2" "$1"; }
+    p_path="$(pad "$c_path" "$w_repo")"
+    p_type="$(pad "$c_type" "$w_type")"; p_type="${p_type/$c_type/$col_type}"
+    p_branch="$(pad "$c_branch" "$w_branch")"
+    p_chg="$(pad "$c_chg" "$w_chg")";    p_chg="${p_chg/$c_chg/$col_chg}"
+    p_rem="$(pad "$c_rem" "$w_rem")";    p_rem="${p_rem/$c_rem/$col_rem}"
+
+    printf '%s  %s  %s  %s  %s  %s\n' \
+        "$p_path" "$p_type" "$p_branch" "$p_chg" "$p_rem" "$col_note"
+done
+
+# ---- summary ----
+printf '\n%s%d of %d repos need attention%s' "$C_BLD" "$shown" "$total" "$C_RST"
+sep=" — "; extra=""
+(( n_dirty  > 0 )) && extra="${extra}${sep}${n_dirty} dirty" && sep=", "
+(( n_ahead  > 0 )) && extra="${extra}${sep}${n_ahead} unpushed" && sep=", "
+(( n_behind > 0 )) && extra="${extra}${sep}${n_behind} behind" && sep=", "
+(( n_noups  > 0 )) && extra="${extra}${sep}${n_noups} never-pushed" && sep=", "
+printf '%s\n' "$extra"
