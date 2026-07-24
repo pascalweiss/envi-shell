@@ -67,6 +67,7 @@ git push
 - `renamenice [FILES...]` - Normalize filenames (lowercase, underscores, umlaut conversion)
 - `fake-server <port>` - Start development HTTP server in Docker
 - `netinfo` - Display network interface information
+- `gitscan [ROOT...]` - Find every git repo (main / worktree / bare) and report uncommitted, unpushed or unpulled work. Default view shows only repos needing attention; `--all` lists clean ones, `--json`/`--porcelain` for agents/scripts. Discovery is pruned for speed and configurable via `GITSCAN_ROOTS`/`GITSCAN_MAX_DEPTH`/`GITSCAN_PRUNE`/`GITSCAN_JOBS`.
 
 ## Configuration Files
 

@@ -43,6 +43,14 @@
 # export EZA_ENABLED=false                  # ls/ll/la/lt aliases via eza
 # export GHOSTTY_ENABLED=false              # symlink ghostty config from envi
 
+# --- gitscan (executables/bin/gitscan) ---
+# Finds every git repo on this machine and reports uncommitted / unpushed /
+# unpulled work. Defaults are baked into the command; override here per machine.
+# export GITSCAN_ROOTS="$HOME/dev $HOME/.envi"   # search roots (default: $HOME)
+# export GITSCAN_MAX_DEPTH=8                      # find maxdepth (default: 12)
+# export GITSCAN_PRUNE="Downloads Movies"        # EXTRA dir names to skip
+# export GITSCAN_JOBS=8                           # parallel inspections (default: #CPUs)
+
 # --- PATH extensions ---
 # The envi-shipped PATH baseline (~/.local/bin, /opt/local/bin, pyenv shims, ...)
 # is set in enviinit. Prepend your own entries here:
