@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+#
+# envi-agent-sync — make envi's agent skills available to the coding agents on this
+# machine, by managing SYMLINKS only. It never opens, parses, or writes an agent's
+# instruction file (CLAUDE.md / AGENTS.md / GEMINI.md); it only creates and removes
+# per-skill symlinks in each agent's native skill auto-discovery directory.
+#
+# Source of truth (one folder per skill, Claude/OpenCode SKILL.md layout):
+#   ~/.envi/agent-skills/<name>/SKILL.md
+#
+# For each installed agent, a selected skill is exposed as:
+#   ~/.claude/skills/<name>          -> ~/.envi/agent-skills/<name>   (Claude Code)
+#   ~/.config/opencode/skills/<name> -> ~/.envi/agent-skills/<name>   (OpenCode)
+# Both agents auto-discover skills from these dirs (verified), so nothing else is needed.
+#
+# WHICH skills are exposed is per-machine, via ENVI_AGENT_SKILLS (set in config/envi_env):
+#   ENVI_AGENT_SKILLS="all"                 (default) expose every skill in agent-skills/
+#   ENVI_AGENT_SKILLS="erun gitscan ..."    expose only these (e.g. a work machine w/o bw-run)
+#   ENVI_AGENT_SKILLS="none"                expose nothing (removes all envi-managed links)
+#
+# Ownership is safe: this tool only ever touches symlinks whose target points into
+# ~/.envi/agent-skills. A real dir or a foreign symlink with the same name is left alone.
+#
+# Usage:
+#   envi-agent-sync             # create/update/remove links to match the selection
+#   envi-agent-sync --dry-run   # show what would change, write nothing
+#   envi-agent-sync --list      # show available skills, the selection, and current links
+#   envi-agent-sync --uninstall # remove ALL envi-managed skill links from every agent
+
+set -uo pipefail
+
+ENVI_HOME="${ENVI_HOME:-$HOME/.envi}"
+SKILLS_SRC="$ENVI_HOME/agent-skills"
+
+# Per-machine selection. Default: all skills. Override in config/envi_env.
+: "${ENVI_AGENT_SKILLS:=all}"
+
+# name | skills dir | base dir that must exist for the agent to count as installed
+AGENTS=(
+  "Claude Code|$HOME/.claude/skills|$HOME/.claude"
+  "OpenCode|$HOME/.config/opencode/skills|$HOME/.config/opencode"
+)
+
+mode="sync"
+case "${1:-}" in
+  --uninstall) mode="uninstall" ;;
+  --dry-run)   mode="dry-run" ;;
+  --list)      mode="list" ;;
+  "")          ;;
+  -h|--help)   grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  *) echo "envi-agent-sync: unknown option '$1' (see --help)" >&2; exit 2 ;;
+esac
+
+if [ ! -d "$SKILLS_SRC" ]; then
+  echo "envi-agent-sync: skills source not found at $SKILLS_SRC" >&2
+  exit 1
+fi
+
+# --- enumerate available skills (dirs under SKILLS_SRC that contain a SKILL.md) ------
+available=""
+for d in "$SKILLS_SRC"/*/; do
+  [ -f "${d}SKILL.md" ] || continue
+  n="$(basename "$d")"
+  available="$available $n"
+done
+available="$(printf '%s' "$available" | tr ' ' '\n' | grep -v '^$' | sort)"
+
+contains() {  # contains <needle> <newline-list>
+  printf '%s\n' "$2" | grep -qxF "$1"
+}
+
+# --- resolve the selection --------------------------------------------------------
+selected=""
+case "$ENVI_AGENT_SKILLS" in
+  all)     selected="$available" ;;
+  none|"") selected="" ;;
+  *)
+    for want in $ENVI_AGENT_SKILLS; do
+      if contains "$want" "$available"; then
+        selected="$selected$want"$'\n'
+      else
+        echo "  warn   unknown skill in ENVI_AGENT_SKILLS: '$want' (no $SKILLS_SRC/$want/SKILL.md)" >&2
+      fi
+    done
+    selected="$(printf '%s' "$selected" | grep -v '^$' | sort)"
+    ;;
+esac
+
+# Is this link one WE manage? True iff it's a symlink whose target points into SKILLS_SRC.
+is_ours() {  # is_ours <path>
+  [ -L "$1" ] || return 1
+  case "$(readlink "$1")" in
+    "$SKILLS_SRC"/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# --- list mode --------------------------------------------------------------------
+if [ "$mode" = "list" ]; then
+  echo "Available skills ($SKILLS_SRC):"
+  printf '%s\n' "$available" | sed 's/^/  - /'
+  echo
+  echo "Selection (ENVI_AGENT_SKILLS=$ENVI_AGENT_SKILLS):"
+  if [ -n "$selected" ]; then printf '%s\n' "$selected" | sed 's/^/  - /'; else echo "  (none)"; fi
+  echo
+  echo "Current envi-managed links:"
+  found=0
+  for entry in "${AGENTS[@]}"; do
+    IFS='|' read -r name dir base <<< "$entry"
+    [ -d "$base" ] || continue
+    [ -d "$dir" ] || continue
+    for l in "$dir"/*; do
+      [ -e "$l" ] || [ -L "$l" ] || continue
+      if is_ours "$l"; then
+        printf '  %-12s %s -> %s\n' "$name" "$(basename "$l")" "$(readlink "$l")"
+        found=1
+      fi
+    done
+  done
+  [ "$found" = 0 ] && echo "  (none)"
+  exit 0
+fi
+
+# --- sync / dry-run / uninstall ---------------------------------------------------
+# In uninstall mode the effective selection is empty (remove everything we own).
+[ "$mode" = "uninstall" ] && selected=""
+
+changed=0 skipped_agents=0
+for entry in "${AGENTS[@]}"; do
+  IFS='|' read -r name dir base <<< "$entry"
+
+  if [ ! -d "$base" ]; then
+    printf '  skip   %-12s (not installed: %s absent)\n' "$name" "$base"
+    skipped_agents=$((skipped_agents+1))
+    continue
+  fi
+
+  # 1) create/update links for every selected skill
+  if [ -n "$selected" ]; then
+    while IFS= read -r skill; do
+      [ -n "$skill" ] || continue
+      link="$dir/$skill"
+      target="$SKILLS_SRC/$skill"
+
+      if [ -L "$link" ]; then
+        if is_ours "$link" && [ "$(readlink "$link")" = "$target" ]; then
+          continue                                   # already correct
+        fi
+        if ! is_ours "$link"; then
+          printf '  keep   %-12s %s (foreign symlink, not touched)\n' "$name" "$skill"
+          continue
+        fi
+        # ours but wrong target -> fix
+        if [ "$mode" = "dry-run" ]; then
+          printf '  would relink %-12s %s\n' "$name" "$skill"
+        else
+          rm "$link" && ln -s "$target" "$link"
+          printf '  relink %-12s %s -> %s\n' "$name" "$skill" "$target"
+        fi
+        changed=$((changed+1))
+        continue
+      fi
+      if [ -e "$link" ]; then
+        printf '  keep   %-12s %s (real file/dir exists, not touched)\n' "$name" "$skill"
+        continue
+      fi
+      # brand new link
+      if [ "$mode" = "dry-run" ]; then
+        printf '  would link   %-12s %s -> %s\n' "$name" "$skill" "$target"
+      else
+        mkdir -p "$dir"
+        ln -s "$target" "$link"
+        printf '  link   %-12s %s -> %s\n' "$name" "$skill" "$target"
+      fi
+      changed=$((changed+1))
+    done <<< "$selected"
+  fi
+
+  # 2) remove envi-managed links that are no longer selected
+  [ -d "$dir" ] || continue
+  for l in "$dir"/*; do
+    [ -L "$l" ] || continue
+    is_ours "$l" || continue
+    b="$(basename "$l")"
+    if [ -z "$selected" ] || ! contains "$b" "$selected"; then
+      if [ "$mode" = "dry-run" ]; then
+        printf '  would unlink %-12s %s\n' "$name" "$b"
+      else
+        rm "$l"
+        printf '  unlink %-12s %s\n' "$name" "$b"
+      fi
+      changed=$((changed+1))
+    fi
+  done
+done
+
+echo "----"
+n_sel=0; [ -n "$selected" ] && n_sel="$(printf '%s\n' "$selected" | grep -vc '^$')"
+case "$mode" in
+  uninstall) echo "uninstall: $changed link(s) removed, $skipped_agents agent(s) not installed." ;;
+  dry-run)   echo "dry-run: $changed change(s) pending. Selected skills (ENVI_AGENT_SKILLS=$ENVI_AGENT_SKILLS): $n_sel" ;;
+  *)         echo "sync: $changed change(s) applied, $skipped_agents agent(s) not installed. Selected skills (ENVI_AGENT_SKILLS=$ENVI_AGENT_SKILLS): $n_sel" ;;
+esac

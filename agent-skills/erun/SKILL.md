@@ -1,4 +1,15 @@
-<!-- envi-tool: erun | run a command on a remote host (server, k8s node) over an existing ssh session -->
+---
+name: erun
+description: >-
+  Use when you need to run a one-shot command on a remote host (a server, a k8s
+  node, anything reachable over ssh) and an interactive ssh session to it already
+  exists. `erun` runs the command over the existing multiplexed connection and
+  returns clean stdout/stderr and a real exit code, so you never drive an ssh
+  session by typing into a tmux pane with send-keys / capture-pane.
+metadata:
+  envi: "true"
+---
+
 # erun: run commands on remote hosts, not tmux pane scraping
 
 When you need to run a command on a remote host (a server, a k8s node, anything

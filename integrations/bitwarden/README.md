@@ -119,21 +119,24 @@ if you are not comfortable with the password at rest, do not run `--setup-touchi
 
 ## Teaching coding agents about `bw-run`
 So that every coding agent on a machine knows to use `bw-run` (instead of asking you
-to paste secrets), point them at the single instruction file with `envi-agent-notes`.
-It injects only a **link** (a short managed block between HTML-comment markers) into
-each *installed* agent's global instruction file, Claude Code `~/.claude/CLAUDE.md`,
-Codex `~/.codex/AGENTS.md`, Gemini `~/.gemini/GEMINI.md`, OpenCode
-`~/.config/opencode/AGENTS.md`. Agents whose config dir is absent are skipped.
+to paste secrets), `bw-run` ships as an envi **skill**: `~/.envi/agent-skills/bw-run/SKILL.md`.
+`envi-agent-sync` symlinks it into each *installed* agent's skill auto-discovery dir
+(Claude Code `~/.claude/skills`, OpenCode `~/.config/opencode/skills`), where the agent
+picks it up on its own. It only ever creates/removes symlinks; it never edits an agent's
+instruction file (`CLAUDE.md` / `AGENTS.md`).
 
 ```bash
-envi-agent-notes             # inject / update the link (idempotent)
-envi-agent-notes --dry-run   # preview, write nothing
-envi-agent-notes --uninstall # remove the block everywhere
+envi-agent-sync             # create/update/remove skill links to match the selection
+envi-agent-sync --list      # available skills, current selection, current links
+envi-agent-sync --dry-run   # preview, write nothing
+envi-agent-sync --uninstall # remove all envi-managed skill links
 ```
 
-Only a link to `~/.envi/agent-instructions.md` is injected, never the prose. So you
-edit that one file whenever you like and the change is live immediately, no
-re-injection. Re-run `envi-agent-notes` only when adding a brand-new agent/machine.
+Which skills are exposed is per-machine via `ENVI_AGENT_SKILLS` (in `config/envi_env`):
+set it to `"all"` (default), a subset like `"erun gitscan"` (a work machine that must
+**not** use the secret broker just omits `bw-run`), or `"none"`. Editing the SKILL.md is
+live immediately, no re-sync needed; re-run `envi-agent-sync` only when changing the
+selection or adding an agent/machine.
 
 ## Trust model
 While the agent runs, any process under your UID can read the secrets from the

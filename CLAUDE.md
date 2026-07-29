@@ -60,6 +60,27 @@ git push
 - **`executables/`**: Custom commands organized by platform compatibility
 - **`defaults/`**: Default configurations and package lists
 - **`config/`**: User-specific configuration files
+- **`agent-skills/`**: Coding-agent skills shipped by envi, one folder per skill (`<name>/SKILL.md`, the Claude/OpenCode skill format). `envi-agent-sync` symlinks the per-machine selection (`ENVI_AGENT_SKILLS`) into each installed agent's skill dir. See "Coding-agent integration" below.
+
+## Coding-agent integration (agent-skills)
+
+Envi ships knowledge and workflows for coding agents (Claude Code, OpenCode, ...) as
+**skills**: `agent-skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`).
+`description` is the discovery trigger, so it states *when* to use the skill. Both Claude
+Code and OpenCode auto-discover skills from their skill dirs, so integration is done by
+**symlink only** (`executables/bin/envi-agent-sync`), never by editing an agent's
+instruction file (`CLAUDE.md` / `AGENTS.md`), which is deliberate: envi only touches files
+it owns plus isolated per-skill symlinks.
+
+- Selection is per machine via `ENVI_AGENT_SKILLS` (in `config/envi_env`): `all` (default),
+  a subset like `erun gitscan repo-cleanup` (e.g. a work machine that must not use `bw-run`),
+  or `none`.
+- `envi-agent-sync` links selected skills into `~/.claude/skills` and
+  `~/.config/opencode/skills`, removes deselected envi links, and never clobbers a real
+  dir or a foreign symlink of the same name (ownership = symlink target points into
+  `agent-skills/`).
+- Add a skill: create `agent-skills/<name>/SKILL.md`, then run `envi-agent-sync`. A skill
+  may reference an envi tool (e.g. `repo-cleanup` uses `gitscan`).
 
 ## Custom Commands Available After Installation
 
@@ -68,6 +89,7 @@ git push
 - `fake-server <port>` - Start development HTTP server in Docker
 - `netinfo` - Display network interface information
 - `gitscan [ROOT...]` - Find every git repo (main / worktree / bare) and report uncommitted, unpushed or unpulled work. Default view shows only repos needing attention; `--all` lists clean ones, `--json`/`--porcelain` for agents/scripts. Discovery is pruned for speed and configurable via `GITSCAN_ROOTS`/`GITSCAN_MAX_DEPTH`/`GITSCAN_PRUNE`/`GITSCAN_JOBS`.
+- `envi-agent-sync` - Symlink envi's agent skills (`agent-skills/*/SKILL.md`) into each installed agent's skill dir, per the `ENVI_AGENT_SKILLS` selection. `--list`/`--dry-run`/`--uninstall`. Only manages symlinks; never edits agent instruction files.
 
 ## Configuration Files
 

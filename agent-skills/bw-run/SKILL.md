@@ -1,4 +1,16 @@
-<!-- envi-tool: bw-run | a token, API key or credential is needed, or a git push/fetch fails on ssh auth -->
+---
+name: bw-run
+description: >-
+  Use when a task needs a token, API key, password or any credential (GitLab,
+  GitHub, Atlassian/Jira, Paperless, deploy keys, ...), or when a git push/fetch
+  fails with a publickey / "Permission denied" error. This machine has a
+  Bitwarden-backed secret broker `bw-run` that injects secrets as environment
+  variables into a command after a one-time unlock, so you never ask the user to
+  paste a secret and never handle the value yourself.
+metadata:
+  envi: "true"
+---
+
 # bw-run: use secrets, never ask the user to paste them
 
 This machine has a secret broker called **`bw-run`** (an ssh-agent-style tool backed by
