@@ -1,4 +1,17 @@
-<!-- envi-tool: gitscan | know which repos have uncommitted, unpushed or never-pushed work -->
+---
+name: gitscan
+description: >-
+  Use when you need to know which git repos on this machine have uncommitted,
+  untracked, unpushed or never-pushed work: e.g. "did I forget to commit or push
+  somewhere", auditing working copies before a hand-off, or as the first step of
+  cleaning up scattered changes. `gitscan` discovers every repo under $HOME
+  (pruned for speed), classifies each as main / worktree / bare, and reports
+  dirty state plus ahead/behind vs. the upstream. Default view shows only repos
+  needing attention; --json gives stable machine-readable output.
+metadata:
+  envi: "true"
+---
+
 # gitscan: find uncommitted / unpushed work across all repos
 
 This machine keeps many git repos and uses git worktrees heavily. When you need to know

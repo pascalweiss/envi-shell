@@ -43,14 +43,15 @@
 # export EZA_ENABLED=false                  # ls/ll/la/lt aliases via eza
 # export GHOSTTY_ENABLED=false              # symlink ghostty config from envi
 
-# --- Agent instructions (executables/bin/envi-agent-notes) ---
-# Which envi tools the coding agents on THIS machine are told about. Each tool is
-# documented in ~/.envi/agent-instructions/<tool>.md; envi-agent-notes injects a
-# routing block for the selected ones into each agent's global config. Re-run
-# `envi-agent-notes` after changing this.
-# export ENVI_AGENT_TOOLS="all"              # default: all tools (bw-run erun gitscan ...)
-# export ENVI_AGENT_TOOLS="erun gitscan"     # e.g. a work machine without the secret broker
-# export ENVI_AGENT_TOOLS="none"             # tell agents about no envi tools
+# --- Agent skills (executables/bin/envi-agent-sync) ---
+# Which envi skills the coding agents on THIS machine can discover. Each skill is a
+# folder ~/.envi/agent-skills/<name>/SKILL.md; envi-agent-sync symlinks the selected
+# ones into each installed agent's skill dir (~/.claude/skills, ~/.config/opencode/skills).
+# It only manages symlinks, never edits an agent's instruction file. Re-run
+# `envi-agent-sync` after changing this.
+# export ENVI_AGENT_SKILLS="all"             # default: all skills (bw-run erun gitscan repo-cleanup ...)
+# export ENVI_AGENT_SKILLS="erun gitscan repo-cleanup"  # e.g. a work machine without the secret broker
+# export ENVI_AGENT_SKILLS="none"            # expose no envi skills to agents
 
 # --- gitscan (executables/bin/gitscan) ---
 # Finds every git repo on this machine and reports uncommitted / unpushed /
