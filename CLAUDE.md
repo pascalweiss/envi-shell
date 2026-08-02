@@ -81,6 +81,16 @@ it owns plus isolated per-skill symlinks.
   `agent-skills/`).
 - Add a skill: create `agent-skills/<name>/SKILL.md`, then run `envi-agent-sync`. A skill
   may reference an envi tool (e.g. `repo-cleanup` uses `gitscan`).
+- **External sources**: `ENVI_AGENT_SKILL_SOURCES` (in `config/envi_env`) adds further skill
+  dirs, space-separated and absolute. Their skills are linked exactly like envi's own, so a
+  third-party skill repo can be exposed straight from its git clone (`git pull` in the clone
+  is the whole update path, no copying). `agent-skills/` always comes first; on a name clash
+  the first source wins and the duplicate is skipped with a warning. Ownership follows the
+  current sources, so remove a source only after `envi-agent-sync --uninstall`, otherwise its
+  links are orphaned. On this machine the sources are the promoted buckets of
+  [mattpocock/skills](https://github.com/mattpocock/skills), cloned to `~/dev/mattpocock-skills`.
+  Two skills from that repo (`caveman`, `zoom-out`) were removed upstream and now live in
+  `agent-skills/` with a `SOURCE.md` recording their origin.
 
 ## Custom Commands Available After Installation
 
@@ -89,7 +99,7 @@ it owns plus isolated per-skill symlinks.
 - `fake-server <port>` - Start development HTTP server in Docker
 - `netinfo` - Display network interface information
 - `gitscan [ROOT...]` - Find every git repo (main / worktree / bare) and report uncommitted, unpushed or unpulled work. Default view shows only repos needing attention; `--all` lists clean ones, `--json`/`--porcelain` for agents/scripts. Discovery is pruned for speed and configurable via `GITSCAN_ROOTS`/`GITSCAN_MAX_DEPTH`/`GITSCAN_PRUNE`/`GITSCAN_JOBS`.
-- `envi-agent-sync` - Symlink envi's agent skills (`agent-skills/*/SKILL.md`) into each installed agent's skill dir, per the `ENVI_AGENT_SKILLS` selection. `--list`/`--dry-run`/`--uninstall`. Only manages symlinks; never edits agent instruction files.
+- `envi-agent-sync` - Symlink agent skills (`agent-skills/*/SKILL.md` plus any dir in `ENVI_AGENT_SKILL_SOURCES`) into each installed agent's skill dir, per the `ENVI_AGENT_SKILLS` selection. `--list`/`--dry-run`/`--uninstall`. Only manages symlinks; never edits agent instruction files.
 
 ## Configuration Files
 

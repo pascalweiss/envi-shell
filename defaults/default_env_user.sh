@@ -52,6 +52,13 @@
 # export ENVI_AGENT_SKILLS="all"             # default: all skills (bw-run erun gitscan repo-cleanup ...)
 # export ENVI_AGENT_SKILLS="erun gitscan repo-cleanup"  # e.g. a work machine without the secret broker
 # export ENVI_AGENT_SKILLS="none"            # expose no envi skills to agents
+#
+# Extra skill sources beyond ~/.envi/agent-skills, as absolute dirs that each hold skill
+# folders. Use this to expose skills from a third-party git clone without copying them:
+# the links point into the clone, so `git pull` there is all an update takes. envi's own
+# dir always comes first; on a name clash the first source wins. Before removing a source
+# here, run `envi-agent-sync --uninstall` with it still set, else its links stay behind.
+# export ENVI_AGENT_SKILL_SOURCES="$HOME/dev/mattpocock-skills/skills/engineering $HOME/dev/mattpocock-skills/skills/productivity"
 
 # --- gitscan (executables/bin/gitscan) ---
 # Finds every git repo on this machine and reports uncommitted / unpushed /
