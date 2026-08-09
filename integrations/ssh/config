@@ -1,5 +1,33 @@
 # Managed by envi (integrations/ssh/config). Included from ~/.ssh/config.
 #
+# SCOPE: THIS FILE APPLIES TO EVERY MACHINE
+# =========================================
+# It is versioned in the envi repo, which is public on GitHub and installed on all
+# of the user's machines: the private laptop, the employer-owned work laptop, and
+# the homelab nodes. `envi-update` fast-forwards it everywhere. There is no
+# per-machine override layer for this file (only envi_env, envi_locations and
+# envi_shortcuts have one), so anything added here cannot be opted out of locally.
+#
+# That makes it the wrong home for three kinds of setting, however tempting the
+# proximity to the block below:
+#
+# - Anything naming a specific host, network or address. Private LAN addresses do
+#   not belong in a public repo, and a host that is trusted from home is a
+#   different host, or none at all, from the work laptop's network.
+# - Anything granting trust to a target, `ForwardAgent` above all. A forwarded
+#   agent lets root on the far end authenticate as the user for as long as the
+#   connection is open. That is a per-machine, per-host decision.
+# - Anything storing credentials, e.g. `UseKeychain`. Whether passphrases may go
+#   into a given machine's keychain is that machine's owner's call, not this
+#   repo's. If a macOS-only keyword is ever needed here anyway, it must be guarded
+#   with `IgnoreUnknown`, or ssh breaks outright on the Linux nodes.
+#
+# Machine-specific settings go into the local ~/.ssh/config instead. envi only
+# prepends its Include line there and leaves the rest of that file alone. Ordering
+# works out because ssh takes the FIRST value obtained for a keyword and the block
+# below claims only the three ControlMaster keywords, so later local blocks still
+# win for everything else.
+#
 # Connection multiplexing (ControlMaster)
 # =======================================
 # The first interactive ssh to a host opens a long-lived "master" socket under
