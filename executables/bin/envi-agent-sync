@@ -8,18 +8,31 @@
 # Source of truth (one folder per skill, Claude/OpenCode SKILL.md layout):
 #   ~/.envi/agent-skills/<name>/SKILL.md
 #
+# EXTRA sources can be added per-machine via ENVI_AGENT_SKILL_SOURCES (set in config/envi_env),
+# a space-separated list of absolute dirs that each hold skill folders. This is how skills
+# from a third-party git clone are exposed without copying them, so a `git pull` in the clone
+# updates them in place:
+#   ENVI_AGENT_SKILL_SOURCES="$HOME/dev/mattpocock-skills/skills/engineering $HOME/dev/mattpocock-skills/skills/productivity"
+# envi's own agent-skills dir always comes first; on a name collision the first source wins.
+# A source dir that does not exist is a warning, not an error (the clone may be missing on
+# this machine).
+#
 # For each installed agent, a selected skill is exposed as:
-#   ~/.claude/skills/<name>          -> ~/.envi/agent-skills/<name>   (Claude Code)
-#   ~/.config/opencode/skills/<name> -> ~/.envi/agent-skills/<name>   (OpenCode)
+#   ~/.claude/skills/<name>          -> <source>/<name>   (Claude Code)
+#   ~/.config/opencode/skills/<name> -> <source>/<name>   (OpenCode)
 # Both agents auto-discover skills from these dirs (verified), so nothing else is needed.
 #
 # WHICH skills are exposed is per-machine, via ENVI_AGENT_SKILLS (set in config/envi_env):
-#   ENVI_AGENT_SKILLS="all"                 (default) expose every skill in agent-skills/
+#   ENVI_AGENT_SKILLS="all"                 (default) expose every skill in every source
 #   ENVI_AGENT_SKILLS="erun gitscan ..."    expose only these (e.g. a work machine w/o bw-run)
 #   ENVI_AGENT_SKILLS="none"                expose nothing (removes all envi-managed links)
 #
-# Ownership is safe: this tool only ever touches symlinks whose target points into
-# ~/.envi/agent-skills. A real dir or a foreign symlink with the same name is left alone.
+# Ownership is safe: this tool only ever touches symlinks whose target points into one of the
+# configured sources. A real dir or a foreign symlink with the same name is left alone.
+#
+# Caveat: ownership is derived from the CURRENT sources. Before dropping a dir from
+# ENVI_AGENT_SKILL_SOURCES, run `envi-agent-sync --uninstall` with it still set, otherwise its
+# links are no longer recognised as ours and stay behind.
 #
 # Usage:
 #   envi-agent-sync             # create/update/remove links to match the selection
@@ -34,6 +47,9 @@ SKILLS_SRC="$ENVI_HOME/agent-skills"
 
 # Per-machine selection. Default: all skills. Override in config/envi_env.
 : "${ENVI_AGENT_SKILLS:=all}"
+
+# Per-machine extra skill sources (space-separated absolute dirs). Override in config/envi_env.
+: "${ENVI_AGENT_SKILL_SOURCES:=}"
 
 # name | skills dir | base dir that must exist for the agent to count as installed
 AGENTS=(
@@ -56,18 +72,42 @@ if [ ! -d "$SKILLS_SRC" ]; then
   exit 1
 fi
 
-# --- enumerate available skills (dirs under SKILLS_SRC that contain a SKILL.md) ------
-available=""
-for d in "$SKILLS_SRC"/*/; do
-  [ -f "${d}SKILL.md" ] || continue
-  n="$(basename "$d")"
-  available="$available $n"
-done
-available="$(printf '%s' "$available" | tr ' ' '\n' | grep -v '^$' | sort)"
-
 contains() {  # contains <needle> <newline-list>
   printf '%s\n' "$2" | grep -qxF "$1"
 }
+
+# --- resolve the sources: envi's own dir first, then the per-machine extras ----------
+SOURCES=("$SKILLS_SRC")
+for extra in $ENVI_AGENT_SKILL_SOURCES; do
+  if [ ! -d "$extra" ]; then
+    echo "  warn   skill source not found, skipped: $extra" >&2
+    continue
+  fi
+  SOURCES+=("$extra")
+done
+
+# --- enumerate available skills (dirs under any source that contain a SKILL.md) ------
+# `index` holds one "<name><TAB><source dir>" line per skill; first source wins on a clash.
+available=""
+index=""
+
+source_of() {  # source_of <skill-name> -> the source dir the skill was found in
+  printf '%s' "$index" | awk -F'\t' -v n="$1" '$1 == n { print $2; exit }'
+}
+
+for src in "${SOURCES[@]}"; do
+  for d in "$src"/*/; do
+    [ -f "${d}SKILL.md" ] || continue
+    n="$(basename "$d")"
+    if contains "$n" "$available"; then
+      echo "  warn   duplicate skill '$n' in $src, keeping the one from $(source_of "$n")" >&2
+      continue
+    fi
+    available="$available$n"$'\n'
+    index="$index$n	$src"$'\n'
+  done
+done
+available="$(printf '%s' "$available" | grep -v '^$' | sort)"
 
 # --- resolve the selection --------------------------------------------------------
 selected=""
@@ -79,26 +119,36 @@ case "$ENVI_AGENT_SKILLS" in
       if contains "$want" "$available"; then
         selected="$selected$want"$'\n'
       else
-        echo "  warn   unknown skill in ENVI_AGENT_SKILLS: '$want' (no $SKILLS_SRC/$want/SKILL.md)" >&2
+        echo "  warn   unknown skill in ENVI_AGENT_SKILLS: '$want' (no $want/SKILL.md in any source)" >&2
       fi
     done
     selected="$(printf '%s' "$selected" | grep -v '^$' | sort)"
     ;;
 esac
 
-# Is this link one WE manage? True iff it's a symlink whose target points into SKILLS_SRC.
+# Is this link one WE manage? True iff it's a symlink whose target points into any source.
 is_ours() {  # is_ours <path>
   [ -L "$1" ] || return 1
-  case "$(readlink "$1")" in
-    "$SKILLS_SRC"/*) return 0 ;;
-    *) return 1 ;;
-  esac
+  local target src
+  target="$(readlink "$1")"
+  for src in "${SOURCES[@]}"; do
+    case "$target" in
+      "$src"/*) return 0 ;;
+    esac
+  done
+  return 1
 }
 
 # --- list mode --------------------------------------------------------------------
 if [ "$mode" = "list" ]; then
-  echo "Available skills ($SKILLS_SRC):"
-  printf '%s\n' "$available" | sed 's/^/  - /'
+  echo "Skill sources:"
+  for src in "${SOURCES[@]}"; do echo "  - $src"; done
+  echo
+  echo "Available skills:"
+  while IFS= read -r n; do
+    [ -n "$n" ] || continue
+    printf '  - %-32s %s\n' "$n" "$(source_of "$n")"
+  done <<< "$available"
   echo
   echo "Selection (ENVI_AGENT_SKILLS=$ENVI_AGENT_SKILLS):"
   if [ -n "$selected" ]; then printf '%s\n' "$selected" | sed 's/^/  - /'; else echo "  (none)"; fi
@@ -140,7 +190,7 @@ for entry in "${AGENTS[@]}"; do
     while IFS= read -r skill; do
       [ -n "$skill" ] || continue
       link="$dir/$skill"
-      target="$SKILLS_SRC/$skill"
+      target="$(source_of "$skill")/$skill"
 
       if [ -L "$link" ]; then
         if is_ours "$link" && [ "$(readlink "$link")" = "$target" ]; then
