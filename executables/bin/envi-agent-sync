@@ -12,7 +12,7 @@
 # a space-separated list of absolute dirs that each hold skill folders. This is how skills
 # from a third-party git clone are exposed without copying them, so a `git pull` in the clone
 # updates them in place:
-#   ENVI_AGENT_SKILL_SOURCES="$HOME/dev/mattpocock-skills/skills/engineering $HOME/dev/mattpocock-skills/skills/productivity"
+#   ENVI_AGENT_SKILL_SOURCES="$HOME/dev/<skill-repo>/skills/engineering $HOME/dev/<skill-repo>/skills/productivity"
 # envi's own agent-skills dir always comes first; on a name collision the first source wins.
 # A source dir that does not exist is a warning, not an error (the clone may be missing on
 # this machine).

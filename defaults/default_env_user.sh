@@ -58,7 +58,7 @@
 # the links point into the clone, so `git pull` there is all an update takes. envi's own
 # dir always comes first; on a name clash the first source wins. Before removing a source
 # here, run `envi-agent-sync --uninstall` with it still set, else its links stay behind.
-# export ENVI_AGENT_SKILL_SOURCES="$HOME/dev/mattpocock-skills/skills/engineering $HOME/dev/mattpocock-skills/skills/productivity"
+# export ENVI_AGENT_SKILL_SOURCES="$HOME/dev/<skill-repo>/skills/engineering $HOME/dev/<skill-repo>/skills/productivity"
 
 # --- gitscan (executables/bin/gitscan) ---
 # Finds every git repo on this machine and reports uncommitted / unpushed /

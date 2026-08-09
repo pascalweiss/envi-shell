@@ -87,10 +87,10 @@ it owns plus isolated per-skill symlinks.
   is the whole update path, no copying). `agent-skills/` always comes first; on a name clash
   the first source wins and the duplicate is skipped with a warning. Ownership follows the
   current sources, so remove a source only after `envi-agent-sync --uninstall`, otherwise its
-  links are orphaned. On this machine the sources are the promoted buckets of
-  [mattpocock/skills](https://github.com/mattpocock/skills), cloned to `~/dev/mattpocock-skills`.
-  Two skills from that repo (`caveman`, `zoom-out`) were removed upstream and now live in
-  `agent-skills/` with a `SOURCE.md` recording their origin.
+  links are orphaned. Which sources a given machine configures is a local decision and lives
+  in its `config/envi_env`, not here. Where a skill in `agent-skills/` came from elsewhere, a
+  `SOURCE.md` next to it records origin and licensing; that applies to skills whose upstream
+  dropped them, which are maintained here from then on.
 
 ## Custom Commands Available After Installation
 
