@@ -73,9 +73,32 @@ Document detection fails in two ways, both reported per file during a run:
 - **The detector locks onto the printed block instead of the paper**, and the
   crop then cuts off whatever sits in the margin, for example figures in a
   right-hand column. This is what `--text-guard` is for: Vision is asked where
-  the text is, and the crop is widened until no text falls outside it. The
-  widening is capped, because a photo of paper in a folder nearly always shows a
-  neighbouring sheet and its text must not drag the crop back open.
+  the text is, and every edge of the crop is pushed outward until no text lies
+  beyond it.
+
+Two things about that guard are easy to get wrong, and both were got wrong
+first:
+
+- **Test against the edges, not against a bounding box.** A photographed sheet
+  is always slightly rotated, so the quad's bounding box can span the whole frame
+  while a sloping edge still cuts through a column of figures. A bounding-box
+  comparison finds nothing to fix and the text is cropped away anyway.
+- **Do not clamp the widened corners back into the frame.** Clamping a corner
+  drags its two edges inward with it and re-cuts the text the guard had just
+  rescued. Corners are allowed outside the photo, and the sampled image is
+  clamped instead, so the area beyond the border comes out as a smear.
+
+Measured over 40 photographed pages by counting pages where recognised text sits
+flush against the output border: 16 before the guard was fixed, 1 after. The
+unprocessed photographs score 12 on the same test.
+
+## Some text is missing from the photograph, not from the crop
+
+On a fair number of those 40 photographs the text runs right to the edge of the
+frame, because the sheet did not fit in the shot. Nothing downstream can recover
+that, and a diff against the original will report it as a crop failure. Check the
+originals with the same border test before spending time on the crop: if the
+photograph is already flush, the answer is to take the picture again.
 
 `VNDetectRectanglesRequest` was tried as a second opinion for the second case
 and did not help: paper on a light desk has edges too weak for it to find.
