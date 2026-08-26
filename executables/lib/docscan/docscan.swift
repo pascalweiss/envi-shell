@@ -31,7 +31,7 @@ struct Options {
     var crop = true
     var margin: Double = 1.5        // percent, keeps page numbers near the paper edge
     var minArea: Double = 20        // percent of the frame below which cropping is refused
-    var textGuard: Double = 5       // percent the crop may be widened to keep text inside
+    var textGuard: Double = 15      // percent an edge may travel to keep text inside
     var flatten = true
     var flattenDivisor: Double = 20 // blur radius = image width / this
     // Off by default: measured on this repo's test set, the unsharp mask costs
@@ -59,8 +59,8 @@ OPTIONS
   --margin <pct>     widen the detected paper edge by this much (default: 1.5)
   --min-area <pct>   refuse to crop if the detected sheet covers less of the frame
                      than this, and keep the full photo instead (default: 20)
-  --text-guard <pct> how far the crop may be widened so that no detected text
-                     falls outside it; 0 disables the check (default: 5)
+  --text-guard <pct> how far each edge of the crop may travel outward so that no
+                     detected text falls outside it; 0 disables it (default: 15)
   --no-flatten       skip shadow/background flattening
   --flatten-radius <d>  illumination blur radius = width/d; smaller d means a
                      smoother estimate that touches the text less (default: 20)
@@ -107,7 +107,7 @@ func parseArguments() -> Options {
         case "--no-crop": o.crop = false
         case "--margin": o.margin = Double(next(a)) ?? 1.5
         case "--min-area": o.minArea = Double(next(a)) ?? 20
-        case "--text-guard": o.textGuard = Double(next(a)) ?? 5
+        case "--text-guard": o.textGuard = Double(next(a)) ?? 15
         case "--no-flatten": o.flatten = false
         case "--flatten-radius": o.flattenDivisor = Double(next(a)) ?? 20
         case "--sharpen": o.sharpen = true
@@ -174,14 +174,13 @@ func detectDocument(_ image: CIImage, minArea: Double) -> VNRectangleObservation
     return obs
 }
 
-/// Bounding box around every text region Vision can find in the frame,
-/// in normalised coordinates. Cheap: this only locates text, it does not read it.
-func textBounds(_ image: CIImage) -> CGRect? {
+/// Every text region Vision can find in the frame, in normalised coordinates.
+/// Cheap: this only locates text, it does not read it.
+func textBoxes(_ image: CIImage) -> [CGRect] {
     let request = VNDetectTextRectanglesRequest()
     let handler = VNImageRequestHandler(ciImage: image, options: [:])
-    guard (try? handler.perform([request])) != nil else { return nil }
-    guard let results = request.results, !results.isEmpty else { return nil }
-    return results.dropFirst().reduce(results[0].boundingBox) { $0.union($1.boundingBox) }
+    guard (try? handler.perform([request])) != nil else { return [] }
+    return (request.results ?? []).map(\.boundingBox)
 }
 
 /// The corners to crop along, in normalised coordinates.
@@ -189,42 +188,80 @@ func textBounds(_ image: CIImage) -> CGRect? {
 /// The detected paper edge is not trusted blindly. Document segmentation
 /// regularly places an edge a little inside the actual sheet, which slices the
 /// last word off every line: the page still looks fine, and the text is gone.
-/// So the quad is widened until it contains all text Vision can see, and only
-/// then by the fixed `margin`.
+/// So every edge of the quad is pushed outward until no text lies beyond it, and
+/// only then by the fixed `margin`.
 ///
-/// The expansion is capped by `guardCap`. Photos of paper in a folder almost
-/// always show a neighbouring sheet, and its text must not drag the crop open;
-/// a clipped line sits a percent or two outside the edge, a neighbouring
-/// document much further.
+/// **The test has to be against the edges, not against a bounding box.** The quad
+/// is a quadrilateral, and a photographed sheet is always a little rotated, so its
+/// bounding box can span the entire frame while a sloping edge still cuts across a
+/// column of figures. Comparing bounding boxes finds nothing to fix and the text
+/// is cropped away regardless. This is not hypothetical: it is what the first
+/// version of this guard did.
+///
+/// `guardCap` bounds how far an edge may travel, only so that one stray detection
+/// cannot fling a corner across the frame. It is deliberately generous. Keeping a
+/// strip of desk or a neighbouring sheet in the picture costs nothing; cropping a
+/// figure off an invoice cannot be undone by anything downstream.
 func cropCorners(_ obs: VNRectangleObservation,
-                 text: CGRect?,
+                 textBoxes: [CGRect],
                  margin: Double,
                  guardCap: Double) -> [CGPoint] {
     var corners = [obs.topLeft, obs.topRight, obs.bottomRight, obs.bottomLeft]
 
-    if let text = text, guardCap > 0 {
-        let minX = corners.map(\.x).min()!, maxX = corners.map(\.x).max()!
-        let minY = corners.map(\.y).min()!, maxY = corners.map(\.y).max()!
+    if !textBoxes.isEmpty && guardCap > 0 {
         let cap = guardCap / 100.0
-        let left   = min(max(minX - text.minX, 0), cap)
-        let right  = min(max(text.maxX - maxX, 0), cap)
-        let bottom = min(max(minY - text.minY, 0), cap)
-        let top    = min(max(text.maxY - maxY, 0), cap)
-        let midX = (minX + maxX) / 2, midY = (minY + maxY) / 2
-        corners = corners.map { p in
-            CGPoint(x: p.x < midX ? p.x - left : p.x + right,
-                    y: p.y < midY ? p.y - bottom : p.y + top)
+        let padding = 0.004        // never leave text flush against the cut
+        let centre = CGPoint(x: corners.map(\.x).reduce(0, +) / 4,
+                             y: corners.map(\.y).reduce(0, +) / 4)
+        let points = textBoxes.flatMap { b in
+            [CGPoint(x: b.minX, y: b.minY), CGPoint(x: b.maxX, y: b.minY),
+             CGPoint(x: b.maxX, y: b.maxY), CGPoint(x: b.minX, y: b.maxY)]
         }
+
+        // Each edge becomes a line n·x = c, with n pointing out of the quad.
+        var normals: [CGPoint] = [], offsets: [Double] = []
+        for i in 0..<4 {
+            let a = corners[i], b = corners[(i + 1) % 4]
+            let dx = b.x - a.x, dy = b.y - a.y
+            let len = max(1e-9, (dx * dx + dy * dy).squareRoot())
+            var n = CGPoint(x: dy / len, y: -dx / len)
+            if (n.x * (a.x - centre.x) + n.y * (a.y - centre.y)) < 0 {
+                n = CGPoint(x: -n.x, y: -n.y)
+            }
+            let base = n.x * a.x + n.y * a.y
+            // How far the furthest text corner sticks out past this edge.
+            let overshoot = points.map { n.x * $0.x + n.y * $0.y - base }.max() ?? 0
+            normals.append(n)
+            offsets.append(base + min(max(overshoot + padding, 0), cap))
+        }
+
+        // The new corners are where the shifted edges meet again.
+        var moved: [CGPoint] = []
+        for i in 0..<4 {
+            let (n1, c1) = (normals[(i + 3) % 4], offsets[(i + 3) % 4])
+            let (n2, c2) = (normals[i], offsets[i])
+            let det = n1.x * n2.y - n2.x * n1.y
+            if abs(det) < 1e-9 { moved = corners; break }   // parallel: leave as is
+            moved.append(CGPoint(x: (c1 * n2.y - c2 * n1.y) / det,
+                                 y: (n1.x * c2 - n2.x * c1) / det))
+        }
+        corners = moved
     }
 
     // Push every corner outward from the centre, so a page number or a signature
     // sitting right on the paper edge does not get clipped off either.
+    //
+    // The result is deliberately NOT clamped to the frame. Clamping a corner back
+    // into the photo drags its two edges inward with it, quietly undoing the guard
+    // above and re-cutting the text it had just rescued. A corner outside the frame
+    // is harmless: the sampled image is clamped instead, so the area beyond the
+    // photo comes out as a smear of the border pixels. A strip of smeared border is
+    // an acceptable thing to find on a page; a missing figure is not.
     let cx = corners.map(\.x).reduce(0, +) / 4
     let cy = corners.map(\.y).reduce(0, +) / 4
     let factor = 1.0 + margin / 100.0
     return corners.map { p in
-        CGPoint(x: min(max(cx + (p.x - cx) * factor, 0), 1),
-                y: min(max(cy + (p.y - cy) * factor, 0), 1))
+        CGPoint(x: cx + (p.x - cx) * factor, y: cy + (p.y - cy) * factor)
     }
 }
 
@@ -233,7 +270,9 @@ func perspectiveCorrect(_ image: CIImage, corners: [CGPoint]) -> CIImage {
     func point(_ p: CGPoint) -> CIVector {
         CIVector(x: e.origin.x + p.x * e.width, y: e.origin.y + p.y * e.height)
     }
-    let corrected = image.applyingFilter("CIPerspectiveCorrection", parameters: [
+    // Clamped, so corners pushed past the photo edge sample the border instead of
+    // cutting the crop short. See cropCorners for why they are allowed out there.
+    let corrected = image.clampedToExtent().applyingFilter("CIPerspectiveCorrection", parameters: [
         "inputTopLeft": point(corners[0]),
         "inputTopRight": point(corners[1]),
         "inputBottomRight": point(corners[2]),
@@ -405,8 +444,8 @@ for (i, input) in options.inputs.enumerated() {
     var note = "full frame"
     if options.crop {
         if let obs = detectDocument(original, minArea: options.minArea) {
-            let text = options.textGuard > 0 ? textBounds(original) : nil
-            let corners = cropCorners(obs, text: text,
+            let boxes = options.textGuard > 0 ? textBoxes(original) : []
+            let corners = cropCorners(obs, textBoxes: boxes,
                                       margin: options.margin, guardCap: options.textGuard)
             image = perspectiveCorrect(original, corners: corners)
             note = String(format: "cropped %.0f%%", quadArea(obs) * 100)
