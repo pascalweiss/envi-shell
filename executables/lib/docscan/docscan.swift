@@ -16,6 +16,7 @@ import CoreImage
 import CoreGraphics
 import ImageIO
 import Vision
+import CoreText
 import UniformTypeIdentifiers
 
 // MARK: - Options
@@ -41,6 +42,8 @@ struct Options {
     var scaleHeight: Int?
     var a4 = false
     var pdf: URL?
+    var pdfTitle: String?
+    var ocr = false
     var quality: Double = 0.85
     var limit: Int?
     var overwrite = false
@@ -69,7 +72,11 @@ OPTIONS
   --contrast <f>     extra contrast, 1.0 = none (default: 1.0)
   --scale <px>       scale output to this height in pixels (e.g. 2480 for A4 @300dpi)
   --a4               force A4 aspect ratio after cropping
-  --pdf <file>       also write all pages into one PDF, in filename order
+  --pdf <file>       also write all pages into one PDF; files named on the command
+                     line keep the order given, a directory is sorted by name
+  --ocr              give the PDF a searchable text layer (Apple Vision, German
+                     and English). Costs about a second per page
+  --title <text>     PDF document title
   --quality <f>      JPEG quality 0..1 (default: 0.85)
   --limit <n>        process only the first n files (for a quick preview)
   --overwrite        overwrite existing output files
@@ -116,6 +123,8 @@ func parseArguments() -> Options {
         case "--scale": o.scaleHeight = Int(next(a))
         case "--a4": o.a4 = true
         case "--pdf": o.pdf = URL(fileURLWithPath: next(a))
+        case "--ocr": o.ocr = true
+        case "--title": o.pdfTitle = next(a)
         case "--quality": o.quality = Double(next(a)) ?? 0.85
         case "--limit": o.limit = Int(next(a))
         case "--overwrite": o.overwrite = true
@@ -136,13 +145,19 @@ func parseArguments() -> Options {
         guard fm.fileExists(atPath: url.path, isDirectory: &isDir) else { fail("no such file: \(p)") }
         if isDir.boolValue {
             let entries = (try? fm.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? []
-            files += entries.filter { extensions.contains($0.pathExtension.lowercased()) }
+            files += entries
+                .filter { extensions.contains($0.pathExtension.lowercased()) }
+                .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
         } else {
             files.append(url)
         }
     }
-    // Sort so that "-2" comes before "-10" instead of after it.
-    o.inputs = files.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    // Files named individually keep the order they were given: that order is the
+    // caller telling us how the document is put together, and page 12 of a
+    // contract is not something a filename sort can work out. Only the entries
+    // read out of a directory get sorted, naturally, so that "-2" comes before
+    // "-10" rather than after it.
+    o.inputs = files
     if let n = o.limit { o.inputs = Array(o.inputs.prefix(n)) }
     if o.inputs.isEmpty { fail("no images found") }
     if o.outDir == nil { o.outDir = o.inputs[0].deletingLastPathComponent().appendingPathComponent("cleaned") }
@@ -396,11 +411,75 @@ func writeJPEG(_ image: CIImage, to url: URL, mode: Mode, quality: Double) throw
 }
 
 /// One image per page, aspect-fit onto A4 portrait, which is what these documents are.
-func writePDF(pages: [URL], to url: URL) throws {
+/// One recognised line of text and where it sits, in normalised page coordinates.
+struct RecognisedLine {
+    let text: String
+    let box: CGRect
+}
+
+/// Read a page. This runs over the *processed* image, not the original photo,
+/// because the text layer has to line up with the picture that goes into the PDF.
+func recogniseText(_ url: URL) -> [RecognisedLine] {
+    guard let image = CIImage(contentsOf: url, options: [.applyOrientationProperty: true]) else { return [] }
+    let request = VNRecognizeTextRequest()
+    request.recognitionLevel = .accurate
+    request.recognitionLanguages = ["de-DE", "en-US"]
+    request.usesLanguageCorrection = true
+    let handler = VNImageRequestHandler(ciImage: image, options: [:])
+    guard (try? handler.perform([request])) != nil else { return [] }
+    return (request.results ?? []).compactMap { observation in
+        guard let best = observation.topCandidates(1).first, !best.string.isEmpty else { return nil }
+        return RecognisedLine(text: best.string, box: observation.boundingBox)
+    }
+}
+
+/// Lay the recognised text over the page as invisible glyphs, so the PDF can be
+/// searched and copied from while what you see stays the photograph.
+func drawTextLayer(_ lines: [RecognisedLine], over rect: CGRect, in pdf: CGContext) {
+    pdf.saveGState()
+    pdf.setTextDrawingMode(.invisible)
+    for line in lines {
+        let width = line.box.width * rect.width
+        let height = line.box.height * rect.height
+        guard width > 1, height > 1 else { continue }
+
+        // Fit the line to the width Vision measured by choosing the font size,
+        // never by scaling the text matrix horizontally.
+        //
+        // Squeezing the glyphs is the obvious way to do it and it breaks the very
+        // thing the layer exists for: a viewer extracting the text sees glyph
+        // advances that do not match the font, decides the gaps are separators,
+        // and hands out "M i e t e r". Searching the PDF for a word then finds
+        // nothing. Sizing the font keeps the advances natural, and the glyphs are
+        // invisible anyway, so being a little short or tall costs nothing.
+        let reference = height * 0.8
+        let probe = CTFontCreateWithName("Helvetica" as CFString, reference, nil)
+        let key = NSAttributedString.Key(kCTFontAttributeName as String)
+        let natural = CTLineGetTypographicBounds(
+            CTLineCreateWithAttributedString(
+                NSAttributedString(string: line.text, attributes: [key: probe])), nil, nil, nil)
+        let size = natural > 1 ? min(max(reference * width / natural, 1), height * 4) : reference
+
+        let font = CTFontCreateWithName("Helvetica" as CFString, size, nil)
+        let ctLine = CTLineCreateWithAttributedString(
+            NSAttributedString(string: line.text, attributes: [key: font]))
+
+        pdf.textMatrix = .identity
+        pdf.textPosition = CGPoint(x: rect.minX + line.box.minX * rect.width,
+                                   y: rect.minY + line.box.minY * rect.height + height * 0.2)
+        CTLineDraw(ctLine, pdf)
+    }
+    pdf.restoreGState()
+}
+
+/// One image per page, aspect-fit onto A4 portrait, which is what these documents are.
+func writePDF(pages: [URL], to url: URL, title: String?, ocr: Bool) throws {
     let a4 = CGRect(x: 0, y: 0, width: 595.28, height: 841.89)
     var box = a4
+    var info: [String: Any] = [:]
+    if let title = title { info[kCGPDFContextTitle as String] = title }
     guard let consumer = CGDataConsumer(url: url as CFURL),
-          let pdf = CGContext(consumer: consumer, mediaBox: &box, nil) else {
+          let pdf = CGContext(consumer: consumer, mediaBox: &box, info as CFDictionary) else {
         throw NSError(domain: "docscan", code: 1,
                       userInfo: [NSLocalizedDescriptionKey: "cannot create PDF at \(url.path)"])
     }
@@ -410,7 +489,9 @@ func writePDF(pages: [URL], to url: URL) throws {
         pdf.beginPage(mediaBox: &box)
         let scale = min(a4.width / CGFloat(cg.width), a4.height / CGFloat(cg.height))
         let w = CGFloat(cg.width) * scale, h = CGFloat(cg.height) * scale
-        pdf.draw(cg, in: CGRect(x: (a4.width - w) / 2, y: (a4.height - h) / 2, width: w, height: h))
+        let frame = CGRect(x: (a4.width - w) / 2, y: (a4.height - h) / 2, width: w, height: h)
+        pdf.draw(cg, in: frame)
+        if ocr { drawTextLayer(recogniseText(page), over: frame, in: pdf) }
         pdf.endPage()
     }
     pdf.closePDF()
@@ -468,7 +549,7 @@ for (i, input) in options.inputs.enumerated() {
 }
 
 if let pdf = options.pdf {
-    try writePDF(pages: written, to: pdf)
+    try writePDF(pages: written, to: pdf, title: options.pdfTitle, ocr: options.ocr)
     print("PDF: \(pdf.path) (\(written.count) pages)")
 }
 
