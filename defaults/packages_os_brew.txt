@@ -15,3 +15,5 @@ git-delta
 atuin
 zoxide
 bitwarden-cli
+pandoc
+typst
