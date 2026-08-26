@@ -14,6 +14,7 @@ build and caching rules. User-facing usage is in the repository README.
 | Remove shadows and paper yellowing | flat-field division (`CIGaussianBlur` + `CIDivideBlendMode`) |
 | Make text readable | `CIToneCurve`, `CIColorControls`, `CIUnsharpMask` |
 | Optional multi-page PDF | Core Graphics |
+| Searchable text layer in that PDF | Vision `VNRecognizeTextRequest` + Core Text |
 
 Everything is an Apple framework, so there is no dependency to install and no
 data leaves the machine.
@@ -117,3 +118,27 @@ Two traps, both hit for real while tuning this against OCR output:
   neighbouring sheet, so a closing line or a letterhead may vanish from a page
   that never owned it. A diff against OCR of the uncropped original reports
   those as losses. They are the crop working.
+
+## The searchable text layer
+
+`--ocr` reads each page and draws the result into the PDF as invisible glyphs, so
+the page still shows the photograph while the text can be searched, selected and
+copied. Two details decide whether that layer is worth anything:
+
+- **Read the processed image, not the original photo.** The layer only lines up
+  with what the reader sees if it was recognised from the same rendering.
+- **Fit each line by choosing the font size, never by scaling the text matrix.**
+  Squeezing glyphs horizontally is the obvious way to make a line match the width
+  Vision measured, and it destroys the layer's only purpose: a viewer extracting
+  the text sees advances that do not match the font, treats the gaps as
+  separators, and returns `M i e t e r`. Searching the PDF for the word then finds
+  nothing. Sizing the font keeps the advances natural, and since the glyphs are
+  invisible, a line that comes out slightly short or tall costs nothing.
+
+## Page order
+
+Files named on the command line keep the order they were given; only the entries
+read out of a directory are sorted by name. That is deliberate. Which photograph
+is page 12 of a contract is something the caller knows and a filename sort does
+not, so grouping a pile of photographs into per-document PDFs is just a matter of
+listing them in the right order.
