@@ -179,8 +179,28 @@ case $? in
     *) die "could not read '$input'" ;;
 esac
 
+# Two unrelated programs are called yq and both are in the wild here: mikefarah's
+# Go one (Homebrew, and what macOS gets) needs `-o=json` to emit JSON, while
+# kislyuk's Python one (Debian's `yq` package, and what the Linux nodes have on
+# $PATH ahead of Homebrew) rejects that flag and emits JSON by default. Trying
+# the flag and falling back covers both without having to identify which is
+# installed, and without envi being able to guarantee one of them.
+# Written to a scratch file first, so a half-finished attempt by the wrong
+# flavour cannot leave partial JSON behind for the fallback to append to.
+yaml_to_json() {
+    if yq -o=json '.' "$1" > "$build/meta.try" 2>"$build/yq.err"; then
+        mv "$build/meta.try" "$2"
+        return 0
+    fi
+    if yq '.' "$1" > "$build/meta.try" 2>"$build/yq.err"; then
+        mv "$build/meta.try" "$2"
+        return 0
+    fi
+    return 1
+}
+
 if [ -s "$build/meta.yaml" ]; then
-    yq -o=json '.' "$build/meta.yaml" > "$build/meta.json" 2>"$build/yq.err" \
+    yaml_to_json "$build/meta.yaml" "$build/meta.json" \
         || die "the frontmatter is not valid YAML:$(printf '\n')$(cat "$build/yq.err")"
     # An all-comment frontmatter yields 'null', which Typst cannot index.
     if [ "$(tr -d '[:space:]' < "$build/meta.json")" = "null" ]; then
