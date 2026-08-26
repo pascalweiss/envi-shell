@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+#
+# mkletter — turn a Markdown file into a DIN 5008 letter PDF you can post.
+# =============================================================================
+# Write the letter as Markdown with a YAML frontmatter block. The frontmatter
+# carries everything that is layout rather than prose (who sends, who receives,
+# date, subject, who signs); the Markdown below it is the letter text and
+# nothing else. What comes out is an A4 PDF whose address field sits where a
+# DIN lang window envelope expects it, with folding marks and a hole mark.
+#
+#   mkletter kuendigung.md                    -> kuendigung.pdf next to it
+#   mkletter kuendigung.md -o ~/post/kdg.pdf  -> somewhere else
+#   mkletter kuendigung.md --png              -> plus a PNG per page to eyeball
+#   mkletter kuendigung.md --open             -> open it when done
+#
+# Run `mkletter --help` for every option, and see the field reference in
+# executables/lib/mkletter/README.md for the frontmatter.
+#
+# ---------------------------------------------------------------------------
+# How it works
+#
+#   letter.md ──awk──┬── meta.yaml ──yq──> meta.json ─┐
+#                    │                                 ├─> typst ─> letter.pdf
+#                    └── body.md ──pandoc──> body.typ ─┘
+#                                            (template: letter.typ)
+#
+# Three existing tools do the actual work and none of them is reimplemented
+# here: pandoc converts the Markdown body to Typst markup, yq converts the
+# frontmatter to JSON, and typst renders. The DIN 5008 geometry comes from the
+# `letter-pro` package, which typst fetches from the package registry on first
+# use and then caches under ~/.cache/typst. That first render therefore needs
+# network; every later one does not.
+#
+# The build happens in a temp directory rather than next to the source, so a
+# letter that lives in a git repository does not collect stray .typ files. The
+# template is copied in rather than imported by absolute path, because Typst
+# resolves imports against its project root and pointing the root at / to reach
+# ~/.envi would also hand the document read access to the whole filesystem.
+#
+# ---------------------------------------------------------------------------
+# Configuration (envi convention: baked defaults, override in config/envi_env)
+#
+#   MKLETTER_TEMPLATE   Typst template to render with. Point this at your own
+#                       copy to change the letterhead, fonts or margins without
+#                       editing the repo.
+#                       default: <envi>/executables/lib/mkletter/letter.typ
+# =============================================================================
+
+set -uo pipefail
+
+# --- resolve our own absolute path, so the template is found through symlinks -
+self_src="${BASH_SOURCE[0]}"
+while [ -h "$self_src" ]; do
+    dir="$(cd -P "$(dirname "$self_src")" && pwd)"
+    self_src="$(readlink "$self_src")"
+    [ "${self_src#/}" = "$self_src" ] && self_src="$dir/$self_src"
+done
+SELF_DIR="$(cd -P "$(dirname "$self_src")" && pwd)"
+
+: "${MKLETTER_TEMPLATE:=$SELF_DIR/../lib/mkletter/letter.typ}"
+
+usage() {
+    cat <<'EOF'
+mkletter — render a Markdown letter into a DIN 5008 PDF.
+
+Usage:
+  mkletter [OPTIONS] <letter.md>
+
+Options:
+  -o, --output FILE   Write the PDF here. Default: the input file with .pdf.
+      --png           Also write a PNG per page next to the PDF, for a quick
+                      look without opening a viewer.
+      --open          Open the finished PDF.
+      --keep-build    Keep the temporary build directory and print its path,
+                      for when a Typst error needs looking at.
+      --template FILE Render with this template instead of the built-in one.
+  -h, --help          Show this text.
+
+The input is Markdown with a YAML frontmatter block. Everything that is layout
+lives in the frontmatter, everything below it is the letter text:
+
+  ---
+  sender:
+    name: Erika Mustermann
+    address: |
+      Musterstr. 1
+      12345 Musterstadt
+  recipient: |
+    Mustermann GmbH
+    Musterweg 2
+    54321 Andernorts
+  place: Musterstadt
+  date: 2026-08-27
+  subject: Kündigung des Vertrags Nr. 4711
+  annotations: Einwurfeinschreiben
+  signatures:
+    - Erika Mustermann
+  ---
+
+  Sehr geehrte Damen und Herren,
+
+  hiermit kündige ich ...
+
+The full field reference, including the two-signer and DIN 5008 form A cases,
+is in executables/lib/mkletter/README.md.
+EOF
+}
+
+die() { printf '\033[0;31mmkletter: %s\033[0m\n' "$1" >&2; exit 1; }
+note() { printf '\033[0;34m%s\033[0m\n' "$1" >&2; }
+
+# --- arguments ---------------------------------------------------------------
+
+input=""
+output=""
+want_png=false
+want_open=false
+keep_build=false
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)   usage; exit 0 ;;
+        -o|--output) [ $# -ge 2 ] || die "--output needs a path"; output="$2"; shift 2 ;;
+        --template)  [ $# -ge 2 ] || die "--template needs a path"; MKLETTER_TEMPLATE="$2"; shift 2 ;;
+        --png)       want_png=true; shift ;;
+        --open)      want_open=true; shift ;;
+        --keep-build) keep_build=true; shift ;;
+        -*)          die "unknown option: $1 (try --help)" ;;
+        *)
+            [ -n "$input" ] && die "only one input file at a time (got '$input' and '$1')"
+            input="$1"; shift ;;
+    esac
+done
+
+[ -n "$input" ] || { usage >&2; exit 2; }
+[ -f "$input" ] || die "no such file: $input"
+
+for tool in typst pandoc yq awk; do
+    command -v "$tool" >/dev/null 2>&1 || die "$tool is not installed (envi installs it; run envi-update)"
+done
+[ -f "$MKLETTER_TEMPLATE" ] || die "template not found: $MKLETTER_TEMPLATE"
+
+if [ -z "$output" ]; then
+    output="${input%.*}.pdf"
+    [ "$output" = "$input" ] && output="$input.pdf"
+fi
+
+# --- build -------------------------------------------------------------------
+
+build="$(mktemp -d "${TMPDIR:-/tmp}/mkletter.XXXXXX")" || die "could not create a build directory"
+cleanup() {
+    if [ "$keep_build" = true ]; then
+        note "build directory kept: $build"
+    else
+        rm -rf "$build"
+    fi
+}
+trap cleanup EXIT
+
+# Split the frontmatter from the body. Both files are created upfront so the
+# body-only case (no leading '---') leaves an empty meta.yaml rather than none;
+# such a file still renders, with today's date and no addresses, so a plain
+# Markdown file is a usable starting point instead of an error.
+: > "$build/meta.yaml"
+: > "$build/body.md"
+awk -v fm="$build/meta.yaml" -v bd="$build/body.md" '
+    NR == 1 {
+        if ($0 ~ /^---[[:space:]]*$/) { state = 1; next }
+        state = 2
+    }
+    state == 1 && /^---[[:space:]]*$/ { state = 2; next }
+    state == 1 { print > fm; next }
+    { print > bd }
+    END { if (state == 1) exit 3 }
+' "$input"
+case $? in
+    0) : ;;
+    3) die "the frontmatter block in '$input' is never closed (missing a second '---')" ;;
+    *) die "could not read '$input'" ;;
+esac
+
+if [ -s "$build/meta.yaml" ]; then
+    yq -o=json '.' "$build/meta.yaml" > "$build/meta.json" 2>"$build/yq.err" \
+        || die "the frontmatter is not valid YAML:$(printf '\n')$(cat "$build/yq.err")"
+    # An all-comment frontmatter yields 'null', which Typst cannot index.
+    if [ "$(tr -d '[:space:]' < "$build/meta.json")" = "null" ]; then
+        printf '{}\n' > "$build/meta.json"
+    fi
+else
+    printf '{}\n' > "$build/meta.json"
+fi
+
+pandoc --from markdown --to typst --wrap=preserve \
+    --output "$build/body.typ" "$build/body.md" \
+    || die "pandoc could not convert the letter body"
+
+cp "$MKLETTER_TEMPLATE" "$build/letter.typ" || die "could not copy the template"
+
+cat > "$build/main.typ" <<'EOF'
+#import "letter.typ": letter
+#show: letter.with(meta: json("meta.json"))
+#include "body.typ"
+EOF
+
+outdir="$(dirname "$output")"
+mkdir -p "$outdir" || die "could not create $outdir"
+
+typst compile --root "$build" "$build/main.typ" "$output" \
+    || die "typst could not render the letter (--keep-build shows the generated sources)"
+
+printf '\033[0;32m%s\033[0m\n' "$output"
+
+if [ "$want_png" = true ]; then
+    png="${output%.pdf}-{p}.png"
+    typst compile --root "$build" --format png --ppi 110 "$build/main.typ" "$png" \
+        && printf '\033[0;32m%s\033[0m\n' "$png"
+fi
+
+if [ "$want_open" = true ]; then
+    if command -v open >/dev/null 2>&1; then open "$output"
+    elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$output"
+    else note "no opener found (install xdg-utils)"; fi
+fi

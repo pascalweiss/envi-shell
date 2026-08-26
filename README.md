@@ -122,6 +122,7 @@ The tmux status bar displays:
 | `tmux-help` | Display tmux key binding reference |
 | `tfzf` | Tmux session selector with fzf (attach/kill sessions) |
 | `todo` | Simple todo list manager |
+| `mkletter <letter.md>` | Render a Markdown file into a DIN 5008 letter PDF fit to post: address field positioned for a window envelope, folding marks, hole mark. Layout (sender, recipient, date, subject, signature lines) comes from the file's YAML frontmatter, the Markdown below it is the letter text. `-o` for the output path, `--png` for a page image to eyeball, `--open`, `--help` for the rest. Uses pandoc, yq and typst plus the `letter-pro` package; fields are documented in `executables/lib/mkletter/README.md`, and `example.md` next to it is a working letter using every one of them. |
 
 ### macOS Commands
 
