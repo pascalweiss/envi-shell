@@ -123,6 +123,15 @@ The tmux status bar displays:
 | `tfzf` | Tmux session selector with fzf (attach/kill sessions) |
 | `todo` | Simple todo list manager |
 
+### macOS Commands
+
+Available on macOS only, because they build on frameworks that have no Linux
+equivalent.
+
+| Command | Description |
+|---------|-------------|
+| `docscan <files-or-dir>` | Turn photos of paper documents into clean scans: detect the sheet, cut the background away, straighten the perspective, remove the shadow gradient, optionally collect the pages into one PDF. Uses Vision and Core Image, so nothing is installed and nothing leaves the machine. `--mode bw` for maximum contrast, `--no-crop` to enhance without cropping, `--help` for the rest. Compiled from `executables/lib/docscan/docscan.swift` on first use and cached in `DOCSCAN_CACHE`; needs the Xcode Command Line Tools. |
+
 ### Core Aliases (System)
 
 These are hardcoded in enviinit and open your `$EDITOR` (defaults to vim):

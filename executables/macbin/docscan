@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+#
+# docscan — turn photos of paper documents into clean, readable scans.
+# =============================================================================
+# Point it at a folder of phone photos of paper (a Mietvertrag, a Hausordnung,
+# an invoice) and it finds the sheet in each photo, cuts the desk and the
+# neighbouring papers away, straightens the perspective, removes the shadow
+# gradient, and writes a legible black-on-white page. Optionally it collects the
+# results into one PDF.
+#
+#   docscan ~/photos                                 whole folder -> ~/photos/cleaned
+#   docscan ~/photos --limit 3                       preview the first three
+#   docscan ~/photos --mode bw --pdf ~/contract.pdf  high contrast plus one PDF
+#   docscan photo.jpeg --no-crop                     enhance only, keep full frame
+#
+# Run `docscan --help` for every option.
+#
+# MACOS ONLY, and that is the whole reason it lives in macbin: the work is done
+# by Vision (VNDetectDocumentSegmentationRequest finds the paper) and Core Image
+# (CIPerspectiveCorrection dewarps it, a flat-field division kills the shadow).
+# There is no Linux equivalent of either, so this cannot be a bin/ tool.
+#
+# ---------------------------------------------------------------------------
+# Why this file is a wrapper
+#
+# The tool itself is a single Swift source file, executables/lib/docscan/
+# docscan.swift. Swift has to be compiled, and a compiled binary must not be
+# committed: it is architecture-specific and would go stale silently whenever
+# the source changed. So the binary is built on first use and cached, and the
+# cache is rebuilt automatically whenever the source no longer matches what was
+# built. That keeps `git pull` in ~/.envi the whole update path, exactly as for
+# the bash tools in bin/.
+#
+# Staleness is decided by a checksum of the source, not by comparing timestamps.
+# `test -nt` in bash resolves to whole seconds, so an edit made in the same
+# second as the last build would be missed, and a checkout can hand us a source
+# whose mtime is older than the binary while its content differs.
+#
+# The first run therefore costs a couple of seconds of swiftc, every later one
+# nothing. Building needs the Xcode Command Line Tools (`xcode-select
+# --install`); nothing else, no Homebrew package, and nothing leaves the
+# machine.
+#
+# ---------------------------------------------------------------------------
+# Configuration (envi convention: baked defaults, override in config/envi_env)
+#
+#   DOCSCAN_CACHE   Where the compiled binary is kept.
+#                   default: ${XDG_CACHE_HOME:-$HOME/.cache}/envi/docscan
+# =============================================================================
+
+set -uo pipefail
+
+# --- resolve our own absolute path, so the source is found through symlinks --
+self_src="${BASH_SOURCE[0]}"
+while [ -h "$self_src" ]; do
+    dir="$(cd -P "$(dirname "$self_src")" && pwd)"
+    self_src="$(readlink "$self_src")"
+    [ "${self_src#/}" = "$self_src" ] && self_src="$dir/$self_src"
+done
+SELF_DIR="$(cd -P "$(dirname "$self_src")" && pwd)"
+SOURCE="$SELF_DIR/../lib/docscan/docscan.swift"
+
+: "${DOCSCAN_CACHE:=${XDG_CACHE_HOME:-$HOME/.cache}/envi/docscan}"
+BINARY="$DOCSCAN_CACHE/docscan"
+STAMP="$DOCSCAN_CACHE/docscan.source-sha"
+
+if [ ! -f "$SOURCE" ]; then
+    echo "docscan: source not found at $SOURCE" >&2
+    echo "docscan: is this envi checkout complete?" >&2
+    exit 1
+fi
+
+# --- (re)build when the cache is missing or was built from a different source -
+source_sha="$(shasum -a 256 "$SOURCE" | cut -d' ' -f1)"
+built_sha="$(cat "$STAMP" 2>/dev/null)"
+
+if [ ! -x "$BINARY" ] || [ "$source_sha" != "$built_sha" ]; then
+    if ! command -v swiftc >/dev/null 2>&1; then
+        echo "docscan: swiftc not found, so the tool cannot be built." >&2
+        echo "docscan: install the Xcode Command Line Tools:  xcode-select --install" >&2
+        exit 1
+    fi
+
+    if ! mkdir -p "$DOCSCAN_CACHE"; then
+        echo "docscan: cannot create the build cache at $DOCSCAN_CACHE" >&2
+        exit 1
+    fi
+
+    echo "docscan: building (first run after a change, a few seconds)..." >&2
+    # Build to a private path and move it into place, so two shells building at
+    # the same time cannot hand each other a half-written binary.
+    staging="$BINARY.building.$$"
+    if ! swiftc -O "$SOURCE" -o "$staging"; then
+        rm -f "$staging"
+        echo "docscan: build failed" >&2
+        exit 1
+    fi
+    mv -f "$staging" "$BINARY"
+    # Written only after the binary is in place, so an interrupted build leaves
+    # a stamp that does not match and the next run rebuilds.
+    printf '%s\n' "$source_sha" > "$STAMP"
+fi
+
+exec "$BINARY" "$@"

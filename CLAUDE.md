@@ -99,6 +99,7 @@ it owns plus isolated per-skill symlinks.
 - `fake-server <port>` - Start development HTTP server in Docker
 - `netinfo` - Display network interface information
 - `gitscan [ROOT...]` - Find every git repo (main / worktree / bare) and report uncommitted, unpushed or unpulled work. Default view shows only repos needing attention; `--all` lists clean ones, `--json`/`--porcelain` for agents/scripts. Discovery is pruned for speed and configurable via `GITSCAN_ROOTS`/`GITSCAN_MAX_DEPTH`/`GITSCAN_PRUNE`/`GITSCAN_JOBS`.
+- `docscan <files-or-dir>` - **macOS only.** Turn photos of paper documents into clean scans: Vision detects the sheet, Core Image dewarps it and removes the shadow gradient. Writes to `<input>/cleaned`, never touches the originals, `--pdf` collects the pages. The command in `macbin/` is a wrapper; the tool is `executables/lib/docscan/docscan.swift`, compiled on first use into `DOCSCAN_CACHE` and rebuilt whenever the source checksum changes. Needs the Xcode Command Line Tools, nothing else.
 - `envi-agent-sync` - Symlink agent skills (`agent-skills/*/SKILL.md` plus any dir in `ENVI_AGENT_SKILL_SOURCES`) into each installed agent's skill dir, per the `ENVI_AGENT_SKILLS` selection. `--list`/`--dry-run`/`--uninstall`. Only manages symlinks; never edits agent instruction files.
 
 ## Configuration Files
