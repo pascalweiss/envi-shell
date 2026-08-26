@@ -113,6 +113,11 @@ frontmatter exists to prevent.
 - **A newline inside a YAML string is not a line break in Typst**, it is
   whitespace. `as-lines` in `letter.typ` handles that for every multi-line
   field; a new field needs to go through it too.
+- **Two unrelated programs are called `yq`.** mikefarah's Go one (Homebrew, and so
+  macOS) needs `-o=json`; kislyuk's Python one (Debian's `yq` package, which is what
+  sits on `$PATH` ahead of Homebrew on forum0 and forum1) rejects that flag and emits
+  JSON by default. `mkletter` tries the flag and falls back, so both work. Verified on
+  2026-08-26 that the two produce the same JSON for the frontmatter shapes used here.
 - **`--keep-build`** prints the temp directory and leaves it in place, which is
   the way to look at the generated `main.typ`, `meta.json` and `body.typ` when
   typst reports an error in a letter that looks fine.
