@@ -152,9 +152,14 @@
       explicit
     } else {
       let name = sender.at("name", default: none)
-      (if name == none { () } else { (str(name),) })
-        + as-list(sender.at("address", default: none))
-        + as-list(sender.at("extra", default: none))
+      // The parentheses are load-bearing: without them typst reads the leading
+      // `+` of the next line as a unary plus on a new expression and fails with
+      // "cannot apply unary '+' to array".
+      (
+        (if name == none { () } else { (str(name),) })
+          + as-list(sender.at("address", default: none))
+          + as-list(sender.at("extra", default: none))
+      )
     }
   }
 
