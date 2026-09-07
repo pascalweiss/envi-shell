@@ -101,7 +101,15 @@ When connecting to a remote machine via SSH, you can automatically get a session
 **Tmux shortcuts:**
 - `tt` — Session manager (native tmux tree view inside tmux, fzf-based outside)
 - `tmux-help` — Quick reference for tmux key bindings
+- `tmux-quit`: kill the current session and leave tmux in this terminal
 - `Ctrl+b w` — Native tmux session/window chooser (customized with color theme)
+- `Ctrl+b X`: same as `tmux-quit`, with a confirmation prompt
+
+Killing a session from the chooser (`Ctrl+b w`, then `x`) keeps the client alive: it
+moves to the most recent remaining session and reopens the chooser there, so picking
+where to go next is one flow. `tmux-quit` and `Ctrl+b X` are the opposite case, for
+when the terminal tab itself is done: they end the client instead of parking it in a
+session that is probably already open in another tab.
 
 ### Status Bar
 

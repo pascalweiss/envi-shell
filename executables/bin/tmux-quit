@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#
+# Kill the tmux session this shell runs in, and leave tmux in this terminal.
+#
+# A plain `tmux kill-session` does not do that here: tmux.conf sets
+# detach-on-destroy off globally, so destroying a session moves the client to
+# the next remaining session instead of ending it. That is what we want when a
+# session is killed from the overview (prefix + w, then "x"), because the pane
+# holding the overview dies with it. It is not what we want when the point is
+# to close this terminal's session and get the bare shell back.
+#
+# Overriding the option on this session alone keeps the overview behaviour
+# untouched for every other session.
+
+set -euo pipefail
+
+if [ -z "${TMUX:-}" ]; then
+    echo "tmux-quit: not inside a tmux session" >&2
+    exit 1
+fi
+
+session=$(tmux display-message -p '#{session_name}')
+
+tmux set-option -t "$session" detach-on-destroy on
+tmux kill-session -t "$session"
