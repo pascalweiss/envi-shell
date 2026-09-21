@@ -11,6 +11,14 @@
 #
 # Overriding the option on this session alone keeps the overview behaviour
 # untouched for every other session.
+#
+# tmux.conf's session-closed hook fires for this kill too, and it does so once
+# for the whole server, in the context of whatever client tmux happens to pick,
+# not necessarily this one. Without a marker it can land on an unrelated client
+# and pop the overview open there instead of just letting this terminal fall
+# back to a plain shell. Setting @envi-quit first tells that hook "this death
+# was an intentional quit, skip reopening the overview" no matter which client
+# it gets evaluated against.
 
 set -euo pipefail
 
@@ -21,5 +29,6 @@ fi
 
 session=$(tmux display-message -p '#{session_name}')
 
+tmux set-option -g @envi-quit 1
 tmux set-option -t "$session" detach-on-destroy on
 tmux kill-session -t "$session"
