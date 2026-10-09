@@ -64,10 +64,10 @@ git push
 
 ## Coding-agent integration (agent-skills)
 
-Envi ships knowledge and workflows for coding agents (Claude Code, OpenCode, ...) as
+Envi ships knowledge and workflows for coding agents (Claude Code, OpenCode, Codex, Antigravity) as
 **skills**: `agent-skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`).
-`description` is the discovery trigger, so it states *when* to use the skill. Both Claude
-Code and OpenCode auto-discover skills from their skill dirs, so integration is done by
+`description` is the discovery trigger, so it states *when* to use the skill. Every one
+of these agents auto-discovers skills from its own skill dir, so integration is done by
 **symlink only** (`executables/bin/envi-agent-sync`), never by editing an agent's
 instruction file (`CLAUDE.md` / `AGENTS.md`), which is deliberate: envi only touches files
 it owns plus isolated per-skill symlinks.
@@ -75,8 +75,9 @@ it owns plus isolated per-skill symlinks.
 - Selection is per machine via `ENVI_AGENT_SKILLS` (in `config/envi_env`): `all` (default),
   a subset like `erun gitscan repo-cleanup` (e.g. a work machine that must not use `bw-run`),
   or `none`.
-- `envi-agent-sync` links selected skills into `~/.claude/skills` and
-  `~/.config/opencode/skills`, removes deselected envi links, and never clobbers a real
+- `envi-agent-sync` links selected skills into `~/.claude/skills`,
+  `~/.config/opencode/skills`, `~/.agents/skills` (Codex) and
+  `~/.gemini/config/skills` (Antigravity), removes deselected envi links, and never clobbers a real
   dir or a foreign symlink of the same name (ownership = symlink target points into
   `agent-skills/`).
 - Add a skill: create `agent-skills/<name>/SKILL.md`, then run `envi-agent-sync`. A skill
