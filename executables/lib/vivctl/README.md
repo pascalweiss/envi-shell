@@ -18,6 +18,26 @@ vivctl tabs [--json]                          every tab with its stack, query an
 vivctl stop                                   close Vivaldi
 ```
 
+Pages, like Playwright but through the same daemon (tab ids from `tabs` or `open`):
+
+```
+vivctl read TAB [--max N]            title, url and visible text, default 20000 characters
+vivctl elements TAB                  clickable and editable elements, numbered
+vivctl navigate TAB URL              also: back, forward, reload
+vivctl click TAB REF                 REF is a number from the last `elements`
+vivctl type TAB REF TEXT [--enter]   replaces the text of an element, never a password field
+vivctl press TAB KEY                 Enter Tab Escape Backspace Space arrows PageUp PageDown Home End
+vivctl focus TAB                     make it the active tab
+vivctl screenshot TAB                PNG under ~/.vivctl/shots, the path is printed
+```
+
+There is no `eval`: the page operations are fixed commands like the rest. A tab id cannot be
+mapped to a DevTools target directly, so the page is found by URL and title. Tabs that were
+restored but never loaded have no page and are skipped. If two loaded tabs show the same page,
+or none does, the command fails and says so instead of guessing. In a tab that is not visible
+the browser takes no real keyboard input, so `type` sets the value in the page and then checks
+that it arrived; `press` and `type --enter` ask for `vivctl focus` first.
+
 A stack is addressed by its title (case-insensitive) or by the first 8 or more characters of
 its id. A stack needs two tabs, so a stack is created by `open` with two or more URLs or by
 `stack` with two or more tab ids.
@@ -85,7 +105,8 @@ every logged-in session, every cookie. That is why this tool does not use the us
   reaches Vivaldi only as JSON parameters to fixed code, never as code. Tab ids must be
   integers, stack ids UUIDs, colors come from a fixed list, and URLs must be `http` or
   `https`, so `javascript:` and `chrome:` are refused. An agent using `vivctl` cannot read
-  cookies or page content.
+  cookies, run scripts or reach other processes. It can read the visible text of pages,
+  navigate, click and type (see below).
 - **Socket permissions.** `~/.vivctl` is `0700` and the socket `0600`, so only your own user
   reaches it.
 - **A lock with a lease.** The daemon starts locked. Until `vivctl unlock` has passed a Touch ID
@@ -99,6 +120,19 @@ every logged-in session, every cookie. That is why this tool does not use the us
 - **URLs without secrets.** `tabs` returns the origin and path only; a query or fragment shows
   as `?...` and `#...`. Magic links and reset tokens usually live there. A token in the path
   (`/reset/<token>`) and a revealing page title are not caught.
+
+**Pages are the largest exposure.** `read` and `screenshot` put the content of any open tab,
+logged-in ones included, into whoever called them, and with `navigate`, `click` and `type` an
+agent can act in your sessions. The consequences:
+
+- Page text is untrusted data. A page can contain instructions aimed at the agent, and an agent
+  that reads it while it can also navigate and type is the target of such an attack. Nothing in
+  the tool can tell an instruction from content; the agent skill says so, and that is all there is.
+- Personal data in a tab (banking, payslips) ends up in the transcript if it is read.
+  `VIVCTL_DENY` takes a comma separated list of host suffixes (`bank.example,example.org`)
+  whose pages the page commands refuse and `navigate` will not open. It is empty by default.
+- `type` refuses password fields on purpose, so that a secret never has to pass through the model.
+- Everything is behind the Touch ID lock, and the lease is the window in which all of this works.
 
 What remains: while unlocked, `vivctl tabs` returns titles and URL paths of everything open and
 any process running as you can call the socket. The lock lives inside the daemon, so a process

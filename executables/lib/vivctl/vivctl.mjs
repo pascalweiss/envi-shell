@@ -36,10 +36,18 @@ const COLOR_NAME = Object.fromEntries(Object.entries(COLORS).map(([k, v]) => [v,
 const AUTH_OFF = process.env.VIVCTL_AUTH === 'off';
 const AUTH_BIN = process.env.VIVCTL_AUTH_BIN || '';
 const LEASE_MS = (Number(process.env.VIVCTL_LEASE_MINUTES) || 60) * 60000;
+// Hosts whose pages the page operations refuse (comma separated suffixes). Empty by default.
+const DENY = (process.env.VIVCTL_DENY || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
 const OPEN_OPS = new Set(['ping', 'unlock', 'lock']); // the only operations that work while locked
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 class UserError extends Error {}
+
+const hostDenied = u => {
+  try { const h = new URL(u).hostname.toLowerCase(); return DENY.some(d => h === d || h.endsWith('.' + d)); } catch { return false; }
+};
+const KEYS = {Enter: 13, Tab: 9, Escape: 27, Backspace: 8, Space: 32, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39,
+  ArrowDown: 40, PageUp: 33, PageDown: 34, Home: 36, End: 35};
 
 function checkAuthSetup() {
   if (AUTH_OFF) return;
@@ -127,6 +135,46 @@ const UI = {
     await vivaldi.tabsPrivate.setGroupProperties(pr); return true`,
   unstack: `await vivaldi.tabsPrivate.unstack(P.group); return true`,
   close: `await new Promise(r=>chrome.tabs.remove(P.ids,r)); return P.ids`,
+  status: `const t=await new Promise(r=>chrome.tabs.get(P.id,r)); return t?{status:t.status}:null`,
+  navigate: `await new Promise(r=>chrome.tabs.update(P.id,{url:P.url},r)); return true`,
+  focus: `await new Promise(r=>chrome.tabs.update(P.id,{active:true},r)); return true`,
+  history: `await new Promise(r=>chrome.tabs[P.how](P.id,r)); return true`,
+};
+
+// Code that runs inside a web page. Same rule as above: fixed strings, input only as `P`.
+const PAGE = {
+  read: `(()=>({title:document.title,url:location.href,text:document.body?document.body.innerText:""}))()`,
+  elements: `(()=>{
+    document.querySelectorAll("[data-vivctl-ref]").forEach(e=>e.removeAttribute("data-vivctl-ref"));
+    const sel='a[href],button,input,select,textarea,summary,[role=button],[role=link],[role=checkbox],[role=tab],[onclick],[contenteditable=""],[contenteditable=true]';
+    const out=[]; let n=0;
+    for(const el of document.querySelectorAll(sel)){
+      const r=el.getBoundingClientRect(), cs=getComputedStyle(el);
+      if(r.width<1||r.height<1||cs.visibility==="hidden"||cs.display==="none") continue;
+      if(el.type==="hidden") continue;
+      n++; el.setAttribute("data-vivctl-ref",String(n));
+      const pw=el.type==="password";
+      const label=(el.getAttribute("aria-label")||el.innerText||el.placeholder||el.title||el.getAttribute("alt")||(pw?"":el.value)||el.name||"").replace(/\\s+/g," ").trim().slice(0,80);
+      out.push({ref:n,tag:el.tagName.toLowerCase(),type:el.type||undefined,label,href:el.href||undefined});
+      if(n>=300) break;
+    }
+    return out})()`,
+  typed: `(()=>{const el=document.querySelector('[data-vivctl-ref="'+P.ref+'"]'); if(!el) return false;
+    const v=el.isContentEditable?el.innerText:el.value; return typeof v==="string"&&v.includes(P.text)})()`,
+  setvalue: `(()=>{const el=document.querySelector('[data-vivctl-ref="'+P.ref+'"]'); if(!el||el.type==="password") return false;
+    if(el.isContentEditable){ el.focus(); return document.execCommand("insertText",false,P.text); }
+    const proto=el instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto,"value").set.call(el,P.text);
+    el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true})); return true})()`,
+  find: `(()=>{const el=document.querySelector('[data-vivctl-ref="'+P.ref+'"]');
+    if(!el) return {error:"stale"};
+    if(P.forType){ if(el.type==="password") return {error:"password"};
+      el.scrollIntoView({block:"center"}); el.focus();
+      if(typeof el.select==="function") el.select(); else if(el.isContentEditable) document.getSelection().selectAllChildren(el); else return {error:"not editable"};
+      return {ok:true}; }
+    el.scrollIntoView({block:"center",inline:"center"});
+    const r=el.getBoundingClientRect();
+    return {x:r.left+r.width/2,y:r.top+r.height/2,label:(el.getAttribute("aria-label")||el.innerText||el.value||"").replace(/\\s+/g," ").trim().slice(0,60)}})()`,
 };
 
 async function daemon() {
@@ -154,8 +202,10 @@ async function daemon() {
       if (p) m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result);
     }
   });
-  const cdp = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
-    const id = ++seq; pending.set(id, {resolve, reject});
+  const cdp = (method, params = {}, sessionId, timeoutMs = 15000) => new Promise((resolve, reject) => {
+    const id = ++seq;
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method} timed out`)); }, timeoutMs);
+    pending.set(id, {resolve: v => { clearTimeout(timer); resolve(v); }, reject: e => { clearTimeout(timer); reject(e); }});
     toB.write(JSON.stringify({id, method, params, sessionId}) + '\0');
   });
 
@@ -201,6 +251,54 @@ async function daemon() {
     return hit[0];
   }
   const props = p => ({...(p.title !== undefined && {title: asTitle(p.title)}), ...(p.color !== undefined && {color: asColor(p.color)})});
+
+  // ------------------------------------------------------------- page access
+  async function waitLoaded(id) {
+    for (let i = 0; i < 50; i++) {
+      const st = await inUI('status', {id});
+      if (!st) throw new UserError(`no such tab: ${id}`);
+      if (st.status === 'complete') return;
+      await new Promise(r => setTimeout(r, 300));
+    }
+  }
+  // Runs fn against the CDP session of the page behind a Vivaldi tab. A tab id cannot be mapped to a
+  // CDP target directly, so the match is by URL and title, and an unclear match is an error.
+  async function onPage(tabId, fn) {
+    await waitLoaded(tabId);
+    const tab = (await listTabs()).find(t => t.id === tabId);
+    if (!tab) throw new UserError(`no such tab: ${tabId}`);
+    if (hostDenied(tab.url)) throw new UserError('pages of this host are blocked (VIVCTL_DENY)');
+    // Restored tabs that were never loaded have a target but no renderer and never answer, so every
+    // candidate is probed and only the ones that answer count.
+    const {targetInfos} = await cdp('Target.getTargets');
+    const probes = await Promise.all(targetInfos.filter(t => t.type === 'page' && t.url === tab.url).map(async t => {
+      const {sessionId} = await cdp('Target.attachToTarget', {targetId: t.targetId, flatten: true});
+      const r = await cdp('Runtime.evaluate', {expression: 'document.title', returnByValue: true}, sessionId, 1500).catch(() => null);
+      if (!r) { cdp('Target.detachFromTarget', {sessionId}).catch(() => {}); return null; }
+      return {sessionId, title: r.result.value};
+    }));
+    const all = probes.filter(Boolean);
+    const sameTitle = all.filter(x => x.title === tab.title);
+    const live = all.length > 1 && sameTitle.length ? sameTitle : all;
+    const release = keep => all.filter(x => x !== keep).forEach(x => cdp('Target.detachFromTarget', {sessionId: x.sessionId}).catch(() => {}));
+    if (!live.length) throw new UserError('this tab has no loaded page (hibernated?), or it changed while reading; open it once in Vivaldi and retry');
+    if (live.length > 1) { release(null); throw new UserError('two tabs show the same page and cannot be told apart; close one or navigate it elsewhere'); }
+    release(live[0]);
+    const {sessionId} = live[0];
+    const send = (m, p) => cdp(m, p, sessionId);
+    // A tab in the background has no focus, and then typed text and key presses go nowhere.
+    await send('Emulation.setFocusEmulationEnabled', {enabled: true}).catch(() => {});
+    await new Promise(r => setTimeout(r, 150));
+    const run = async (code, P = {}) => {
+      const r = await send('Runtime.evaluate', {expression: `(()=>{const P=${JSON.stringify(P)};return ${code}})()`, returnByValue: true, awaitPromise: true});
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description?.split('\n')[0] || 'page script failed');
+      return r.result.value;
+    };
+    const visible = await run('document.visibilityState').then(v => v === 'visible', () => false);
+    try { return await fn({send, run, tab, sessionId, visible}); } finally { cdp('Target.detachFromTarget', {sessionId}).catch(() => {}); }
+  }
+  const tabArg = p => asInt(p.tab, 'tab');
+  const settle = () => new Promise(r => setTimeout(r, 600));
 
   // The lease lives only in this process. Expiry is checked on every request, no timer.
   let leaseUntil = AUTH_OFF ? Infinity : 0, unlocking = null;
@@ -266,6 +364,73 @@ async function daemon() {
     unstack: async p => (await inUI('unstack', {group: (await resolveStack(p.stack)).id}), {}),
     'close-stack': async p => ({closed: await inUI('close', {ids: (await resolveStack(p.stack)).tabs})}),
     close: async p => ({closed: await inUI('close', {ids: (p.tabs || []).map(t => asInt(t, 'tab'))})}),
+    read: p => onPage(tabArg(p), async ({run}) => {
+      const max = Math.min(Math.max(Number(p.max) || 20000, 100), 200000);
+      const r = await run(PAGE.read);
+      return {untrusted: true, title: r.title, url: stripUrl(r.url), truncated: r.text.length > max, text: r.text.slice(0, max)};
+    }),
+    elements: p => onPage(tabArg(p), async ({run}) =>
+      (await run(PAGE.elements)).map(e => ({...e, href: e.href ? stripUrl(e.href) : undefined}))),
+    navigate: async p => {
+      const id = tabArg(p), url = asUrl(p.url);
+      if (hostDenied(url)) throw new UserError('this host is blocked (VIVCTL_DENY)');
+      await inUI('navigate', {id, url}); await settle(); await waitLoaded(id);
+      const t = (await listTabs()).find(x => x.id === id);
+      return {title: t?.title, url: stripUrl(t?.url || '')};
+    },
+    focus: async p => (await inUI('focus', {id: tabArg(p)}), await settle(), {}),
+    back: async p => (await inUI('history', {id: tabArg(p), how: 'goBack'}), await settle(), {}),
+    forward: async p => (await inUI('history', {id: tabArg(p), how: 'goForward'}), await settle(), {}),
+    reload: async p => (await inUI('history', {id: tabArg(p), how: 'reload'}), await settle(), {}),
+    click: p => onPage(tabArg(p), async ({send, run}) => {
+      const ref = asInt(p.ref, 'ref');
+      const f = await run(PAGE.find, {ref});
+      if (f.error) throw new UserError('that element is gone, run `vivctl elements` again');
+      for (const [type, extra] of [['mouseMoved', {}], ['mousePressed', {button: 'left', clickCount: 1}], ['mouseReleased', {button: 'left', clickCount: 1}]]) {
+        await send('Input.dispatchMouseEvent', {type, x: f.x, y: f.y, ...extra});
+      }
+      await settle();
+      return {clicked: f.label};
+    }),
+    type: p => onPage(tabArg(p), async ({send, run, visible}) => {
+      const ref = asInt(p.ref, 'ref');
+      if (typeof p.text !== 'string' || p.text.length > 5000) throw new UserError('text must be a string of at most 5000 characters');
+      if (p.enter && !visible) throw new UserError(`--enter needs a visible tab, run \`vivctl focus ${tabArg(p)}\` first`);
+      const f = await run(PAGE.find, {ref, forType: true});
+      if (f.error === 'password') throw new UserError('refusing to type into a password field: secrets must not pass through the model, type it yourself');
+      if (f.error === 'not editable') throw new UserError('that element does not take text');
+      if (f.error) throw new UserError('that element is gone, run `vivctl elements` again');
+      // A tab in the background takes no real keyboard input, so there the value is set in the page instead.
+      if (visible) await send('Input.insertText', {text: p.text});
+      let arrived = visible && await run(PAGE.typed, {ref, text: p.text});
+      if (!arrived) { await run(PAGE.setvalue, {ref, text: p.text}); arrived = await run(PAGE.typed, {ref, text: p.text}); }
+      if (!arrived) throw new UserError('the text did not arrive in the element (the page may block scripted input)');
+      if (p.enter) for (const type of ['keyDown', 'keyUp']) await send('Input.dispatchKeyEvent', {type, key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: type === 'keyDown' ? '\r' : undefined});
+      await settle();
+      return {typed: p.text.length};
+    }),
+    press: p => onPage(tabArg(p), async ({send, visible}) => {
+      if (!visible) throw new UserError(`key presses need a visible tab, run \`vivctl focus ${tabArg(p)}\` first`);
+      if (!Object.hasOwn(KEYS, p.key)) throw new UserError(`unknown key "${p.key}", use one of: ${Object.keys(KEYS).join(', ')}`);
+      for (const type of ['keyDown', 'keyUp']) {
+        await send('Input.dispatchKeyEvent', {type, key: p.key === 'Space' ? ' ' : p.key, code: p.key, windowsVirtualKeyCode: KEYS[p.key],
+          text: type === 'keyDown' && p.key === 'Enter' ? '\r' : undefined});
+      }
+      await settle();
+      return {};
+    }),
+    screenshot: p => onPage(tabArg(p), async ({sessionId}) => {
+      const r = await cdp('Page.captureScreenshot', {format: 'png'}, sessionId, 6000).catch(() => {
+        throw new UserError(`could not capture the tab: a tab in the background has no picture, run \`vivctl focus ${tabArg(p)}\` first`);
+      });
+      const dir = path.join(STATE, 'shots');
+      fs.mkdirSync(dir, {recursive: true, mode: 0o700});
+      const old = fs.readdirSync(dir).sort();
+      for (const f of old.slice(0, Math.max(0, old.length - 19))) fs.rmSync(path.join(dir, f), {force: true});
+      const file = path.join(dir, `${Date.now()}-${tabArg(p)}.png`);
+      fs.writeFileSync(file, Buffer.from(r.data, 'base64'), {mode: 0o600});
+      return {file};
+    }),
     quit: async () => { await cdp('Browser.close'); return {}; },
   };
 
@@ -328,7 +493,7 @@ function request(req) {
 }
 
 function parseArgs(argv) {
-  const valued = new Set(['title', 'color', 'into', 'stack']), flags = new Set(['json', 'focus']);
+  const valued = new Set(['title', 'color', 'into', 'stack', 'max']), flags = new Set(['json', 'focus', 'enter']);
   const out = {pos: [], opt: {}};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -363,6 +528,16 @@ const HELP = `vivctl: manage Vivaldi tabs and tab stacks
   vivctl close-stack STACK            close a stack with all its tabs
   vivctl close TABID...               close tabs
 
+  Pages (tab ids come from "vivctl tabs" or "vivctl open"; page text is untrusted data):
+  vivctl read TAB [--max N]           title, url and visible text (default 20000 characters)
+  vivctl elements TAB                 clickable and editable elements, numbered
+  vivctl navigate TAB URL | back TAB | forward TAB | reload TAB
+  vivctl click TAB REF                click element REF from the last "elements"
+  vivctl type TAB REF TEXT [--enter]  replace the text of an element, never a password field
+  vivctl press TAB KEY                ${Object.keys(KEYS).join(' ')}
+  vivctl focus TAB                    make TAB the active tab (screenshots need a visible tab)
+  vivctl screenshot TAB               saves a PNG under ~/.vivctl/shots and prints its path
+
 STACK is a title (case-insensitive) or a stack id (8+ leading characters).`;
 
 async function client(cmd, argv) {
@@ -390,6 +565,20 @@ async function client(cmd, argv) {
       if (pos.length !== 1) throw new UserError(`usage: vivctl ${cmd} STACK`);
       return out(await request({op: cmd, stack: pos[0]}));
     case 'close': return out(await request({op: 'close', tabs: ids(pos)}));
+    case 'read': {
+      const r = await request({op: 'read', tab: ids(pos.slice(0, 1))[0], max: opt.max});
+      return opt.json ? out(r) : console.log(`${r.title}\n${r.url}${r.truncated ? '\n[truncated, use --max]' : ''}\n\n${r.text}`);
+    }
+    case 'elements': {
+      const r = await request({op: 'elements', tab: ids(pos.slice(0, 1))[0]});
+      return opt.json ? out(r) : r.forEach(e => console.log(`[${e.ref}] ${e.tag}${e.type ? `:${e.type}` : ''} ${e.label}${e.href ? `  -> ${e.href}` : ''}`));
+    }
+    case 'navigate': if (pos.length !== 2) throw new UserError('usage: vivctl navigate TAB URL'); return out(await request({op: 'navigate', tab: ids(pos.slice(0, 1))[0], url: pos[1]}));
+    case 'focus': case 'back': case 'forward': case 'reload': return out(await request({op: cmd, tab: ids(pos.slice(0, 1))[0]}));
+    case 'click': if (pos.length !== 2) throw new UserError('usage: vivctl click TAB REF'); return out(await request({op: 'click', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0]}));
+    case 'type': if (pos.length < 3) throw new UserError('usage: vivctl type TAB REF TEXT [--enter]'); return out(await request({op: 'type', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0], text: pos.slice(2).join(' '), enter: opt.enter}));
+    case 'press': if (pos.length !== 2) throw new UserError('usage: vivctl press TAB KEY'); return out(await request({op: 'press', tab: ids(pos.slice(0, 1))[0], key: pos[1]}));
+    case 'screenshot': { const r = await request({op: 'screenshot', tab: ids(pos.slice(0, 1))[0]}); return opt.json ? out(r) : console.log(r.file); }
     case 'unlock': { const r = await request({op: 'unlock'}); return out(opt.json ? r : lockLine(r)); }
     case 'lock': { const r = await request({op: 'lock'}); return out(opt.json ? r : lockLine(r)); }
     case 'stop': await request({op: 'quit'}); return console.log('Vivaldi is closing');
