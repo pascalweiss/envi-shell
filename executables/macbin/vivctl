@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# vivctl: manage Vivaldi tabs and tab stacks from the command line.
+# =============================================================================
+#   vivctl start                                   run Vivaldi under the control daemon
+#   vivctl open https://a.example https://b.example --stack Research --color blue
+#   vivctl stacks                                  list stacks
+#   vivctl close-stack Research
+#
+# Run `vivctl` without arguments for every command.
+#
+# MACOS ONLY: it drives /Applications/Vivaldi.app. The tool itself is
+# executables/lib/vivctl/vivctl.mjs, plain Node without dependencies; this file
+# only finds Node and hands over. README.md next to the source explains the
+# design and the threat model.
+#
+# Configuration (envi convention: baked defaults, override in config/envi_env)
+#
+#   VIVCTL_PROFILE  The Vivaldi profile directory the daemon runs. It must not be
+#                   Vivaldi's default directory: Chromium ignores the debug
+#                   interface there.
+#                   default: ~/Library/Application Support/Vivaldi-Ctl
+#   VIVCTL_HOME     Socket, pid and log of the daemon.   default: ~/.vivctl
+#   VIVALDI_BIN     The Vivaldi executable.
+#                   default: /Applications/Vivaldi.app/Contents/MacOS/Vivaldi
+#   VIVCTL_AUTH     `off` runs the daemon without the Touch ID lock. Default: locked.
+#   VIVCTL_LEASE_MINUTES
+#                   How long one Touch ID check opens the daemon.   default: 60
+#   VIVCTL_AUTH_TIMEOUT
+#                   Seconds the Touch ID sheet waits for an answer. default: 60
+#   VIVCTL_CACHE    Where the compiled Touch ID helper is kept.
+#                   default: ${XDG_CACHE_HOME:-$HOME/.cache}/envi/vivctl
+#
+# The lock needs a small Swift helper (executables/lib/vivctl/touchid.swift). Like
+# docscan it is compiled on first use and rebuilt when the source checksum changes,
+# which needs the Xcode Command Line Tools. Only `start` and `daemon` build it.
+# =============================================================================
+
+set -uo pipefail
+
+self_src="${BASH_SOURCE[0]}"
+while [ -h "$self_src" ]; do
+    dir="$(cd -P "$(dirname "$self_src")" && pwd)"
+    self_src="$(readlink "$self_src")"
+    [ "${self_src#/}" = "$self_src" ] && self_src="$dir/$self_src"
+done
+SELF_DIR="$(cd -P "$(dirname "$self_src")" && pwd)"
+SOURCE="$SELF_DIR/../lib/vivctl/vivctl.mjs"
+
+if [ ! -f "$SOURCE" ]; then
+    echo "vivctl: source not found at $SOURCE" >&2
+    echo "vivctl: is this envi checkout complete?" >&2
+    exit 1
+fi
+
+# Node often comes from nvm, which a non-interactive shell (an agent, cron) has not loaded.
+if ! command -v node >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
+    # shellcheck disable=SC1091
+    . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1
+fi
+if ! command -v node >/dev/null 2>&1; then
+    echo "vivctl: node not found on PATH (nor through ~/.nvm)." >&2
+    echo "vivctl: install it, for example: brew install node" >&2
+    exit 1
+fi
+
+# --- the Touch ID helper, only where a daemon is going to be started ------------
+if [ "${1:-}" = "start" ] || [ "${1:-}" = "daemon" ]; then
+    if [ "${VIVCTL_AUTH:-}" != "off" ]; then
+        AUTH_SRC="$SELF_DIR/../lib/vivctl/touchid.swift"
+        : "${VIVCTL_CACHE:=${XDG_CACHE_HOME:-$HOME/.cache}/envi/vivctl}"
+        AUTH_BIN="$VIVCTL_CACHE/touchid"
+        AUTH_STAMP="$VIVCTL_CACHE/touchid.source-sha"
+
+        if [ ! -f "$AUTH_SRC" ]; then
+            echo "vivctl: Touch ID helper source not found at $AUTH_SRC" >&2
+            exit 1
+        fi
+        # Checksum, not mtime: see the same reasoning in docscan.
+        source_sha="$(shasum -a 256 "$AUTH_SRC" | cut -d' ' -f1)"
+        if [ ! -x "$AUTH_BIN" ] || [ "$source_sha" != "$(cat "$AUTH_STAMP" 2>/dev/null)" ]; then
+            if ! command -v swiftc >/dev/null 2>&1; then
+                echo "vivctl: swiftc not found, so the Touch ID helper cannot be built." >&2
+                echo "vivctl: install the Xcode Command Line Tools (xcode-select --install)," >&2
+                echo "vivctl: or run without the lock: VIVCTL_AUTH=off vivctl start" >&2
+                exit 1
+            fi
+            mkdir -p "$VIVCTL_CACHE" || { echo "vivctl: cannot create $VIVCTL_CACHE" >&2; exit 1; }
+            echo "vivctl: building the Touch ID helper (first run after a change, a few seconds)..." >&2
+            staging="$AUTH_BIN.building.$$"
+            if ! swiftc -O "$AUTH_SRC" -o "$staging"; then
+                rm -f "$staging"
+                echo "vivctl: build of the Touch ID helper failed" >&2
+                exit 1
+            fi
+            mv -f "$staging" "$AUTH_BIN"
+            printf '%s\n' "$source_sha" > "$AUTH_STAMP"
+        fi
+        export VIVCTL_AUTH_BIN="$AUTH_BIN"
+    fi
+fi
+
+exec node "$SOURCE" "$@"
