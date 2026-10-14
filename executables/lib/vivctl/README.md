@@ -4,6 +4,7 @@ Manage Vivaldi tabs and tab stacks from the command line, so that scripts and co
 agents can organise a browser without anybody clicking.
 
 ```
+vivctl init                                   once per Mac: create the profile the daemon runs
 vivctl start                                  run Vivaldi under the control daemon (locked)
 vivctl unlock | lock                          Touch ID opens everything below for 60 minutes
 vivctl open https://a.example https://b.example --stack Research --color blue
@@ -51,21 +52,26 @@ and tear the old one apart, which is why only the first join carries it.
 
 Chromium ignores `--remote-debugging-*` when the profile is its default directory, so the
 daemon needs a profile of its own. `VIVCTL_PROFILE` points at it, default
-`~/Library/Application Support/Vivaldi-Ctl`. To get your current setup into it, quit Vivaldi
-and copy the default profile without its caches:
+`~/Library/Application Support/Vivaldi-Ctl`.
+
+Once per Mac, with Vivaldi quit:
 
 ```bash
-rsync -a --exclude='/Crashpad' --exclude='/component_crx_cache' --exclude='/extensions_crx_cache' \
-  --exclude='/GraphiteDawnCache' --exclude='/GrShaderCache' --exclude='/GPUPersistentCache' \
-  --exclude='Cache/' --exclude='Code Cache/' --exclude='GPUCache/' --exclude='CacheStorage/' \
-  --exclude='ScriptCache/' --exclude='Singleton*' \
-  ~/Library/Application\ Support/Vivaldi/ ~/Library/Application\ Support/Vivaldi-Ctl/
+vivctl init
 ```
 
-Then remove the sync identity from the copy (the `sync` block in `Default/Preferences` and
-the `Default/Sync Data` directory), otherwise it is the same sync device as the original and
-its changes flow back. The copy is a snapshot and does not follow later changes in the
-original.
+It copies Vivaldi's own profile (`VIVCTL_SOURCE_PROFILE`, default
+`~/Library/Application Support/Vivaldi`) without its caches, then removes the sync identity
+from the copy (the `sync` block in `Default/Preferences` and the `Sync Data` directory).
+Otherwise the copy would be the same sync device as the original and its changes would flow
+back. It refuses to run while Vivaldi has the source profile open, and it never overwrites an
+existing `Vivaldi-Ctl`.
+
+Do not carry a profile from one Mac to another instead: cookies and saved passwords are
+encrypted with the "Vivaldi Safe Storage" key of that Mac's keychain, so the copy would open
+logged out and without readable passwords. Run `vivctl init` on each Mac.
+
+The copy is a snapshot and does not follow later changes in the original.
 
 ## Threat model
 

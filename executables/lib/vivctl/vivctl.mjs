@@ -14,7 +14,7 @@
 // sole holder, and everything else gets the whitelist below, never raw CDP.
 // See README.md in this directory for the threat model.
 
-import {spawn} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 import net from 'node:net';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -26,6 +26,7 @@ const PROFILE = process.env.VIVCTL_PROFILE || path.join(HOME, 'Library/Applicati
 const STATE = process.env.VIVCTL_HOME || path.join(HOME, '.vivctl');
 const SOCK = path.join(STATE, 'vivctl.sock');
 const LOG = path.join(STATE, 'daemon.log');
+const SOURCE_PROFILE = process.env.VIVCTL_SOURCE_PROFILE || path.join(HOME, 'Library/Application Support/Vivaldi');
 const BROWSER = process.env.VIVALDI_BIN || '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi';
 
 const COLORS = {grey: 'color1', blue: 'color2', red: 'color3', yellow: 'color4', green: 'color5',
@@ -347,6 +348,7 @@ const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '~' : s);
 
 const HELP = `vivctl: manage Vivaldi tabs and tab stacks
 
+  vivctl init                         once per Mac: copy Vivaldi's profile for the daemon to run
   vivctl start | stop | status        run Vivaldi under the control daemon
   vivctl unlock | lock                Touch ID opens every other command for a while (default 60 min)
   vivctl tabs [--json]                list tabs with their stack (query and fragment of URLs are cut off)
@@ -392,8 +394,44 @@ async function client(cmd, argv) {
     case 'lock': { const r = await request({op: 'lock'}); return out(opt.json ? r : lockLine(r)); }
     case 'stop': await request({op: 'quit'}); return console.log('Vivaldi is closing');
     case 'start': return start();
+    case 'init': return initProfile();
     default: throw new UserError(cmd ? `unknown command "${cmd}"\n\n${HELP}` : HELP);
   }
+}
+
+// `vivctl init`: copy Vivaldi's own profile into the profile the daemon runs. Chromium
+// ignores the debug interface on its default directory, so the daemon needs a copy.
+function initProfile() {
+  if (fs.existsSync(PROFILE)) throw new UserError(`${PROFILE} already exists, refusing to overwrite it.\nMove it away first if you really want a fresh copy.`);
+  if (!fs.existsSync(path.join(SOURCE_PROFILE, 'Default'))) throw new UserError(`no Vivaldi profile found at ${SOURCE_PROFILE}\nset VIVCTL_SOURCE_PROFILE if it lives elsewhere`);
+  // Copying a profile that is open can leave a corrupt copy. The lock is a symlink to "host-pid".
+  const lock = path.join(SOURCE_PROFILE, 'SingletonLock');
+  let target = null;
+  try { target = fs.readlinkSync(lock); } catch { /* no lock */ }
+  const pid = target && Number(target.split('-').pop());
+  if (pid) {
+    let alive = true;
+    try { process.kill(pid, 0); } catch (e) { alive = e.code === 'EPERM'; }
+    if (alive) throw new UserError(`Vivaldi is running on ${SOURCE_PROFILE} (pid ${pid}). Quit it (Cmd+Q) and run this again.`);
+  }
+  const excludes = ['/Crashpad', '/component_crx_cache', '/extensions_crx_cache', '/GraphiteDawnCache', '/GrShaderCache',
+    '/GPUPersistentCache', '/ShaderCache', 'Cache/', 'Code Cache/', 'GPUCache/', 'DawnGraphiteCache/', 'DawnWebGPUCache/',
+    'CacheStorage/', 'ScriptCache/', 'Singleton*', '*.lock'];
+  console.log(`copying ${SOURCE_PROFILE} to ${PROFILE} (caches left out, this can take a minute)...`);
+  fs.mkdirSync(PROFILE, {recursive: true});
+  const r = spawnSync('rsync', ['-a', ...excludes.flatMap(e => ['--exclude', e]), SOURCE_PROFILE + '/', PROFILE + '/'], {stdio: 'inherit'});
+  if (r.status !== 0) throw new UserError(`rsync failed (exit ${r.status}); remove ${PROFILE} before trying again`);
+  // The copy must not be the same sync device as the original, or its changes flow back.
+  const prefs = path.join(PROFILE, 'Default', 'Preferences');
+  if (fs.existsSync(prefs)) {
+    const p = JSON.parse(fs.readFileSync(prefs, 'utf8'));
+    delete p.sync;
+    delete p.dual_layer_user_pref_store?.user_selected_sync_types;
+    fs.writeFileSync(prefs, JSON.stringify(p));
+  }
+  fs.rmSync(path.join(PROFILE, 'Default', 'Sync Data'), {recursive: true, force: true});
+  fs.rmSync(path.join(PROFILE, 'Sync Data'), {recursive: true, force: true});
+  console.log(`done. The copy has no sync identity of its own.\nNext: vivctl start, then vivctl unlock`);
 }
 
 async function start() {
