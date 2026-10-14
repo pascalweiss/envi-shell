@@ -140,6 +140,7 @@ envi_full_init() {
     source "$ENVI_HOME/integrations/eza/init.sh"
     source "$ENVI_HOME/integrations/ghostty/init.sh"
     source "$ENVI_HOME/integrations/alacritty/init.sh"
+    source "$ENVI_HOME/integrations/iterm2/init.sh"
     source "$ENVI_HOME/integrations/node/init.sh"
     source "$ENVI_HOME/integrations/flux/init.sh"
     source "$ENVI_HOME/integrations/angular/init.sh"

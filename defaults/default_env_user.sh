@@ -42,6 +42,7 @@
 # export BAT_ENABLED=false                  # bat as MANPAGER
 # export EZA_ENABLED=false                  # ls/ll/la/lt aliases via eza
 # export GHOSTTY_ENABLED=false              # symlink ghostty config from envi
+# export ITERM2_ENABLED=false               # source iTerm2's shell integration script
 
 # --- Agent skills (executables/bin/envi-agent-sync) ---
 # Which envi skills the coding agents on THIS machine can discover. Each skill is a
