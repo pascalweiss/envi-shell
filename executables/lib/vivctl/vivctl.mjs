@@ -39,7 +39,6 @@ const LEASE_MS = (Number(process.env.VIVCTL_LEASE_MINUTES) || 60) * 60000;
 // Hosts whose pages the page operations refuse (comma separated suffixes). Empty by default.
 const DENY = (process.env.VIVCTL_DENY || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
 const OPEN_OPS = new Set(['ping', 'unlock', 'lock']); // the only operations that work while locked
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 class UserError extends Error {}
 
@@ -108,7 +107,7 @@ const TW=["target-is-tab","do-not-reparent","on"];
 const UI = {
   tabs: `
     return (await q()).map(t=>{const e=ext(t);return {id:t.id,windowId:t.windowId,active:t.active,pinned:t.pinned,
-      title:t.title||"",url:t.url||t.pendingUrl||"",group:e.group,groupTitle:e.fixedGroupTitle,groupColor:e.groupColor}})`,
+      status:t.status,title:t.title||"",url:t.url||t.pendingUrl||"",group:e.group,groupTitle:e.fixedGroupTitle,groupColor:e.groupColor}})`,
   open: `
     const t=await new Promise(r=>chrome.tabs.create({url:P.url,active:P.focus,windowId:P.windowId},r));
     await wait(300); return t.id`,
@@ -135,46 +134,132 @@ const UI = {
     await vivaldi.tabsPrivate.setGroupProperties(pr); return true`,
   unstack: `await vivaldi.tabsPrivate.unstack(P.group); return true`,
   close: `await new Promise(r=>chrome.tabs.remove(P.ids,r)); return P.ids`,
-  status: `const t=await new Promise(r=>chrome.tabs.get(P.id,r)); return t?{status:t.status}:null`,
+  status: `const t=await new Promise(r=>chrome.tabs.get(P.id,r)); return t?{status:t.status,title:t.title||"",discarded:!!t.discarded}:null`,
   navigate: `await new Promise(r=>chrome.tabs.update(P.id,{url:P.url},r)); return true`,
   focus: `await new Promise(r=>chrome.tabs.update(P.id,{active:true},r)); return true`,
   history: `await new Promise(r=>chrome.tabs[P.how](P.id,r)); return true`,
 };
 
-// Code that runs inside a web page. Same rule as above: fixed strings, input only as `P`.
+// Code that runs inside a web page. Same rule as above: fixed strings, input only as `P`. It runs
+// in an isolated world (like Playwright's utility world): it shares the DOM with the page but not
+// its JavaScript, so a page cannot break or observe these helpers by patching globals.
+//
+// PAGE_LIB is prepended to every page script. vRoots lists the document, every open shadow root
+// and every same-origin iframe document, so elements there are found too. Cross-origin iframes
+// and closed shadow roots stay out of reach.
+const PAGE_LIB = `
+const vRoots=()=>{const out=[];const add=root=>{out.push(root);
+  for(const el of root.querySelectorAll("*")){
+    if(el.shadowRoot) add(el.shadowRoot);
+    if(el.tagName==="IFRAME"||el.tagName==="FRAME"){let d=null;try{d=el.contentDocument}catch(e){} if(d&&d.documentElement) add(d);}
+  }};add(document);return out};
+const vFind=ref=>{for(const r of vRoots()){const el=r.querySelector('[data-vivctl-ref="'+ref+'"]'); if(el) return el;} return null};
+const vOffset=el=>{let x=0,y=0,w=el.ownerDocument.defaultView;
+  while(w&&w.frameElement){const f=w.frameElement,b=f.getBoundingClientRect();x+=b.left+f.clientLeft;y+=b.top+f.clientTop;w=f.ownerDocument.defaultView}
+  return {x,y}};
+const vAt=(x,y)=>{let el=document.elementFromPoint(x,y),ox=0,oy=0;
+  for(let i=0;el&&i<30;i++){
+    if(el.shadowRoot){const n=el.shadowRoot.elementFromPoint(x-ox,y-oy); if(n&&n!==el){el=n;continue}}
+    if(el.tagName==="IFRAME"||el.tagName==="FRAME"){let c=null;try{c=el.contentDocument}catch(e){}
+      if(c){const b=el.getBoundingClientRect();ox+=b.left+el.clientLeft;oy+=b.top+el.clientTop;const n=c.elementFromPoint(x-ox,y-oy);if(n){el=n;continue}}}
+    break}
+  return el};
+const vUp=n=>n.parentNode||(n.nodeType===11&&n.host)||(n.nodeType===9&&n.defaultView&&n.defaultView.frameElement)||null;
+const vWithin=(el,n)=>{for(let i=0;n&&i<2000;i++){if(n===el)return true;n=vUp(n)}return false};
+const vActive=()=>{let a=document.activeElement;
+  for(let i=0;a&&i<30;i++){
+    if(a.shadowRoot&&a.shadowRoot.activeElement){a=a.shadowRoot.activeElement;continue}
+    if(a.tagName==="IFRAME"||a.tagName==="FRAME"){let d=null;try{d=a.contentDocument}catch(e){} if(d&&d.activeElement){a=d.activeElement;continue}}
+    break}
+  return a};
+const vText=s=>(s||"").replace(/\\s+/g," ").trim();
+const vDesc=el=>el?(el.tagName.toLowerCase()+" "+vText(el.getAttribute("aria-label")||el.innerText||el.value||"").slice(0,50)).trim():"nothing";
+const vArm=(w,types,flag)=>{window[flag]=false;for(const t of types) w.addEventListener(t,()=>{window[flag]=true},{capture:true,once:true})};
+`;
+
 const PAGE = {
-  read: `(()=>({title:document.title,url:location.href,text:document.body?document.body.innerText:""}))()`,
-  elements: `(()=>{
-    document.querySelectorAll("[data-vivctl-ref]").forEach(e=>e.removeAttribute("data-vivctl-ref"));
-    const sel='a[href],button,input,select,textarea,summary,[role=button],[role=link],[role=checkbox],[role=tab],[onclick],[contenteditable=""],[contenteditable=true]';
-    const out=[]; let n=0;
-    for(const el of document.querySelectorAll(sel)){
-      const r=el.getBoundingClientRect(), cs=getComputedStyle(el);
-      if(r.width<1||r.height<1||cs.visibility==="hidden"||cs.display==="none") continue;
-      if(el.type==="hidden") continue;
-      n++; el.setAttribute("data-vivctl-ref",String(n));
-      const pw=el.type==="password";
-      const label=(el.getAttribute("aria-label")||el.innerText||el.placeholder||el.title||el.getAttribute("alt")||(pw?"":el.value)||el.name||"").replace(/\\s+/g," ").trim().slice(0,80);
-      out.push({ref:n,tag:el.tagName.toLowerCase(),type:el.type||undefined,label,href:el.href||undefined});
-      if(n>=300) break;
+  read: `(()=>{const parts=[document.body?document.body.innerText:""];
+    for(const r of vRoots().slice(1)){
+      if(r.nodeType===11){
+        const t=[...r.children].filter(c=>!["STYLE","SCRIPT","TEMPLATE","LINK"].includes(c.tagName)&&(!c.checkVisibility||c.checkVisibility()))
+          .map(c=>c.innerText||"").join("\\n").trim();
+        if(t) parts.push("[in "+r.host.tagName.toLowerCase()+"]\\n"+t);
+      } else if(r.body){const t=r.body.innerText.trim(); if(t) parts.push("[frame]\\n"+t)}
     }
+    return {title:document.title,url:location.href,text:parts.join("\\n\\n")}})()`,
+  elements: `(()=>{const roots=vRoots();
+    for(const r of roots) r.querySelectorAll("[data-vivctl-ref]").forEach(e=>e.removeAttribute("data-vivctl-ref"));
+    const sel='a[href],button,input,select,textarea,summary,[role=button],[role=link],[role=checkbox],[role=tab],[role=menuitem],[role=option],[onclick],[contenteditable=""],[contenteditable=true]';
+    const out=[]; let n=0;
+    for(const r of roots){ for(const el of r.querySelectorAll(sel)){
+      const b=el.getBoundingClientRect(), cs=el.ownerDocument.defaultView.getComputedStyle(el);
+      if(b.width<1||b.height<1||cs.visibility==="hidden"||cs.display==="none"||el.type==="hidden") continue;
+      n++; el.setAttribute("data-vivctl-ref",String(n));
+      const sel1=el.tagName==="SELECT"&&el.selectedOptions&&el.selectedOptions[0];
+      const lab1=el.labels&&el.labels.length?el.labels[0].innerText:"";
+      const label=vText(el.getAttribute("aria-label")||(sel1?sel1.text:"")||el.innerText||lab1||el.placeholder||el.title||el.getAttribute("alt")||(el.type==="password"?"":el.value)||el.name||"").slice(0,80);
+      const o={ref:n,tag:el.tagName.toLowerCase(),type:el.type||undefined,label,href:el.href||undefined};
+      if(el.type==="checkbox"||el.type==="radio") o.checked=el.checked;
+      if(el.disabled) o.disabled=true;
+      if(el.tagName==="SELECT") o.options=[...el.options].slice(0,30).map(x=>vText(x.text));
+      if(r!==document) o.in=r.nodeType===11?"shadow":"frame";
+      out.push(o);
+      if(n>=400) return out;
+    }}
     return out})()`,
-  typed: `(()=>{const el=document.querySelector('[data-vivctl-ref="'+P.ref+'"]'); if(!el) return false;
-    const v=el.isContentEditable?el.innerText:el.value; return typeof v==="string"&&v.includes(P.text)})()`,
-  setvalue: `(()=>{const el=document.querySelector('[data-vivctl-ref="'+P.ref+'"]'); if(!el||el.type==="password") return false;
-    if(el.isContentEditable){ el.focus(); return document.execCommand("insertText",false,P.text); }
-    const proto=el instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
-    Object.getOwnPropertyDescriptor(proto,"value").set.call(el,P.text);
-    el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true})); return true})()`,
-  find: `(()=>{const el=document.querySelector('[data-vivctl-ref="'+P.ref+'"]');
-    if(!el) return {error:"stale"};
-    if(P.forType){ if(el.type==="password") return {error:"password"};
-      el.scrollIntoView({block:"center"}); el.focus();
-      if(typeof el.select==="function") el.select(); else if(el.isContentEditable) document.getSelection().selectAllChildren(el); else return {error:"not editable"};
-      return {ok:true}; }
+  // Scroll the element into view, check that nothing covers it, and arm a listener that tells
+  // afterwards whether the browser actually delivered the click.
+  aim: `(()=>{const el=vFind(P.ref); if(!el) return {error:"stale"};
     el.scrollIntoView({block:"center",inline:"center"});
-    const r=el.getBoundingClientRect();
-    return {x:r.left+r.width/2,y:r.top+r.height/2,label:(el.getAttribute("aria-label")||el.innerText||el.value||"").replace(/\\s+/g," ").trim().slice(0,60)}})()`,
+    const b=el.getBoundingClientRect(), o=vOffset(el);
+    const x=o.x+b.left+b.width/2, y=o.y+b.top+b.height/2;
+    const hit=vAt(x,y), lab=hit&&hit.closest?hit.closest("label"):null;
+    const ok=!!hit&&(vWithin(el,hit)||(!!lab&&lab.control===el));
+    vArm(el.ownerDocument.defaultView,["pointerdown","mousedown","click"],"__vivctlClick");
+    return {x,y,ok,cover:ok?"":vDesc(hit),label:vDesc(el)}})()`,
+  clicked: `window.__vivctlClick===true`,
+  jsclick: `(()=>{const el=vFind(P.ref); if(!el) return false;
+    if(typeof el.click==="function") el.click(); else el.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,composed:true}));
+    return true})()`,
+  focus: `(()=>{const el=vFind(P.ref); if(!el) return {error:"stale"};
+    if(el.type==="password") return {error:"password"};
+    const noText=["checkbox","radio","button","submit","reset","file","image","range","color"];
+    if(!(el.isContentEditable||el.tagName==="TEXTAREA"||(el.tagName==="INPUT"&&!noText.includes(el.type)))) return {error:"not editable"};
+    if(el.readOnly||el.disabled) return {error:"read-only"};
+    el.scrollIntoView({block:"center"}); el.focus();
+    try{ if(el.isContentEditable) el.ownerDocument.getSelection().selectAllChildren(el); else if(typeof el.select==="function") el.select(); }catch(e){}
+    return {ok:true}})()`,
+  typed: `(()=>{const el=vFind(P.ref); if(!el) return false;
+    const v=el.isContentEditable?el.innerText:el.value; return typeof v==="string"&&v.includes(P.text)})()`,
+  // Seen from the isolated world, el.value is the native setter: a framework's own tracking on
+  // the element (React) does not see the change, so the input event registers as a real edit.
+  setvalue: `(()=>{const el=vFind(P.ref); if(!el||el.type==="password") return false;
+    if(el.isContentEditable){const d=el.ownerDocument; el.focus(); d.getSelection().selectAllChildren(el); return d.execCommand("insertText",false,P.text)}
+    el.value=P.text;
+    el.dispatchEvent(new Event("input",{bubbles:true,composed:true})); el.dispatchEvent(new Event("change",{bubbles:true}));
+    return true})()`,
+  keyarm: `(()=>{const a=vActive(); vArm((a?a.ownerDocument:document).defaultView,["keydown","keyup"],"__vivctlKey"); return true})()`,
+  keyed: `window.__vivctlKey===true`,
+  // Fallback when the browser did not deliver a key: the page's handlers see the events (not as
+  // trusted), and Enter in a form submits it, which is what the browser would have done.
+  jskey: `(()=>{const a=vActive()||document.body;
+    const init={key:P.key,code:P.code,keyCode:P.keyCode,which:P.keyCode,bubbles:true,cancelable:true,composed:true};
+    const go=a.dispatchEvent(new KeyboardEvent("keydown",init));
+    if(go&&P.key==="Enter") a.dispatchEvent(new KeyboardEvent("keypress",Object.assign({},init,{charCode:13})));
+    a.dispatchEvent(new KeyboardEvent("keyup",init));
+    let submitted=false;
+    if(go&&P.key==="Enter"&&a.form&&a.tagName!=="TEXTAREA"){ if(a.form.requestSubmit) a.form.requestSubmit(); else a.form.submit(); submitted=true }
+    return {submitted}})()`,
+  select: `(()=>{const el=vFind(P.ref); if(!el) return {error:"stale"}; if(el.tagName!=="SELECT") return {error:"not a select"};
+    const want=P.value.toLowerCase(), opts=[...el.options];
+    const o=opts.find(x=>x.value===P.value)||opts.find(x=>vText(x.text).toLowerCase()===want)||opts.find(x=>vText(x.text).toLowerCase().includes(want));
+    if(!o) return {error:"no option",options:opts.slice(0,30).map(x=>vText(x.text))};
+    el.value=o.value;
+    el.dispatchEvent(new Event("input",{bubbles:true,composed:true})); el.dispatchEvent(new Event("change",{bubbles:true}));
+    return {selected:vText(o.text)}})()`,
+  scroll: `(()=>{const h=innerHeight*0.85, s=document.scrollingElement||document.documentElement;
+    if(P.to==="top") scrollTo(0,0); else if(P.to==="bottom") scrollTo(0,s.scrollHeight); else scrollBy(0,P.to==="up"?-h:h);
+    return {y:Math.round(scrollY),max:Math.max(0,Math.round(s.scrollHeight-innerHeight))}})()`,
 };
 
 async function daemon() {
@@ -253,52 +338,119 @@ async function daemon() {
   const props = p => ({...(p.title !== undefined && {title: asTitle(p.title)}), ...(p.color !== undefined && {color: asColor(p.color)})});
 
   // ------------------------------------------------------------- page access
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   async function waitLoaded(id) {
     for (let i = 0; i < 50; i++) {
       const st = await inUI('status', {id});
       if (!st) throw new UserError(`no such tab: ${id}`);
       if (st.status === 'complete') return;
-      await new Promise(r => setTimeout(r, 300));
+      if (st.status === 'unloaded' || st.discarded) throw new UserError(`tab ${id} is not loaded (hibernated); \`vivctl reload ${id}\` loads it`);
+      await sleep(300);
     }
   }
-  // Runs fn against the CDP session of the page behind a Vivaldi tab. A tab id cannot be mapped to a
-  // CDP target directly, so the match is by URL and title, and an unclear match is an error.
+  const evalIn = (sessionId, expression, timeoutMs) =>
+    cdp('Runtime.evaluate', {expression, returnByValue: true}, sessionId, timeoutMs).then(r => r.result.value);
+
+  // A tab id cannot be mapped to a CDP target directly. Candidates are the page targets with the
+  // tab's URL; restored tabs that were never loaded have a target but no renderer and never answer,
+  // so each candidate is probed. Waiting stops as soon as as many pages answered as Vivaldi reports
+  // loaded tabs with that URL, so a dead candidate costs nothing in the common case. When several
+  // loaded pages remain, each gets a marker title for a moment, and the one whose marker shows up
+  // on the tab is it.
+  async function findPage(tab, tabs) {
+    const expected = Math.max(1, tabs.filter(t => t.url === tab.url && t.status !== 'unloaded').length);
+    const {targetInfos} = await cdp('Target.getTargets');
+    const candidates = targetInfos.filter(t => t.type === 'page' && t.url === tab.url);
+    const live = [];
+    let done = false;
+    const detach = sessionId => cdp('Target.detachFromTarget', {sessionId}).catch(() => {});
+    await new Promise(resolve => {
+      let left = candidates.length;
+      if (!left) resolve();
+      for (const t of candidates) {
+        (async () => {
+          const sessionId = (await cdp('Target.attachToTarget', {targetId: t.targetId, flatten: true}).catch(() => ({}))).sessionId;
+          const title = sessionId ? await evalIn(sessionId, 'document.title', 1500).catch(() => null) : null;
+          if (title === null || done) { if (sessionId) detach(sessionId); } else live.push({sessionId, title});
+          if (--left === 0 || live.length >= expected) resolve();
+        })();
+      }
+    });
+    done = true;
+    let chosen = live.length === 1 ? live[0] : null;
+    if (live.length > 1) {
+      const mark = `vivctl-${process.pid}-${Date.now()}-`;
+      const old = await Promise.all(live.map((x, i) =>
+        evalIn(x.sessionId, `(()=>{const o=document.title;document.title=${JSON.stringify(mark + i)};return o})()`).catch(() => null)));
+      try {
+        for (let i = 0; i < 20 && !chosen; i++) {
+          await sleep(100);
+          const now = (await inUI('status', {id: tab.id}))?.title || '';
+          chosen = live.find((_, j) => now === mark + j) || null;
+        }
+      } finally {
+        await Promise.all(live.map((x, i) => old[i] === null ? null
+          : evalIn(x.sessionId, `document.title=${JSON.stringify(old[i])}`).catch(() => {})));
+      }
+    }
+    live.filter(x => x !== chosen).forEach(x => detach(x.sessionId));
+    if (!chosen) {
+      throw new UserError(live.length ? 'could not tell which of the pages with this URL belongs to the tab'
+        : 'this tab has no loaded page, or it changed while reading; retry, or `vivctl reload` it');
+    }
+    return chosen.sessionId;
+  }
+
+  // Runs fn against the page behind a Vivaldi tab, with scripts in an isolated world.
   async function onPage(tabId, fn) {
     await waitLoaded(tabId);
-    const tab = (await listTabs()).find(t => t.id === tabId);
+    const tabs = await listTabs();
+    const tab = tabs.find(t => t.id === tabId);
     if (!tab) throw new UserError(`no such tab: ${tabId}`);
     if (hostDenied(tab.url)) throw new UserError('pages of this host are blocked (VIVCTL_DENY)');
-    // Restored tabs that were never loaded have a target but no renderer and never answer, so every
-    // candidate is probed and only the ones that answer count.
-    const {targetInfos} = await cdp('Target.getTargets');
-    const probes = await Promise.all(targetInfos.filter(t => t.type === 'page' && t.url === tab.url).map(async t => {
-      const {sessionId} = await cdp('Target.attachToTarget', {targetId: t.targetId, flatten: true});
-      const r = await cdp('Runtime.evaluate', {expression: 'document.title', returnByValue: true}, sessionId, 1500).catch(() => null);
-      if (!r) { cdp('Target.detachFromTarget', {sessionId}).catch(() => {}); return null; }
-      return {sessionId, title: r.result.value};
-    }));
-    const all = probes.filter(Boolean);
-    const sameTitle = all.filter(x => x.title === tab.title);
-    const live = all.length > 1 && sameTitle.length ? sameTitle : all;
-    const release = keep => all.filter(x => x !== keep).forEach(x => cdp('Target.detachFromTarget', {sessionId: x.sessionId}).catch(() => {}));
-    if (!live.length) throw new UserError('this tab has no loaded page (hibernated?), or it changed while reading; open it once in Vivaldi and retry');
-    if (live.length > 1) { release(null); throw new UserError('two tabs show the same page and cannot be told apart; close one or navigate it elsewhere'); }
-    release(live[0]);
-    const {sessionId} = live[0];
+    const sessionId = await findPage(tab, tabs);
     const send = (m, p) => cdp(m, p, sessionId);
-    // A tab in the background has no focus, and then typed text and key presses go nowhere.
-    await send('Emulation.setFocusEmulationEnabled', {enabled: true}).catch(() => {});
-    await new Promise(r => setTimeout(r, 150));
-    const run = async (code, P = {}) => {
-      const r = await send('Runtime.evaluate', {expression: `(()=>{const P=${JSON.stringify(P)};return ${code}})()`, returnByValue: true, awaitPromise: true});
-      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description?.split('\n')[0] || 'page script failed');
-      return r.result.value;
-    };
-    const visible = await run('document.visibilityState').then(v => v === 'visible', () => false);
-    try { return await fn({send, run, tab, sessionId, visible}); } finally { cdp('Target.detachFromTarget', {sessionId}).catch(() => {}); }
+    try {
+      // Without focus emulation a tab in the background never has focus, and focus() does nothing.
+      await send('Emulation.setFocusEmulationEnabled', {enabled: true}).catch(() => {});
+      const {frameTree} = await send('Page.getFrameTree');
+      const {executionContextId} = await send('Page.createIsolatedWorld', {frameId: frameTree.frame.id, worldName: 'vivctl'});
+      const run = async (code, P = {}) => {
+        const r = await send('Runtime.evaluate', {expression: `(()=>{${PAGE_LIB}const P=${JSON.stringify(P)};return ${code}})()`,
+          contextId: executionContextId, returnByValue: true, awaitPromise: true});
+        if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description?.split('\n')[0] || 'page script failed');
+        return r.result.value;
+      };
+      return await fn({send, run, tab, sessionId});
+    } finally {
+      cdp('Target.detachFromTarget', {sessionId}).catch(() => {});
+    }
   }
   const tabArg = p => asInt(p.tab, 'tab');
-  const settle = () => new Promise(r => setTimeout(r, 600));
+  // After an action: give the page a moment to react, then wait while a navigation it started is
+  // still loading, so that the next command already sees the new page.
+  async function settle(tabId, ms = 150) {
+    await sleep(ms);
+    for (let i = 0; i < 40; i++) {
+      const st = await inUI('status', {id: tabId}).catch(() => null);
+      if (!st || st.status !== 'loading') return;
+      await sleep(250);
+    }
+  }
+
+  // Trusted key first; if the page never saw it (Vivaldi drops keyboard input to tabs that are not
+  // in front), the same key is dispatched from the page instead. The caller learns which one it was.
+  async function pressKey(send, run, key) {
+    const code = key === 'Space' ? 'Space' : key, k = key === 'Space' ? ' ' : key;
+    await run(PAGE.keyarm);
+    for (const type of ['keyDown', 'keyUp']) {
+      await send('Input.dispatchKeyEvent', {type, key: k, code, windowsVirtualKeyCode: KEYS[key],
+        text: type === 'keyDown' && key === 'Enter' ? '\r' : undefined});
+    }
+    if (await run(PAGE.keyed)) return {via: 'keyboard'};
+    const r = await run(PAGE.jskey, {key: k, code, keyCode: KEYS[key]});
+    return {via: 'script', ...(r.submitted && {submitted: true})};
+  }
 
   // The lease lives only in this process. Expiry is checked on every request, no timer.
   let leaseUntil = AUTH_OFF ? Infinity : 0, unlocking = null;
@@ -374,50 +526,80 @@ async function daemon() {
     navigate: async p => {
       const id = tabArg(p), url = asUrl(p.url);
       if (hostDenied(url)) throw new UserError('this host is blocked (VIVCTL_DENY)');
-      await inUI('navigate', {id, url}); await settle(); await waitLoaded(id);
+      await inUI('navigate', {id, url}); await settle(id, 300);
       const t = (await listTabs()).find(x => x.id === id);
       return {title: t?.title, url: stripUrl(t?.url || '')};
     },
-    focus: async p => (await inUI('focus', {id: tabArg(p)}), await settle(), {}),
-    back: async p => (await inUI('history', {id: tabArg(p), how: 'goBack'}), await settle(), {}),
-    forward: async p => (await inUI('history', {id: tabArg(p), how: 'goForward'}), await settle(), {}),
-    reload: async p => (await inUI('history', {id: tabArg(p), how: 'reload'}), await settle(), {}),
-    click: p => onPage(tabArg(p), async ({send, run}) => {
+    focus: async p => (await inUI('focus', {id: tabArg(p)}), await settle(tabArg(p)), {}),
+    back: async p => (await inUI('history', {id: tabArg(p), how: 'goBack'}), await settle(tabArg(p), 300), {}),
+    forward: async p => (await inUI('history', {id: tabArg(p), how: 'goForward'}), await settle(tabArg(p), 300), {}),
+    reload: async p => (await inUI('history', {id: tabArg(p), how: 'reload'}), await settle(tabArg(p), 300), {}),
+    // A real mouse click on the element's center, but only if the element is what is under that
+    // point: a cookie banner or a modal on top is reported instead of clicked. If the browser does
+    // not deliver the click (tab not in front), the element is clicked from the page.
+    click: p => onPage(tabArg(p), async ({send, run, tab}) => {
       const ref = asInt(p.ref, 'ref');
-      const f = await run(PAGE.find, {ref});
+      const before = new Set((await listTabs()).map(t => t.id));
+      const f = await run(PAGE.aim, {ref});
       if (f.error) throw new UserError('that element is gone, run `vivctl elements` again');
-      for (const [type, extra] of [['mouseMoved', {}], ['mousePressed', {button: 'left', clickCount: 1}], ['mouseReleased', {button: 'left', clickCount: 1}]]) {
-        await send('Input.dispatchMouseEvent', {type, x: f.x, y: f.y, ...extra});
+      if (!f.ok && !p.force) throw new UserError(`"${f.label}" is covered by "${f.cover}"; deal with that first, or use --force`);
+      let via = 'script';
+      if (f.ok) {
+        for (const [type, extra] of [['mouseMoved', {}], ['mousePressed', {button: 'left', clickCount: 1}], ['mouseReleased', {button: 'left', clickCount: 1}]]) {
+          await send('Input.dispatchMouseEvent', {type, x: f.x, y: f.y, ...extra});
+        }
+        if (await run(PAGE.clicked)) via = 'mouse';
       }
-      await settle();
-      return {clicked: f.label};
+      if (via === 'script' && !await run(PAGE.jsclick, {ref})) throw new UserError('that element is gone, run `vivctl elements` again');
+      await settle(tab.id, 300);
+      const after = await listTabs();
+      const self = after.find(t => t.id === tab.id);
+      const opened = after.filter(t => !before.has(t.id)).map(t => t.id);
+      return {clicked: f.label, via, ...(opened.length && {newTabs: opened}),
+        ...(self && self.url !== tab.url && {navigated: stripUrl(self.url)})};
     }),
-    type: p => onPage(tabArg(p), async ({send, run, visible}) => {
+    type: p => onPage(tabArg(p), async ({send, run, tab}) => {
       const ref = asInt(p.ref, 'ref');
       if (typeof p.text !== 'string' || p.text.length > 5000) throw new UserError('text must be a string of at most 5000 characters');
-      if (p.enter && !visible) throw new UserError(`--enter needs a visible tab, run \`vivctl focus ${tabArg(p)}\` first`);
-      const f = await run(PAGE.find, {ref, forType: true});
+      const f = await run(PAGE.focus, {ref});
       if (f.error === 'password') throw new UserError('refusing to type into a password field: secrets must not pass through the model, type it yourself');
-      if (f.error === 'not editable') throw new UserError('that element does not take text');
+      if (f.error === 'not editable') throw new UserError('that element does not take text (for a select use `vivctl select`)');
+      if (f.error === 'read-only') throw new UserError('that element is read-only or disabled');
       if (f.error) throw new UserError('that element is gone, run `vivctl elements` again');
-      // A tab in the background takes no real keyboard input, so there the value is set in the page instead.
-      if (visible) await send('Input.insertText', {text: p.text});
-      let arrived = visible && await run(PAGE.typed, {ref, text: p.text});
-      if (!arrived) { await run(PAGE.setvalue, {ref, text: p.text}); arrived = await run(PAGE.typed, {ref, text: p.text}); }
-      if (!arrived) throw new UserError('the text did not arrive in the element (the page may block scripted input)');
-      if (p.enter) for (const type of ['keyDown', 'keyUp']) await send('Input.dispatchKeyEvent', {type, key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: type === 'keyDown' ? '\r' : undefined});
-      await settle();
-      return {typed: p.text.length};
-    }),
-    press: p => onPage(tabArg(p), async ({send, visible}) => {
-      if (!visible) throw new UserError(`key presses need a visible tab, run \`vivctl focus ${tabArg(p)}\` first`);
-      if (!Object.hasOwn(KEYS, p.key)) throw new UserError(`unknown key "${p.key}", use one of: ${Object.keys(KEYS).join(', ')}`);
-      for (const type of ['keyDown', 'keyUp']) {
-        await send('Input.dispatchKeyEvent', {type, key: p.key === 'Space' ? ' ' : p.key, code: p.key, windowsVirtualKeyCode: KEYS[p.key],
-          text: type === 'keyDown' && p.key === 'Enter' ? '\r' : undefined});
+      // Real text input first. Vivaldi drops it for a tab that is not in front, and then the value
+      // is set from the page. Either way the result is checked.
+      await send('Input.insertText', {text: p.text});
+      let via = 'keyboard';
+      if (!await run(PAGE.typed, {ref, text: p.text})) {
+        via = 'script';
+        await run(PAGE.setvalue, {ref, text: p.text});
+        if (!await run(PAGE.typed, {ref, text: p.text})) throw new UserError('the text did not arrive in the element (the page may block scripted input)');
       }
-      await settle();
-      return {};
+      const enter = p.enter ? await pressKey(send, run, 'Enter') : null;
+      await settle(tab.id, p.enter ? 300 : 100);
+      return {typed: p.text.length, via, ...(enter && {enter: enter.via, ...(enter.submitted && {submitted: true})})};
+    }),
+    press: p => onPage(tabArg(p), async ({send, run, tab}) => {
+      if (!Object.hasOwn(KEYS, p.key)) throw new UserError(`unknown key "${p.key}", use one of: ${Object.keys(KEYS).join(', ')}`);
+      const r = await pressKey(send, run, p.key);
+      await settle(tab.id);
+      return {key: p.key, ...r};
+    }),
+    select: p => onPage(tabArg(p), async ({run, tab}) => {
+      const ref = asInt(p.ref, 'ref');
+      if (typeof p.value !== 'string' || !p.value) throw new UserError('give the option to select, by its text or value');
+      const r = await run(PAGE.select, {ref, value: p.value});
+      if (r.error === 'not a select') throw new UserError('that element is not a select; for a custom dropdown use click');
+      if (r.error === 'no option') throw new UserError(`no option matches "${p.value}"; options: ${r.options.join(' | ')}`);
+      if (r.error) throw new UserError('that element is gone, run `vivctl elements` again');
+      await settle(tab.id, 100);
+      return r;
+    }),
+    scroll: p => onPage(tabArg(p), async ({run, tab}) => {
+      if (!['up', 'down', 'top', 'bottom'].includes(p.to)) throw new UserError('scroll up, down, top or bottom');
+      const r = await run(PAGE.scroll, {to: p.to});
+      await settle(tab.id, 100);
+      return r;
     }),
     screenshot: p => onPage(tabArg(p), async ({sessionId}) => {
       const r = await cdp('Page.captureScreenshot', {format: 'png'}, sessionId, 6000).catch(() => {
@@ -493,7 +675,7 @@ function request(req) {
 }
 
 function parseArgs(argv) {
-  const valued = new Set(['title', 'color', 'into', 'stack', 'max']), flags = new Set(['json', 'focus', 'enter']);
+  const valued = new Set(['title', 'color', 'into', 'stack', 'max']), flags = new Set(['json', 'focus', 'enter', 'force']);
   const out = {pos: [], opt: {}};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -532,13 +714,16 @@ const HELP = `vivctl: manage Vivaldi tabs and tab stacks
   vivctl read TAB [--max N]           title, url and visible text (default 20000 characters)
   vivctl elements TAB                 clickable and editable elements, numbered
   vivctl navigate TAB URL | back TAB | forward TAB | reload TAB
-  vivctl click TAB REF                click element REF from the last "elements"
+  vivctl click TAB REF [--force]      click element REF from the last "elements" (--force: even if covered)
   vivctl type TAB REF TEXT [--enter]  replace the text of an element, never a password field
+  vivctl select TAB REF OPTION        choose an option of a select, by text or value
   vivctl press TAB KEY                ${Object.keys(KEYS).join(' ')}
+  vivctl scroll TAB up|down|top|bottom
   vivctl focus TAB                    make TAB the active tab (screenshots need a visible tab)
   vivctl screenshot TAB               saves a PNG under ~/.vivctl/shots and prints its path
 
-STACK is a title (case-insensitive) or a stack id (8+ leading characters).`;
+STACK is a title (case-insensitive) or a stack id (8+ leading characters).
+In "vivctl tabs", a title starting with ~ is a tab that is not loaded.`;
 
 async function client(cmd, argv) {
   const {pos, opt} = parseArgs(argv);
@@ -551,7 +736,7 @@ async function client(cmd, argv) {
     case 'tabs': {
       const t = await request({op: 'tabs'});
       return opt.json ? out(t) : t.forEach(x => console.log(
-        `${String(x.id).padEnd(11)} ${clip(x.groupTitle || (x.group ? x.group.slice(0, 8) : '-'), 16).padEnd(16)} ${clip(x.title, 40).padEnd(40)} ${clip(x.url, 70)}`));
+        `${String(x.id).padEnd(11)} ${clip(x.groupTitle || (x.group ? x.group.slice(0, 8) : '-'), 16).padEnd(16)} ${clip((x.status === 'unloaded' ? '~ ' : '') + x.title, 40).padEnd(40)} ${clip(x.url, 70)}`));
     }
     case 'stacks': {
       const s = await request({op: 'stacks'});
@@ -575,7 +760,9 @@ async function client(cmd, argv) {
     }
     case 'navigate': if (pos.length !== 2) throw new UserError('usage: vivctl navigate TAB URL'); return out(await request({op: 'navigate', tab: ids(pos.slice(0, 1))[0], url: pos[1]}));
     case 'focus': case 'back': case 'forward': case 'reload': return out(await request({op: cmd, tab: ids(pos.slice(0, 1))[0]}));
-    case 'click': if (pos.length !== 2) throw new UserError('usage: vivctl click TAB REF'); return out(await request({op: 'click', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0]}));
+    case 'click': if (pos.length !== 2) throw new UserError('usage: vivctl click TAB REF [--force]'); return out(await request({op: 'click', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0], force: opt.force}));
+    case 'select': if (pos.length < 3) throw new UserError('usage: vivctl select TAB REF OPTION'); return out(await request({op: 'select', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0], value: pos.slice(2).join(' ')}));
+    case 'scroll': if (pos.length !== 2) throw new UserError('usage: vivctl scroll TAB up|down|top|bottom'); return out(await request({op: 'scroll', tab: ids(pos.slice(0, 1))[0], to: pos[1]}));
     case 'type': if (pos.length < 3) throw new UserError('usage: vivctl type TAB REF TEXT [--enter]'); return out(await request({op: 'type', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0], text: pos.slice(2).join(' '), enter: opt.enter}));
     case 'press': if (pos.length !== 2) throw new UserError('usage: vivctl press TAB KEY'); return out(await request({op: 'press', tab: ids(pos.slice(0, 1))[0], key: pos[1]}));
     case 'screenshot': { const r = await request({op: 'screenshot', tab: ids(pos.slice(0, 1))[0]}); return opt.json ? out(r) : console.log(r.file); }

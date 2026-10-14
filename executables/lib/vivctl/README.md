@@ -23,20 +23,45 @@ Pages, like Playwright but through the same daemon (tab ids from `tabs` or `open
 ```
 vivctl read TAB [--max N]            title, url and visible text, default 20000 characters
 vivctl elements TAB                  clickable and editable elements, numbered
-vivctl navigate TAB URL              also: back, forward, reload
-vivctl click TAB REF                 REF is a number from the last `elements`
+vivctl navigate TAB URL              also: back, forward, reload (reload also loads a hibernated tab)
+vivctl click TAB REF [--force]       REF is a number from the last `elements`
 vivctl type TAB REF TEXT [--enter]   replaces the text of an element, never a password field
+vivctl select TAB REF OPTION         choose an option of a <select> by its text or value
 vivctl press TAB KEY                 Enter Tab Escape Backspace Space arrows PageUp PageDown Home End
+vivctl scroll TAB up|down|top|bottom
 vivctl focus TAB                     make it the active tab
 vivctl screenshot TAB                PNG under ~/.vivctl/shots, the path is printed
 ```
 
-There is no `eval`: the page operations are fixed commands like the rest. A tab id cannot be
-mapped to a DevTools target directly, so the page is found by URL and title. Tabs that were
-restored but never loaded have no page and are skipped. If two loaded tabs show the same page,
-or none does, the command fails and says so instead of guessing. In a tab that is not visible
-the browser takes no real keyboard input, so `type` sets the value in the page and then checks
-that it arrived; `press` and `type --enter` ask for `vivctl focus` first.
+There is no `eval`: the page operations are fixed commands like the rest. What they do and why:
+
+- **Scripts run in an isolated world**, like Playwright's utility world: they share the DOM with
+  the page but not its JavaScript, so a page that patches `querySelectorAll`, `JSON` or the
+  `value` setter neither breaks them nor sees them.
+- **Shadow DOM and iframes.** `elements`, `read`, `click` and `type` reach into open shadow roots
+  and same-origin iframes. Cross-origin iframes and closed shadow roots stay out of reach.
+- **Finding the page behind a tab.** A tab id cannot be mapped to a DevTools target directly, so
+  the candidates are the page targets with the tab's URL. A tab that was restored but never
+  loaded has a target without a renderer that never answers; each candidate is probed, and the
+  wait ends as soon as as many pages answered as Vivaldi reports loaded tabs with that URL. When
+  two loaded tabs show the same page, each gets a marker title for a fraction of a second, and
+  the one whose marker appears on the tab is it; the titles are restored right after. A tab that
+  is not loaded at all is reported at once, `vivctl reload` loads it.
+- **Every input is verified, with a fallback.** Vivaldi drops keyboard input to a tab that is not
+  in front, so a key or text could vanish while the command reports success. Instead, the page
+  side arms a listener before each real input and checks afterwards whether it arrived. If it
+  did not, the same input is produced from the page: text is set as the element's value (which
+  frameworks like React register as an edit, since the isolated world bypasses their tracking),
+  keys are dispatched as events, and Enter in a form submits it, as the browser would have. The
+  result says which path was taken (`via: keyboard`, `mouse` or `script`). Scripted keys are
+  untrusted events: the page's handlers see them, but browser defaults such as moving focus with
+  Tab or scrolling with PageDown do not happen; `focus` the tab first when that matters.
+- **Clicks are aimed.** Before a click, the element is scrolled into view and the point is hit
+  tested: if something else is on top (a cookie banner, a modal), the command names it and does
+  not click; `--force` clicks the element from the page anyway. The result reports tabs the
+  click opened (`newTabs`) and the URL the tab navigated to.
+- **Waiting.** After an action the command returns once a navigation it started has finished
+  loading, so the next command sees the new page.
 
 A stack is addressed by its title (case-insensitive) or by the first 8 or more characters of
 its id. A stack needs two tabs, so a stack is created by `open` with two or more URLs or by

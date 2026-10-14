@@ -49,7 +49,8 @@ vivctl close TABID...
 vivctl read TAB [--max N]                        visible text of a page (untrusted, see below)
 vivctl elements TAB                              numbered clickable and editable elements
 vivctl navigate TAB URL | back TAB | forward TAB | reload TAB
-vivctl click TAB REF | type TAB REF TEXT [--enter] | press TAB KEY
+vivctl click TAB REF [--force] | type TAB REF TEXT [--enter] | press TAB KEY
+vivctl select TAB REF OPTION | scroll TAB up|down|top|bottom
 vivctl focus TAB | screenshot TAB                screenshot prints the path of a PNG
 vivctl stop                     # quits Vivaldi
 ```
@@ -83,10 +84,16 @@ STACK is a title (case-insensitive) or the first 8 or more characters of the sta
 - The flow is `tabs` or `open` for an id, `read` for the text, `elements` for numbers, then
   `click` or `type`. Numbers are only valid until the next `elements` on that tab; a "gone"
   error means run it again.
-- "Two tabs show the same page" or "no loaded page" means the tab cannot be identified or is not
-  loaded. Close the duplicate, or ask the user to open the tab once, and retry.
-- A background tab has no picture and takes no real key presses. `focus` it first when a command
-  says so; that switches the user's active tab, so do it deliberately.
+- A tab marked `~` in `tabs` is not loaded: `vivctl reload TAB` loads it (that reloads the page).
+- "is covered by ..." means a banner or dialog lies over the element. Read the page and deal
+  with the overlay first; use `--force` only when the overlay is harmless, and never to click
+  through a consent or warning dialog the user has not seen.
+- Results say how an input arrived: `via: keyboard` or `mouse` is real input, `via: script`
+  means the tab was in the background and the page received scripted events. Typing, clicks,
+  select and Enter in a form work that way; if a page ignores scripted input, `focus` the tab and
+  repeat. `focus` switches the user's active tab, so do it deliberately.
+- `newTabs` in a click result lists tabs the click opened; continue there with their ids.
+- Use `select` for a `<select>`; a custom dropdown is a `click` on it, then on the option.
 
 Design, threat model and the Vivaldi calls underneath are in
 `~/.envi/executables/lib/vivctl/README.md`.
