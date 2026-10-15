@@ -7,6 +7,7 @@ agents can organise a browser without anybody clicking.
 vivctl init                                   once per Mac: create the profile the daemon runs
 vivctl start                                  run Vivaldi under the control daemon (locked)
 vivctl unlock | lock                          Touch ID opens everything below for 60 minutes
+vivctl install-app                            the Vivaldi Ctl app for the Dock and as default browser
 vivctl open https://a.example https://b.example --stack Research --color blue
 vivctl open https://c.example --stack research     add a tab to an existing stack
 vivctl stacks                                 list stacks (id, color, title, tab ids)
@@ -15,6 +16,10 @@ vivctl color research green                   grey blue red yellow green pink pu
 vivctl unstack research                       dissolve, keep the tabs
 vivctl close-stack research                   close the stack and all its tabs
 vivctl tabs [--json]                          every tab with its stack, query and fragment of URLs cut off
+vivctl windows [--json]                       every window: id, number of tabs and stacks
+vivctl move 123 456 --to <window>|new         move tabs to another window, or a new one
+vivctl move --stack research --to new         move a whole stack; it stays a stack
+vivctl move --window <a> --to <b>             move every tab of window a into b, which closes a
 vivctl stop                                   close Vivaldi
 ```
 
@@ -184,9 +189,92 @@ pipe and cannot be controlled; start it with `vivctl start` instead. Vivaldi lau
 second time on the same profile hands over to the running instance and exits, which leaves a
 daemon without a browser (see `~/.vivctl/daemon.log`).
 
+## The Vivaldi Ctl app
+
+Vivaldi's own Dock icon, and every link while Vivaldi is the default browser, open its default
+profile, which has no control channel. `vivctl install-app` builds a small app,
+`~/Applications/Vivaldi Ctl.app`, to use in their place: put it in the Dock instead of Vivaldi's
+icon and pick it as the default web browser (System Settings, Desktop & Dock). It always lands in
+the Vivaldi that vivctl runs:
+
+| Situation | What the app does |
+|---|---|
+| clicked, vivctl not running | `vivctl start` |
+| clicked, vivctl running | brings that Vivaldi to the front, or opens a window when none is open |
+| a link, vivctl not running | `vivctl start`, then hands the link over |
+| a link, vivctl running | hands the link over |
+| Vivaldi runs on the profile without vivctl | asks whether to restart it under vivctl, never quits it unasked |
+
+Handing a link over starts the Vivaldi binary with the same `--user-data-dir`; Chromium passes
+the URL to the running instance and the second process exits, so this needs neither the control
+channel nor Touch ID. Whether a window is open comes from `vivctl status`, which counts minimized
+windows and those on another Space; the window server's own list is no help, since Chromium keeps
+invisible windows there. The app quits once it is done.
+
+The source is `launcher.swift`; `install-app` compiles it, writes the paths it needs (the vivctl
+wrapper, `VIVCTL_PROFILE`, `VIVCTL_HOME`, the Vivaldi binary) into its `Info.plist`, signs it ad
+hoc and registers it with LaunchServices. `vivctl start` and `status` warn when the installed app
+was built from an older `launcher.swift`; run `install-app` again then. `VIVCTL_APP_DIR`,
+`VIVCTL_APP_NAME` and `VIVCTL_APP_ID` change where it goes and what it is called, which the tests
+use to build a variant that cannot be mistaken for the real one.
+
+## Moving between windows
+
+`move` uses the call behind Vivaldi's own "Move to window" (`tabsPrivate.move` with target `-1`,
+the end of the target window); a new window is created around the first tab
+(`chrome.windows.create({tabId})`). Three things it takes care of:
+
+- Vivaldi drops the stack of a tab that changes windows. A stack that moves whole is put back
+  together in the target window with its title, color and tabs, and is checked like every other
+  stack; only its id is new.
+- A stack never ends up split across two windows: tabs taken out of a stack whose other tabs
+  stay behind leave it first. The stack that stays keeps its id, title and color, unless only
+  one tab is left, which is no stack anymore.
+- Moving the last tabs out of a window closes it, and with it the window's UI page, so the move
+  runs on the background page, like `close`.
+
+`move --window a --to b` is how two windows become one, the same thing Vivaldi's "merge all
+windows" does for each window.
+
+## No window open
+
+On macOS Vivaldi keeps running when its last window is closed. Its window UI is gone then, but
+its background page (`main.html`) stays. `vivctl status` says so, `tabs` and `stacks` answer
+with an empty list, and `open` asks the background page to open a window first
+(`chrome.windows.create`), so it works as usual. Closing tabs also runs on the background page:
+closing the last tab takes the window and its UI page with it, and a call running there would
+never return.
+
+## Testing
+
+```bash
+executables/lib/vivctl/test/run.sh          # about two minutes, Vivaldi windows appear
+executables/lib/vivctl/test/run.sh --keep   # keep the temp directory with profile and logs
+```
+
+The suite starts its own daemon on a throwaway profile in a temp directory and serves the pages
+in `test/site/` from its own local web server, so it needs no network and never touches a real
+profile. It covers stacks (including the cases where the active tab sits in another stack),
+every page command in background and front tabs, shadow DOM, iframes, a hostile page that
+patches globals, the windowless state, the lock (answered by a script instead of Touch ID) and
+tabs that are restored but not loaded. Run it after every Vivaldi update: the calls vivctl
+relies on are undocumented, and a changed one shows up there as a failure.
+
 ## Files
 
-- `vivctl.mjs`: the daemon and the client, plain Node without dependencies
+- `vivctl.mjs`: the entry point, plain Node without dependencies; the code behind it is split
+  by responsibility:
+  - `common.mjs`: configuration, errors, input validation, the socket request
+  - `client.mjs`: the command line, `start` and `init`
+  - `daemon.mjs`: starts Vivaldi on the pipe and serves the socket
+  - `lock.mjs`: the Touch ID lock and its lease
+  - `ops.mjs`: the whitelist of operations, the only way anything reaches the browser
+  - `browser.mjs`: CDP over the pipe, calls into Vivaldi's UI pages
+  - `pages.mjs`: the web page behind a tab, and input that is verified to arrive
+  - `ui-scripts.mjs`, `page-scripts.mjs`: the fixed code that runs in Vivaldi's UI page and in
+    web pages
 - `touchid.swift`: the Touch ID check, exit code 0 only if the owner authenticated
+- `launcher.swift`: the Vivaldi Ctl app, built by `vivctl install-app`
 - `../../macbin/vivctl`: the wrapper that finds Node (also through nvm) and runs it
+- `test/run.sh`, `test/site/`: the live test suite and its pages
 - `~/.vivctl/`: socket and `daemon.log`

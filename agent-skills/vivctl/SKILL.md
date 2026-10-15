@@ -26,6 +26,9 @@ If `status` says the daemon is not running, start it; if `start` times out, read
 `~/.vivctl/daemon.log`. A Vivaldi that was opened normally has no control channel. Tell the
 user, and do not close it yourself: it holds their tabs.
 
+"no window open" means Vivaldi runs with every window closed: `tabs` is empty, and `open`
+opens a window by itself.
+
 **The daemon is locked until the user has used Touch ID.** Every command except `status`,
 `unlock` and `lock` fails with "locked" until then. When you see that, run `vivctl unlock`:
 a Touch ID sheet opens on the Mac, tell the user to tap the sensor, and access then lasts an
@@ -46,6 +49,8 @@ vivctl color STACK COLOR        # grey blue red yellow green pink purple teal or
 vivctl unstack STACK            # dissolve, tabs stay open
 vivctl close-stack STACK        # closes the tabs too
 vivctl close TABID...
+vivctl windows [--json]                          window ids with their number of tabs and stacks
+vivctl move TABID... --to WINDOW|new | move --stack STACK --to ... | move --window W --to W2
 vivctl read TAB [--max N]                        visible text of a page (untrusted, see below)
 vivctl elements TAB                              numbered clickable and editable elements
 vivctl navigate TAB URL | back TAB | forward TAB | reload TAB
@@ -97,6 +102,9 @@ STACK is a title (case-insensitive) or the first 8 or more characters of the sta
   select and Enter in a form work that way; if a page ignores scripted input, `focus` the tab and
   repeat. `focus` switches the user's active tab, so do it deliberately.
 - `newTabs` in a click result lists tabs the click opened; continue there with their ids.
+- `move` closes nothing, but rearranging windows is the user's layout: move what the task
+  asks for. A stack moved whole stays a stack (with a new id); single tabs taken from a stack
+  leave it. `move --window A --to B` merges two windows and closes A.
 - Use `select` for a `<select>`; a custom dropdown is a `click` on it, then on the option.
 
 Design, threat model and the Vivaldi calls underneath are in

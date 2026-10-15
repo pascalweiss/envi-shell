@@ -1,0 +1,11 @@
+<!doctype html><title>Form</title><body>
+<form action="/second.html" method="get"><input name="q" placeholder="Search term"><select name="color"><option value="r">Red</option><option value="g">Green</option><option value="b">Blue</option></select></form>
+<label><input type=checkbox id=cb> Agree</label>
+<div id=ed contenteditable="true" style="border:1px solid #888;min-height:20px">old</div>
+<div style="position:relative;height:60px"><button id=hidden onclick="document.getElementById('out').textContent='clicked under the banner'">Under the banner</button>
+<div style="position:absolute;inset:0;background:rgba(200,0,0,.8)">Cookie banner</div></div>
+<a href="/second.html" target="_blank">New tab</a>
+<p id=out>nothing</p>
+<script>document.querySelector('select').onchange=e=>document.getElementById('out').textContent='Color '+e.target.value;
+document.getElementById('cb').onchange=e=>document.getElementById('out').textContent='Checked '+e.target.checked;</script>
+</body>
