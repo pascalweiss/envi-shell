@@ -175,6 +175,35 @@ check "navigate" "Page two" "$(v navigate "$T" "$URL/second.html")"
 v back "$T" >/dev/null
 check "back" "Test page" "$(v read "$T" | head -1)"
 
+echo "== windows and move"
+wins(){ v windows --json | jq_ "print(len(d))"; }
+win_of(){ v tabs --json | jq_ "print([t['windowId'] for t in d if t['id']==$1][0])"; }
+W1="$(v windows --json | jq_ "print(d[0]['id'])")"
+check "windows lists one window" "1" "$(wins)"
+v open "$URL/second.html?t=mv1" "$URL/second.html?t=mv2" --stack Mover --color teal >/dev/null
+MV="$(stack_of Mover)"; MV_TABS="$(echo "$MV" | cut -d'|' -f3)"
+out="$(v move --stack mover --to new)"
+check "move a stack to a new window" "window:" "$out"
+check "now two windows" "2" "$(wins)"
+W2="$(v windows --json | jq_ "print([w['id'] for w in d if w['id']!=$W1][0])")"
+check "the stack is a stack in the new window, same title, color and tabs" "Mover|teal|$MV_TABS|" "$(stack_of Mover)"
+check "its tabs are in the new window" "$W2" "$(win_of "$(echo "$MV_TABS" | cut -d' ' -f1)")"
+v open "$URL/second.html?t=p1" "$URL/second.html?t=p2" "$URL/second.html?t=p3" --stack Partial --color red >/dev/null
+PA="$(stack_of Partial)"; P1="$(echo "$PA" | cut -d'|' -f3 | cut -d' ' -f1)"
+v move "$P1" --to "$W2" >/dev/null
+check "one tab out of a stack: the stack keeps its other tabs and its id" "Partial|red|$(echo "$PA" | cut -d'|' -f3 | cut -d' ' -f2-)|$(echo "$PA" | cut -d'|' -f4)" "$(stack_of Partial)"
+check "the moved tab is in no stack" "none" "$(group_of "$P1")"
+check "and in the other window" "$W2" "$(win_of "$P1")"
+N="$(v tabs --json | jq_ "print(len(d))")"
+check "merge a window into another" "window:" "$(v move --window "$W1" --to "$W2")"
+check "one window left" "1" "$(wins)"
+check "no tab lost" "$N" "$(v tabs --json | jq_ "print(len(d))")"
+check "stacks survive the merge" "Mover|teal|$MV_TABS|" "$(stack_of Mover)"
+check "move needs exactly one source" "exactly one" "$(v move --to new 2>&1)"
+check "move needs a target" "--to" "$(v move "$P1" 2>&1)"
+check "unknown window" "no window" "$(v move "$P1" --to 12345 2>&1)"
+check "window ids are numbers" "not a window id" "$(v move "$P1" --to abc 2>&1)"
+
 echo "== no window open"
 ALL="$(v tabs --json | jq_ "print(' '.join(str(t['id']) for t in d))")"
 # shellcheck disable=SC2086
@@ -190,7 +219,7 @@ printf '#!/bin/sh\nexit "$(cat "%s")"\n' "$TMP/auth-answer" > "$TMP/auth.sh"; ch
 echo 1 > "$TMP/auth-answer"
 VIVCTL_AUTH= VIVCTL_AUTH_BIN="$TMP/auth.sh" v start >/dev/null
 check "starts locked" "locked" "$(v status)"
-for c in "tabs" "open $URL/" "read 1" "click 1 1" "type 1 1 x" "select 1 1 x" "scroll 1 down" "stack 1 2" "stop"; do
+for c in "tabs" "windows" "open $URL/" "read 1" "click 1 1" "type 1 1 x" "select 1 1 x" "scroll 1 down" "stack 1 2" "move 1 --to new" "stop"; do
     # shellcheck disable=SC2086
     check "locked: $c" "locked" "$(v $c 2>&1)"
 done

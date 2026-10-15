@@ -57,6 +57,23 @@ export const UI = {
     if(left.length) throw new Error("tabs still in a stack after ungroup: "+left.join(" "));
     return hit.map(t=>t.id)`,
   close: `await new Promise(r=>chrome.tabs.remove(P.ids,r)); return P.ids`,
+  windows: `return (await new Promise(r=>chrome.windows.getAll({},r))).map(w=>({id:w.id,focused:w.focused,state:w.state,type:w.type}))`,
+  // Moves tabs to the end of window P.to, or into a new window, the way Vivaldi's own "Move to
+  // window" does (tabsPrivate.move with target -1). Tabs keep their stack. Runs on the background
+  // page, since a window whose last tab leaves closes, UI page included.
+  move: `
+    let w=P.to;
+    if(w==="new"){const nw=await new Promise(r=>chrome.windows.create({tabId:P.ids[0],focused:!!P.focus},r)); w=nw.id;}
+    const rest=P.to==="new"?P.ids.slice(1):P.ids;
+    if(rest.length){
+      const r=await vivaldi.tabsPrivate.move({tabIds:rest,target:-1,windowId:w,tweaks:["do-not-reparent"],workspaceId:0,debug:"vivctl"});
+      if(r&&r.success===false) throw new Error("Vivaldi refused to move the tabs");
+    }
+    await wait(400);
+    const left=(await q()).filter(t=>P.ids.includes(t.id)&&t.windowId!==w).map(t=>t.id);
+    if(left.length) throw new Error("tabs did not arrive in the window: "+left.join(" "));
+    if(P.focus&&P.to!=="new") await new Promise(r=>chrome.windows.update(w,{focused:true},r));
+    return w`,
   newWindow: `await new Promise(r=>chrome.windows.create({focused:true},()=>r(true))); return true`,
   status: `const t=await new Promise(r=>chrome.tabs.get(P.id,r)); return t?{status:t.status,title:t.title||"",discarded:!!t.discarded}:null`,
   navigate: `await new Promise(r=>chrome.tabs.update(P.id,{url:P.url},r)); return true`,

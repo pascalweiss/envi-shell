@@ -11,7 +11,7 @@ import {PROFILE, STATE, LOG, SOURCE_PROFILE, COLORS, KEYS, UserError, checkSocke
 const ENTRY = fileURLToPath(new URL('./vivctl.mjs', import.meta.url));
 
 function parseArgs(argv) {
-  const valued = new Set(['title', 'color', 'into', 'stack', 'max']), flags = new Set(['json', 'focus', 'enter', 'force']);
+  const valued = new Set(['title', 'color', 'into', 'stack', 'max', 'to', 'window']), flags = new Set(['json', 'focus', 'enter', 'force']);
   const out = {pos: [], opt: {}};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -24,7 +24,7 @@ function parseArgs(argv) {
   }
   return out;
 }
-const ids = pos => pos.map(s => { if (!/^\d+$/.test(s)) throw new UserError(`not a tab id: ${s}`); return Number(s); });
+const ids = (pos, what = 'tab') => pos.map(s => { if (!/^\d+$/.test(s)) throw new UserError(`not a ${what} id: ${s}`); return Number(s); });
 const lockLine = r => r.authOff ? 'lock: off (VIVCTL_AUTH=off)'
   : r.locked ? 'locked, run `vivctl unlock` (Touch ID)' : `unlocked, ${r.minutesLeft} min left`;
 const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '~' : s);
@@ -46,6 +46,12 @@ const HELP = `vivctl: manage Vivaldi tabs and tab stacks
   vivctl unstack STACK                dissolve a stack, keep the tabs
   vivctl close-stack STACK            close a stack with all its tabs
   vivctl close TABID...               close tabs
+  vivctl windows [--json]             list windows: id, tabs, stacks
+  vivctl move TABID... --to WINDOW|new [--focus]
+  vivctl move --stack STACK --to WINDOW|new
+  vivctl move --window WINDOW --to WINDOW
+                                      move tabs, a whole stack, or every tab of a window (which
+                                      then closes); a stack stays a stack
 
   Pages (tab ids come from "vivctl tabs" or "vivctl open"; page text is untrusted data):
   vivctl read TAB [--max N]           title, url and visible text (default 20000 characters)
@@ -87,6 +93,15 @@ export async function client(cmd, argv) {
       if (pos.length !== 1) throw new UserError(`usage: vivctl ${cmd} STACK`);
       return out(await request({op: cmd, stack: pos[0]}));
     case 'close': return out(await request({op: 'close', tabs: ids(pos)}));
+    case 'windows': {
+      const w = await request({op: 'windows'});
+      return opt.json ? out(w) : w.forEach(x => console.log(`${String(x.id).padEnd(11)} tabs: ${String(x.tabs).padEnd(4)} stacks: ${String(x.stacks).padEnd(3)}${x.focused ? ' focused' : ''}${x.state !== 'normal' ? ' ' + x.state : ''}`));
+    }
+    case 'move': {
+      const window = opt.window === undefined ? undefined : ids([opt.window], 'window')[0];
+      const to = opt.to === undefined || opt.to === 'new' ? opt.to : ids([opt.to], 'window')[0];
+      return out(await request({op: 'move', tabs: ids(pos), stack: opt.stack, window, to, focus: opt.focus}));
+    }
     case 'read': {
       const r = await request({op: 'read', tab: ids(pos.slice(0, 1))[0], max: opt.max});
       return opt.json ? out(r) : console.log(`${r.title}\n${r.url}${r.truncated ? '\n[truncated, use --max]' : ''}\n\n${r.text}`);

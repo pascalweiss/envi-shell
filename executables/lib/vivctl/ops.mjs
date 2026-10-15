@@ -178,6 +178,53 @@ export function createOps({browser, pages, lock}) {
       fs.writeFileSync(file, Buffer.from(r.data, 'base64'), {mode: 0o600});
       return {file};
     }),
+    windows: async () => {
+      const [wins, tabs] = await Promise.all([inUI('windows', {}, {bg: true}), listTabs()]);
+      return wins.filter(w => w.type === 'normal').map(w => {
+        const own = tabs.filter(t => t.windowId === w.id);
+        return {id: w.id, focused: w.focused, state: w.state, tabs: own.length, stacks: stacksOf(own).length,
+          active: own.find(t => t.active)?.id};
+      });
+    },
+    // One source (tab ids, a stack, or a whole window) to one target (a window id, or "new").
+    move: async p => {
+      const sources = [p.tabs?.length ? 'tabs' : null, p.stack ? 'stack' : null, p.window !== undefined ? 'window' : null].filter(Boolean);
+      if (sources.length !== 1) throw new UserError('move takes tab ids, --stack STACK or --window WINDOW, exactly one of them');
+      if (p.to === undefined) throw new UserError('say where to: --to WINDOW or --to new');
+      const to = p.to === 'new' ? 'new' : asInt(p.to, 'window');
+      const tabs = await listTabs();
+      let ids;
+      if (p.stack) ids = (await resolveStack(p.stack)).tabs;
+      else if (p.window !== undefined) {
+        const from = asInt(p.window, 'window');
+        ids = tabs.filter(t => t.windowId === from).map(t => t.id);
+        if (!ids.length) throw new UserError(`no window ${from}, see \`vivctl windows\``);
+        if (from === to) throw new UserError('that is the same window');
+      } else ids = [...new Set(p.tabs.map(t => asInt(t, 'tab')))];
+      for (const id of ids) if (!tabs.some(t => t.id === id)) throw new UserError(`no such tab: ${id}`);
+      if (to !== 'new' && !tabs.some(t => t.windowId === to)) throw new UserError(`no window ${to}, see \`vivctl windows\``);
+      // A stack moves whole or not at all: tabs taken from a stack whose other tabs stay behind
+      // leave it first, so that no stack ends up split across two windows.
+      const touched = stacksOf(tabs).filter(s => s.tabs.some(id => ids.includes(id)));
+      const whole = touched.filter(s => s.tabs.every(id => ids.includes(id)));
+      const leaving = touched.filter(s => !whole.includes(s)).flatMap(s => s.tabs.filter(id => ids.includes(id)));
+      if (leaving.length) await inUI('ungroup', {ids: leaving}, {bg: true});
+      const windowId = await inUI('move', {ids, to, focus: !!p.focus}, {bg: true});
+      // Vivaldi drops the stack of a tab that changes windows. A stack that moved whole is put back
+      // together in the new window, with its title and color; only its id is new.
+      const after = await listTabs();
+      const restacked = [];
+      for (const s of whole) {
+        const groups = new Set(s.tabs.map(id => after.find(t => t.id === id)?.group));
+        const [g] = groups;
+        if (groups.size === 1 && g && after.filter(t => t.group === g).length === s.tabs.length) continue;
+        const grouped = s.tabs.filter(id => after.find(t => t.id === id)?.group);
+        if (grouped.length) await inUI('ungroup', {ids: grouped});
+        restacked.push(await inUI('stack', {first: s.tabs[0], others: s.tabs.slice(1), expect: s.tabs,
+          ...(s.title && {title: s.title}), ...(s.color && {color: asColor(s.color)})}));
+      }
+      return {moved: ids, window: windowId, ...(restacked.length && {stacks: restacked}), ...(leaving.length && {leftStack: leaving})};
+    },
     quit: async () => { await cdp('Browser.close'); return {}; },
   };
 }

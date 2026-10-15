@@ -57,7 +57,7 @@ export function stripUrl(u) {
 
 // ---------------------------------------------------------------- validation
 export function asInt(v, what) {
-  if (!Number.isInteger(v)) throw new UserError(`${what} must be an integer tab id`);
+  if (!Number.isInteger(v)) throw new UserError(`${what} must be an integer id`);
   return v;
 }
 export function asTitle(v) {

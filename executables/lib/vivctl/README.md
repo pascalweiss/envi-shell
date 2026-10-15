@@ -16,6 +16,10 @@ vivctl color research green                   grey blue red yellow green pink pu
 vivctl unstack research                       dissolve, keep the tabs
 vivctl close-stack research                   close the stack and all its tabs
 vivctl tabs [--json]                          every tab with its stack, query and fragment of URLs cut off
+vivctl windows [--json]                       every window: id, number of tabs and stacks
+vivctl move 123 456 --to <window>|new         move tabs to another window, or a new one
+vivctl move --stack research --to new         move a whole stack; it stays a stack
+vivctl move --window <a> --to <b>             move every tab of window a into b, which closes a
 vivctl stop                                   close Vivaldi
 ```
 
@@ -213,6 +217,24 @@ hoc and registers it with LaunchServices. `vivctl start` and `status` warn when 
 was built from an older `launcher.swift`; run `install-app` again then. `VIVCTL_APP_DIR`,
 `VIVCTL_APP_NAME` and `VIVCTL_APP_ID` change where it goes and what it is called, which the tests
 use to build a variant that cannot be mistaken for the real one.
+
+## Moving between windows
+
+`move` uses the call behind Vivaldi's own "Move to window" (`tabsPrivate.move` with target `-1`,
+the end of the target window); a new window is created around the first tab
+(`chrome.windows.create({tabId})`). Three things it takes care of:
+
+- Vivaldi drops the stack of a tab that changes windows. A stack that moves whole is put back
+  together in the target window with its title, color and tabs, and is checked like every other
+  stack; only its id is new.
+- A stack never ends up split across two windows: tabs taken out of a stack whose other tabs
+  stay behind leave it first. The stack that stays keeps its id, title and color, unless only
+  one tab is left, which is no stack anymore.
+- Moving the last tabs out of a window closes it, and with it the window's UI page, so the move
+  runs on the background page, like `close`.
+
+`move --window a --to b` is how two windows become one, the same thing Vivaldi's "merge all
+windows" does for each window.
 
 ## No window open
 
