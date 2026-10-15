@@ -184,9 +184,34 @@ pipe and cannot be controlled; start it with `vivctl start` instead. Vivaldi lau
 second time on the same profile hands over to the running instance and exits, which leaves a
 daemon without a browser (see `~/.vivctl/daemon.log`).
 
+## No window open
+
+On macOS Vivaldi keeps running when its last window is closed. Its window UI is gone then, but
+its background page (`main.html`) stays. `vivctl status` says so, `tabs` and `stacks` answer
+with an empty list, and `open` asks the background page to open a window first
+(`chrome.windows.create`), so it works as usual. Closing tabs also runs on the background page:
+closing the last tab takes the window and its UI page with it, and a call running there would
+never return.
+
+## Testing
+
+```bash
+executables/lib/vivctl/test/run.sh          # about two minutes, Vivaldi windows appear
+executables/lib/vivctl/test/run.sh --keep   # keep the temp directory with profile and logs
+```
+
+The suite starts its own daemon on a throwaway profile in a temp directory and serves the pages
+in `test/site/` from its own local web server, so it needs no network and never touches a real
+profile. It covers stacks (including the cases where the active tab sits in another stack),
+every page command in background and front tabs, shadow DOM, iframes, a hostile page that
+patches globals, the windowless state, the lock (answered by a script instead of Touch ID) and
+tabs that are restored but not loaded. Run it after every Vivaldi update: the calls vivctl
+relies on are undocumented, and a changed one shows up there as a failure.
+
 ## Files
 
 - `vivctl.mjs`: the daemon and the client, plain Node without dependencies
 - `touchid.swift`: the Touch ID check, exit code 0 only if the owner authenticated
 - `../../macbin/vivctl`: the wrapper that finds Node (also through nvm) and runs it
+- `test/run.sh`, `test/site/`: the live test suite and its pages
 - `~/.vivctl/`: socket and `daemon.log`

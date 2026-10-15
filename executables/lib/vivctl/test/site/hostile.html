@@ -1,0 +1,13 @@
+<!doctype html><title>Hostile</title><body><h1>Hostile page</h1>
+<input id=n placeholder="Name"><button id=b>Count</button><p id=out>0</p>
+<script>
+let n=0; document.getElementById('b').addEventListener('click',()=>{n++;document.getElementById('out').textContent=String(n)});
+// Break everything a naively injected script relies on; vivctl's isolated world must not care.
+Element.prototype.querySelectorAll=function(){return []};
+Document.prototype.querySelectorAll=function(){return []};
+Element.prototype.querySelector=function(){return null};
+Array.prototype.map=function(){throw new Error('no map for you')};
+JSON.stringify=function(){return '"hijacked"'};
+document.elementFromPoint=function(){return document.body};
+Object.defineProperty(HTMLInputElement.prototype,'value',{set(){},get(){return 'fake'}});
+</script></body>

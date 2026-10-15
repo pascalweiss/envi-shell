@@ -41,6 +41,8 @@ const DENY = (process.env.VIVCTL_DENY || '').split(',').map(x => x.trim().toLowe
 const OPEN_OPS = new Set(['ping', 'unlock', 'lock']); // the only operations that work while locked
 
 class UserError extends Error {}
+// Vivaldi is up, but every window is closed (on macOS it keeps running like that).
+class NoWindow extends UserError {}
 
 const hostDenied = u => {
   try { const h = new URL(u).hostname.toLowerCase(); return DENY.some(d => h === d || h.endsWith('.' + d)); } catch { return false; }
@@ -154,6 +156,7 @@ const UI = {
     if(left.length) throw new Error("tabs still in a stack after ungroup: "+left.join(" "));
     return hit.map(t=>t.id)`,
   close: `await new Promise(r=>chrome.tabs.remove(P.ids,r)); return P.ids`,
+  newWindow: `await new Promise(r=>chrome.windows.create({focused:true},()=>r(true))); return true`,
   status: `const t=await new Promise(r=>chrome.tabs.get(P.id,r)); return t?{status:t.status,title:t.title||"",discarded:!!t.discarded}:null`,
   navigate: `await new Promise(r=>chrome.tabs.update(P.id,{url:P.url},r)); return true`,
   focus: `await new Promise(r=>chrome.tabs.update(P.id,{active:true},r)); return true`,
@@ -314,19 +317,52 @@ async function daemon() {
     toB.write(JSON.stringify({id, method, params, sessionId}) + '\0');
   });
 
-  let session = null;
-  async function uiSession() {
-    const {targetInfos} = await cdp('Target.getTargets');
-    const ui = targetInfos.find(t => t.type === 'app' && t.url.endsWith('/window.html'));
-    if (!ui) throw new UserError('Vivaldi has no open window yet');
-    if (session?.targetId !== ui.targetId) {
-      const r = await cdp('Target.attachToTarget', {targetId: ui.targetId, flatten: true});
-      session = {targetId: ui.targetId, sessionId: r.sessionId};
+  // One attached session per UI page, reattached when the page is a new one.
+  const sessions = {};
+  async function attach(kind, target) {
+    if (sessions[kind]?.targetId !== target.targetId) {
+      const r = await cdp('Target.attachToTarget', {targetId: target.targetId, flatten: true});
+      sessions[kind] = {targetId: target.targetId, sessionId: r.sessionId};
     }
-    return session.sessionId;
+    return sessions[kind].sessionId;
   }
-  async function inUI(name, params = {}) {
-    const sid = await uiSession();
+  // window.html is the UI of a browser window and only exists while one is open; main.html is
+  // Vivaldi's background page and stays while Vivaldi runs.
+  async function uiTargets() {
+    const {targetInfos} = await cdp('Target.getTargets');
+    const app = suffix => targetInfos.find(t => t.type === 'app' && t.url.endsWith(suffix));
+    return {win: app('/window.html'), bg: app('/main.html')};
+  }
+  // With every window closed, the background page opens a new one (with Vivaldi's start page).
+  async function ensureWindow() {
+    let {win, bg} = await uiTargets();
+    if (win) return win;
+    if (!bg) throw new UserError('Vivaldi is not ready yet');
+    await inUI('newWindow', {}, {bg: true});
+    for (let i = 0; i < 40 && !win; i++) { await sleep(250); ({win} = await uiTargets()); }
+    if (!win) throw new Error('a window was opened, but its UI did not come up');
+    log('opened a window, none was open');
+    return win;
+  }
+  async function uiSession({create = false} = {}) {
+    let ui;
+    if (create) ui = await ensureWindow();
+    else {
+      const {win, bg} = await uiTargets();
+      if (!win) throw bg ? new NoWindow('Vivaldi has no open window; `vivctl open URL` opens one') : new UserError('Vivaldi has no open window yet');
+      ui = win;
+    }
+    return attach('window', ui);
+  }
+  // The background page outlives every window. Closing tabs runs there: closing the last tab
+  // closes the window, and a call running in that window's UI page would never return.
+  async function bgSession() {
+    const {bg} = await uiTargets();
+    if (!bg) throw new UserError('Vivaldi is not ready yet');
+    return attach('background', bg);
+  }
+  async function inUI(name, params = {}, {create = false, bg = false} = {}) {
+    const sid = bg ? await bgSession() : await uiSession({create});
     const r = await cdp('Runtime.evaluate', {
       expression: `(async()=>{${PRE}const P=${JSON.stringify(params)};${UI[name]}})()`,
       awaitPromise: true, returnByValue: true}, sid);
@@ -339,7 +375,8 @@ async function daemon() {
   }
 
   // ------------------------------------------------------------------- ops
-  const listTabs = () => inUI('tabs');
+  // No window means no tabs, which is an answer rather than an error.
+  const listTabs = () => inUI('tabs').catch(e => { if (e instanceof NoWindow) return []; throw e; });
   function stacksOf(tabs) {
     const m = new Map();
     for (const t of tabs) {
@@ -499,7 +536,10 @@ async function daemon() {
   }
 
   const OPS = {
-    ping: async () => ({profile: PROFILE, pid: process.pid, ready: await uiSession().then(() => true, () => false), ...lockState()}),
+    ping: async () => {
+      const {win, bg} = await uiTargets().catch(() => ({}));
+      return {profile: PROFILE, pid: process.pid, ready: !!win, windowless: !win && !!bg, ...lockState()};
+    },
     unlock,
     lock: async () => { if (!AUTH_OFF) { leaseUntil = 0; log('locked'); } return lockState(); },
     tabs: async () => (await listTabs()).map(t => ({...t, url: stripUrl(t.url)})),
@@ -514,7 +554,7 @@ async function daemon() {
       let windowId;
       if (target) windowId = (await listTabs()).find(t => t.id === target.tabs[0])?.windowId;
       const ids = [];
-      for (const [i, url] of urls.entries()) ids.push(await inUI('open', {url, focus: !!p.focus && i === urls.length - 1, windowId}));
+      for (const [i, url] of urls.entries()) ids.push(await inUI('open', {url, focus: !!p.focus && i === urls.length - 1, windowId}, {create: true}));
       // Vivaldi opens a tab next to the active one and, when that one is in a stack, puts the new
       // tab into it. Taking it out again right away means a tab only ever lands in a stack that was
       // asked for, and no foreign stack can be mistaken for the new one and renamed.
@@ -558,11 +598,11 @@ async function daemon() {
       const group = await inUI('stack', {first: tabs[0], others: tabs.slice(1), expect: tabs, ...props(p)});
       return {stack: group};
     },
-    title: async p => (await inUI('props', {group: (await resolveStack(p.stack)).id, title: asTitle(p.title)}), {}),
-    color: async p => (await inUI('props', {group: (await resolveStack(p.stack)).id, color: asColor(p.color)}), {}),
+    title: async p => { const title = asTitle(p.title); await inUI('props', {group: (await resolveStack(p.stack)).id, title}); return {}; },
+    color: async p => { const color = asColor(p.color); await inUI('props', {group: (await resolveStack(p.stack)).id, color}); return {}; },
     unstack: async p => (await inUI('unstack', {group: (await resolveStack(p.stack)).id}), {}),
-    'close-stack': async p => ({closed: await inUI('close', {ids: (await resolveStack(p.stack)).tabs})}),
-    close: async p => ({closed: await inUI('close', {ids: (p.tabs || []).map(t => asInt(t, 'tab'))})}),
+    'close-stack': async p => ({closed: await inUI('close', {ids: (await resolveStack(p.stack)).tabs}, {bg: true})}),
+    close: async p => ({closed: await inUI('close', {ids: (p.tabs || []).map(t => asInt(t, 'tab'))}, {bg: true})}),
     read: p => onPage(tabArg(p), async ({run}) => {
       const max = Math.min(Math.max(Number(p.max) || 20000, 100), 200000);
       const r = await run(PAGE.read);
@@ -778,7 +818,7 @@ async function client(cmd, argv) {
   switch (cmd) {
     case 'status': {
       const r = await request({op: 'ping'});
-      return out(opt.json ? r : `running (pid ${r.pid}, ${r.ready ? 'ready' : 'no window yet'})\n${lockLine(r)}\nprofile: ${r.profile}`);
+      return out(opt.json ? r : `running (pid ${r.pid}, ${r.ready ? 'ready' : r.windowless ? 'no window open, `vivctl open URL` opens one' : 'no window yet'})\n${lockLine(r)}\nprofile: ${r.profile}`);
     }
     case 'tabs': {
       const t = await request({op: 'tabs'});

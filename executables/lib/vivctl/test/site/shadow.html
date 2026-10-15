@@ -1,0 +1,8 @@
+<!doctype html><title>Shadow</title><body><h1>Shadow DOM</h1>
+<my-widget></my-widget><p id=out>empty</p>
+<script>
+customElements.define('my-widget', class extends HTMLElement { constructor(){ super();
+  const r=this.attachShadow({mode:'open'});
+  r.innerHTML='<input id=q placeholder="In the shadow"><button id=b>Shadow button</button>';
+  r.getElementById('b').onclick=()=>document.getElementById('out').textContent='Shadow: '+r.getElementById('q').value; }});
+</script></body>

@@ -1,0 +1,10 @@
+<!doctype html><title>Todo</title><body><h1>Todo</h1>
+<input id=new placeholder="New todo"><ul id=list></ul><p id=count>0 items</p>
+<script>
+// Like TodoMVC: the item is added by a keydown handler on Enter, not by a form.
+document.getElementById('new').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.value.trim()) return;
+  const li = document.createElement('li'); li.textContent = e.target.value; document.getElementById('list').append(li);
+  e.target.value = ''; document.getElementById('count').textContent = document.querySelectorAll('li').length + ' items';
+});
+</script></body>

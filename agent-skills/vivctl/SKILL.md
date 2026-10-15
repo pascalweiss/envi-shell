@@ -26,6 +26,9 @@ If `status` says the daemon is not running, start it; if `start` times out, read
 `~/.vivctl/daemon.log`. A Vivaldi that was opened normally has no control channel. Tell the
 user, and do not close it yourself: it holds their tabs.
 
+"no window open" means Vivaldi runs with every window closed: `tabs` is empty, and `open`
+opens a window by itself.
+
 **The daemon is locked until the user has used Touch ID.** Every command except `status`,
 `unlock` and `lock` fails with "locked" until then. When you see that, run `vivctl unlock`:
 a Touch ID sheet opens on the Mac, tell the user to tap the sensor, and access then lasts an
