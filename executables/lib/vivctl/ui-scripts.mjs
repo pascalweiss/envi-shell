@@ -59,17 +59,21 @@ export const UI = {
   close: `await new Promise(r=>chrome.tabs.remove(P.ids,r)); return P.ids`,
   windows: `return (await new Promise(r=>chrome.windows.getAll({},r))).map(w=>({id:w.id,focused:w.focused,state:w.state,type:w.type}))`,
   // Moves tabs to the end of window P.to, or into a new window, the way Vivaldi's own "Move to
-  // window" does (tabsPrivate.move with target -1). Tabs keep their stack. Runs on the background
-  // page, since a window whose last tab leaves closes, UI page included.
+  // window" does (tabsPrivate.move with target -1). All tabs go in one call: a stack whose tabs
+  // move together keeps its group, id, title and color, while a stack that is split on the way,
+  // even for a moment, loses it. That is why a new window is opened empty first (with Vivaldi's
+  // start page, closed afterwards) rather than around the first tab. Runs on the background page,
+  // since a window whose last tab leaves closes, UI page included.
   move: `
-    let w=P.to;
-    if(w==="new"){const nw=await new Promise(r=>chrome.windows.create({tabId:P.ids[0],focused:!!P.focus},r)); w=nw.id;}
-    const rest=P.to==="new"?P.ids.slice(1):P.ids;
-    if(rest.length){
-      const r=await vivaldi.tabsPrivate.move({tabIds:rest,target:-1,windowId:w,tweaks:["do-not-reparent"],workspaceId:0,debug:"vivctl"});
-      if(r&&r.success===false) throw new Error("Vivaldi refused to move the tabs");
+    let w=P.to, holder=[];
+    if(w==="new"){
+      const nw=await new Promise(r=>chrome.windows.create({focused:!!P.focus},r)); w=nw.id; await wait(500);
+      holder=(await q()).filter(t=>t.windowId===w).map(t=>t.id);
     }
+    const r=await vivaldi.tabsPrivate.move({tabIds:P.ids,target:-1,windowId:w,tweaks:["do-not-reparent"],workspaceId:0,debug:"vivctl"});
+    if(r&&r.success===false) throw new Error("Vivaldi refused to move the tabs");
     await wait(400);
+    if(holder.length) await new Promise(r=>chrome.tabs.remove(holder,r));
     const left=(await q()).filter(t=>P.ids.includes(t.id)&&t.windowId!==w).map(t=>t.id);
     if(left.length) throw new Error("tabs did not arrive in the window: "+left.join(" "));
     if(P.focus&&P.to!=="new") await new Promise(r=>chrome.windows.update(w,{focused:true},r));

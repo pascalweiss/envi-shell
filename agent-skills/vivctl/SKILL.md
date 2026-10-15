@@ -103,8 +103,8 @@ STACK is a title (case-insensitive) or the first 8 or more characters of the sta
   repeat. `focus` switches the user's active tab, so do it deliberately.
 - `newTabs` in a click result lists tabs the click opened; continue there with their ids.
 - `move` closes nothing, but rearranging windows is the user's layout: move what the task
-  asks for. A stack moved whole stays a stack (with a new id); single tabs taken from a stack
-  leave it. `move --window A --to B` merges two windows and closes A.
+  asks for. A stack moved whole stays the same stack, id included; single tabs taken from a
+  stack leave it. `move --window A --to B` merges two windows and closes A.
 - Use `select` for a `<select>`; a custom dropdown is a `click` on it, then on the option.
 
 Design, threat model and the Vivaldi calls underneath are in

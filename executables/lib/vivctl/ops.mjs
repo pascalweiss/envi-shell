@@ -210,8 +210,8 @@ export function createOps({browser, pages, lock}) {
       const leaving = touched.filter(s => !whole.includes(s)).flatMap(s => s.tabs.filter(id => ids.includes(id)));
       if (leaving.length) await inUI('ungroup', {ids: leaving}, {bg: true});
       const windowId = await inUI('move', {ids, to, focus: !!p.focus}, {bg: true});
-      // Vivaldi drops the stack of a tab that changes windows. A stack that moved whole is put back
-      // together in the new window, with its title and color; only its id is new.
+      // A stack that moved whole keeps its group (see ui-scripts.mjs). Should Vivaldi drop it anyway,
+      // it is put back together here, with its title and color; only then would its id be new.
       const after = await listTabs();
       const restacked = [];
       for (const s of whole) {
