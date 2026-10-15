@@ -26,6 +26,8 @@ const PROFILE = process.env.VIVCTL_PROFILE || path.join(HOME, 'Library/Applicati
 const STATE = process.env.VIVCTL_HOME || path.join(HOME, '.vivctl');
 const SOCK = path.join(STATE, 'vivctl.sock');
 const LOG = path.join(STATE, 'daemon.log');
+// macOS caps a unix socket path at 104 bytes; a longer VIVCTL_HOME would fail deep in listen().
+const SOCK_MAX = 103;
 const SOURCE_PROFILE = process.env.VIVCTL_SOURCE_PROFILE || path.join(HOME, 'Library/Application Support/Vivaldi');
 const BROWSER = process.env.VIVALDI_BIN || '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi';
 
@@ -285,7 +287,14 @@ const PAGE = {
     return {y:Math.round(scrollY),max:Math.max(0,Math.round(s.scrollHeight-innerHeight))}})()`,
 };
 
+function checkSocketPath() {
+  if (Buffer.byteLength(SOCK) > SOCK_MAX) {
+    throw new UserError(`the socket path ${SOCK} is longer than the ${SOCK_MAX} bytes macOS allows; set VIVCTL_HOME to a shorter directory`);
+  }
+}
+
 async function daemon() {
+  checkSocketPath();
   fs.mkdirSync(STATE, {recursive: true, mode: 0o700});
   fs.chmodSync(STATE, 0o700);
   checkAuthSetup();
@@ -747,6 +756,7 @@ async function daemon() {
 
 // -------------------------------------------------------------------- client
 function request(req) {
+  checkSocketPath();
   return new Promise((resolve, reject) => {
     const c = net.connect(SOCK);
     let data = '';
@@ -785,6 +795,7 @@ const HELP = `vivctl: manage Vivaldi tabs and tab stacks
   vivctl init                         once per Mac: copy Vivaldi's profile for the daemon to run
   vivctl start | stop | status        run Vivaldi under the control daemon
   vivctl unlock | lock                Touch ID opens every other command for a while (default 60 min)
+  vivctl install-app                  build the Vivaldi Ctl app (Dock icon, default browser) into ~/Applications
   vivctl tabs [--json]                list tabs with their stack (query and fragment of URLs are cut off)
   vivctl stacks [--json]              list stacks
   vivctl open URL... [--stack NAME] [--color C] [--focus]
@@ -898,6 +909,7 @@ function initProfile() {
 }
 
 async function start() {
+  checkSocketPath();
   checkAuthSetup();
   if (await request({op: 'ping'}).then(() => true, () => false)) return console.log('already running');
   fs.mkdirSync(STATE, {recursive: true, mode: 0o700});

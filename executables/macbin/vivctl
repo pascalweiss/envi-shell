@@ -28,6 +28,9 @@
 #                   How long one Touch ID check opens the daemon.   default: 60
 #   VIVCTL_AUTH_TIMEOUT
 #                   Seconds the Touch ID sheet waits for an answer. default: 60
+#   VIVCTL_APP_DIR, VIVCTL_APP_NAME, VIVCTL_APP_ID
+#                   Where `vivctl install-app` puts the Vivaldi Ctl app, its name and bundle id.
+#                   default: ~/Applications, "Vivaldi Ctl", dev.pwlab.vivctl.launcher
 #   VIVCTL_CACHE    Where the compiled Touch ID helper is kept.
 #                   default: ${XDG_CACHE_HOME:-$HOME/.cache}/envi/vivctl
 #
@@ -52,6 +55,90 @@ if [ ! -f "$SOURCE" ]; then
     echo "vivctl: is this envi checkout complete?" >&2
     exit 1
 fi
+
+# --- the Vivaldi Ctl app ---------------------------------------------------------
+# `vivctl install-app` builds executables/lib/vivctl/launcher.swift into an app bundle: the
+# Dock icon and default browser that always lands in the Vivaldi vivctl runs (see the source
+# for what it does). The paths it needs are written into its Info.plist here.
+APP_SRC="$SELF_DIR/../lib/vivctl/launcher.swift"
+APP_ID="${VIVCTL_APP_ID:-dev.pwlab.vivctl.launcher}"
+APP_PATH="${VIVCTL_APP_DIR:-$HOME/Applications}/${VIVCTL_APP_NAME:-Vivaldi Ctl}.app"
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+
+xml_escape() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' <<<"$1"; }
+
+install_app() {
+    local vivaldi="${VIVALDI_BIN:-/Applications/Vivaldi.app/Contents/MacOS/Vivaldi}"
+    local profile="${VIVCTL_PROFILE:-$HOME/Library/Application Support/Vivaldi-Ctl}"
+    local home="${VIVCTL_HOME:-$HOME/.vivctl}"
+    local name; name="$(basename "$APP_PATH" .app)"
+    if ! command -v swiftc >/dev/null 2>&1; then
+        echo "vivctl: swiftc not found; install the Xcode Command Line Tools (xcode-select --install)" >&2
+        return 1
+    fi
+    [ -x "$vivaldi" ] || { echo "vivctl: Vivaldi not found at $vivaldi (set VIVALDI_BIN)" >&2; return 1; }
+    # Never replace an app that is not ours.
+    if [ -d "$APP_PATH" ] && [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist" 2>/dev/null)" != "$APP_ID" ]; then
+        echo "vivctl: $APP_PATH exists and is not the Vivaldi Ctl app; refusing to replace it" >&2
+        return 1
+    fi
+    local stage; stage="$(mktemp -d)/app"
+    mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources"
+    echo "vivctl: building $name (a few seconds)..." >&2
+    swiftc -O "$APP_SRC" -o "$stage/Contents/MacOS/vivaldi-ctl" || { echo "vivctl: build failed" >&2; return 1; }
+    cp "$(dirname "$vivaldi")/../Resources/app.icns" "$stage/Contents/Resources/app.icns" 2>/dev/null
+    cat > "$stage/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleIdentifier</key><string>$APP_ID</string>
+  <key>CFBundleName</key><string>$(xml_escape "$name")</string>
+  <key>CFBundleDisplayName</key><string>$(xml_escape "$name")</string>
+  <key>CFBundleExecutable</key><string>vivaldi-ctl</string>
+  <key>CFBundleIconFile</key><string>app.icns</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>CFBundleURLTypes</key><array><dict>
+    <key>CFBundleURLName</key><string>Web site URL</string>
+    <key>CFBundleURLSchemes</key><array><string>http</string><string>https</string></array>
+  </dict></array>
+  <key>CFBundleDocumentTypes</key><array><dict>
+    <key>CFBundleTypeName</key><string>HTML document</string>
+    <key>CFBundleTypeRole</key><string>Viewer</string>
+    <key>LSHandlerRank</key><string>Alternate</string>
+    <key>LSItemContentTypes</key><array><string>public.html</string><string>public.xhtml</string></array>
+  </dict></array>
+  <key>VivctlPath</key><string>$(xml_escape "$SELF_DIR/$(basename "$self_src")")</string>
+  <key>VivctlProfile</key><string>$(xml_escape "$profile")</string>
+  <key>VivctlHome</key><string>$(xml_escape "$home")</string>
+  <key>VivaldiBinary</key><string>$(xml_escape "$vivaldi")</string>
+  <key>VivctlSourceSHA</key><string>$(shasum -a 256 "$APP_SRC" | cut -d' ' -f1)</string>
+</dict></plist>
+PLIST
+    plutil -lint "$stage/Contents/Info.plist" >/dev/null || { echo "vivctl: generated Info.plist is invalid" >&2; return 1; }
+    codesign --force --sign - "$stage" >/dev/null 2>&1 || echo "vivctl: ad-hoc signing failed, continuing unsigned" >&2
+    mkdir -p "$(dirname "$APP_PATH")" && rm -rf "$APP_PATH" && mv "$stage" "$APP_PATH" || return 1
+    "$LSREGISTER" -f "$APP_PATH" >/dev/null 2>&1
+    echo "installed $APP_PATH"
+    echo "next: drag it into the Dock (and remove Vivaldi's own icon there, which opens the default profile),"
+    echo "      and pick it as the default web browser: System Settings, Desktop & Dock, Default web browser."
+}
+
+# A newer launcher.swift than the installed app was built from: say so where the user looks.
+app_freshness() {
+    [ -d "$APP_PATH" ] || return 0
+    local have; have="$(/usr/libexec/PlistBuddy -c 'Print :VivctlSourceSHA' "$APP_PATH/Contents/Info.plist" 2>/dev/null)"
+    [ "$have" = "$(shasum -a 256 "$APP_SRC" | cut -d' ' -f1)" ] || echo "vivctl: the Vivaldi Ctl app is out of date, run: vivctl install-app" >&2
+}
+
+case "${1:-}" in
+    install-app) install_app; exit $? ;;
+    start|status) app_freshness ;;
+esac
 
 # Node often comes from nvm, which a non-interactive shell (an agent, cron) has not loaded.
 if ! command -v node >/dev/null 2>&1 && [ -s "$HOME/.nvm/nvm.sh" ]; then
