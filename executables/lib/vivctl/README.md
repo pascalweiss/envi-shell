@@ -240,7 +240,17 @@ relies on are undocumented, and a changed one shows up there as a failure.
 
 ## Files
 
-- `vivctl.mjs`: the daemon and the client, plain Node without dependencies
+- `vivctl.mjs`: the entry point, plain Node without dependencies; the code behind it is split
+  by responsibility:
+  - `common.mjs`: configuration, errors, input validation, the socket request
+  - `client.mjs`: the command line, `start` and `init`
+  - `daemon.mjs`: starts Vivaldi on the pipe and serves the socket
+  - `lock.mjs`: the Touch ID lock and its lease
+  - `ops.mjs`: the whitelist of operations, the only way anything reaches the browser
+  - `browser.mjs`: CDP over the pipe, calls into Vivaldi's UI pages
+  - `pages.mjs`: the web page behind a tab, and input that is verified to arrive
+  - `ui-scripts.mjs`, `page-scripts.mjs`: the fixed code that runs in Vivaldi's UI page and in
+    web pages
 - `touchid.swift`: the Touch ID check, exit code 0 only if the owner authenticated
 - `launcher.swift`: the Vivaldi Ctl app, built by `vivctl install-app`
 - `../../macbin/vivctl`: the wrapper that finds Node (also through nvm) and runs it
