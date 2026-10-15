@@ -221,12 +221,13 @@ use to build a variant that cannot be mistaken for the real one.
 ## Moving between windows
 
 `move` uses the call behind Vivaldi's own "Move to window" (`tabsPrivate.move` with target `-1`,
-the end of the target window); a new window is created around the first tab
-(`chrome.windows.create({tabId})`). Three things it takes care of:
+the end of the target window), with all tabs in one call. Three things it takes care of:
 
-- Vivaldi drops the stack of a tab that changes windows. A stack that moves whole is put back
-  together in the target window with its title, color and tabs, and is checked like every other
-  stack; only its id is new.
+- A stack whose tabs change windows together keeps its group: same id, title, color and tabs.
+  A stack that is split on the way, even for a moment, loses it, which is why a new window is
+  opened empty first (with Vivaldi's start page, closed again afterwards) instead of around the
+  first tab (`chrome.windows.create({tabId})` splits the stack). Should Vivaldi drop a group
+  anyway, the stack is rebuilt with its title and color, and only then gets a new id.
 - A stack never ends up split across two windows: tabs taken out of a stack whose other tabs
   stay behind leave it first. The stack that stays keeps its id, title and color, unless only
   one tab is left, which is no stack anymore.
