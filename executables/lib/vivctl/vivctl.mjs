@@ -111,19 +111,24 @@ const UI = {
   open: `
     const t=await new Promise(r=>chrome.tabs.create({url:P.url,active:P.focus,windowId:P.windowId},r));
     await wait(300); return t.id`,
+  // Joins P.others to the stack of P.first, creating it if P.first has none. Before a title or
+  // color is set, the stack must hold exactly P.expect: a stack with other tabs in it belongs to
+  // somebody else and is never renamed. Errors marked [user] reach the caller as plain messages.
   stack: `
     let all=await q(); const first=all.find(t=>t.id===P.first);
-    if(!first) throw new Error("no such tab: "+P.first);
+    if(!first) throw new Error("[user] no such tab: "+P.first);
     let group=ext(first).group;
     for(const id of P.others){
-      if(!all.find(t=>t.id===id)) throw new Error("no such tab: "+id);
+      if(!all.find(t=>t.id===id)) throw new Error("[user] no such tab: "+id);
       const r=await vivaldi.tabsPrivate.move({tabIds:[id],target:ext(first).ext_id,windowId:first.windowId,
         tweaks:group?TW:[...TW,"create-group"],debug:"vivctl"});
       if(!r.success) throw new Error("Vivaldi refused to move tab "+id);
       await wait(300);
       all=await q(); group=ext(all.find(t=>t.id===P.first)).group||r.group||group;
     }
-    if(!group) throw new Error("tab "+P.first+" is not in a stack");
+    if(!group) throw new Error("[user] tab "+P.first+" is not in a stack");
+    const num=(a,b)=>a-b, got=(await q()).filter(t=>ext(t).group===group).map(t=>t.id).sort(num), want=[...P.expect].sort(num);
+    if(got.join()!==want.join()) throw new Error("[user] the stack came out with tabs "+got.join(" ")+" instead of "+want.join(" ")+"; nothing was renamed");
     if(P.title!==undefined||P.color!==undefined){
       const pr={groupExtId:group}; if(P.title!==undefined) pr.groupTitle=P.title; if(P.color!==undefined) pr.groupColor=P.color;
       await vivaldi.tabsPrivate.setGroupProperties(pr);
@@ -133,6 +138,21 @@ const UI = {
     const pr={groupExtId:P.group}; if(P.title!==undefined) pr.groupTitle=P.title; if(P.color!==undefined) pr.groupColor=P.color;
     await vivaldi.tabsPrivate.setGroupProperties(pr); return true`,
   unstack: `await vivaldi.tabsPrivate.unstack(P.group); return true`,
+  // Takes tabs out of whatever stack they are in, the way Vivaldi's own "Remove from stack" does:
+  // a move to the end of the window with the "ungroup" tweak. Only these tabs move; their old
+  // stack keeps its other tabs, its id, title and color. Returns the ids that had to leave a stack.
+  ungroup: `
+    const all=await q(); const hit=all.filter(t=>P.ids.includes(t.id)&&ext(t).group);
+    for(const w of [...new Set(hit.map(t=>t.windowId))]){
+      const end=Math.max(...all.filter(t=>t.windowId===w).map(t=>t.index))+1;
+      const r=await vivaldi.tabsPrivate.move({tabIds:hit.filter(t=>t.windowId===w).map(t=>t.id),target:end,windowId:w,
+        tweaks:["untile","ungroup"],debug:"vivctl"});
+      if(r&&r.success===false) throw new Error("Vivaldi refused to take tabs out of their stack");
+    }
+    if(hit.length) await wait(300);
+    const left=(await q()).filter(t=>P.ids.includes(t.id)&&ext(t).group).map(t=>t.id);
+    if(left.length) throw new Error("tabs still in a stack after ungroup: "+left.join(" "));
+    return hit.map(t=>t.id)`,
   close: `await new Promise(r=>chrome.tabs.remove(P.ids,r)); return P.ids`,
   status: `const t=await new Promise(r=>chrome.tabs.get(P.id,r)); return t?{status:t.status,title:t.title||"",discarded:!!t.discarded}:null`,
   navigate: `await new Promise(r=>chrome.tabs.update(P.id,{url:P.url},r)); return true`,
@@ -310,7 +330,11 @@ async function daemon() {
     const r = await cdp('Runtime.evaluate', {
       expression: `(async()=>{${PRE}const P=${JSON.stringify(params)};${UI[name]}})()`,
       awaitPromise: true, returnByValue: true}, sid);
-    if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description?.split('\n')[0] || 'UI call failed');
+    if (r.exceptionDetails) {
+      const msg = r.exceptionDetails.exception?.description?.split('\n')[0] || 'UI call failed';
+      const user = msg.match(/\[user\] (.*)$/);
+      throw user ? new UserError(user[1]) : new Error(msg);
+    }
     return r.result.value;
   }
 
@@ -491,24 +515,47 @@ async function daemon() {
       if (target) windowId = (await listTabs()).find(t => t.id === target.tabs[0])?.windowId;
       const ids = [];
       for (const [i, url] of urls.entries()) ids.push(await inUI('open', {url, focus: !!p.focus && i === urls.length - 1, windowId}));
+      // Vivaldi opens a tab next to the active one and, when that one is in a stack, puts the new
+      // tab into it. Taking it out again right away means a tab only ever lands in a stack that was
+      // asked for, and no foreign stack can be mistaken for the new one and renamed.
+      await inUI('ungroup', {ids});
       if (target) {
-        await inUI('stack', {first: target.tabs[0], others: ids, ...props(p)});
+        await inUI('stack', {first: target.tabs[0], others: ids, expect: [...target.tabs, ...ids], ...props(p)});
         return {tabs: ids, stack: target.id};
       }
       if (p.stack) {
-        const group = await inUI('stack', {first: ids[0], others: ids.slice(1), title: asTitle(p.stack), ...props({color: p.color})});
+        const group = await inUI('stack', {first: ids[0], others: ids.slice(1), expect: ids, title: asTitle(p.stack), ...props({color: p.color})});
         return {tabs: ids, stack: group};
       }
       return {tabs: ids};
     },
     stack: async p => {
-      const tabs = (p.tabs || []).map(t => asInt(t, 'tab'));
+      const tabs = [...new Set((p.tabs || []).map(t => asInt(t, 'tab')))];
+      if (!tabs.length) throw new UserError('give at least one tab id');
       const into = p.into ? await resolveStack(p.into) : undefined;
       if (!into && tabs.length < 2) throw new UserError('a stack needs at least two tabs, or use --into <stack>');
-      if (!tabs.length) throw new UserError('give at least one tab id');
-      const group = await inUI('stack', into
-        ? {first: into.tabs[0], others: tabs, ...props(p)}
-        : {first: tabs[0], others: tabs.slice(1), ...props(p)});
+      const all = await listTabs();
+      const byId = new Map(all.map(t => [t.id, t]));
+      for (const id of tabs) if (!byId.has(id)) throw new UserError(`no such tab: ${id}`);
+      if (into) {
+        // Tabs from another stack leave it first. The title and color go to the target stack.
+        const join = tabs.filter(id => byId.get(id).group !== into.id);
+        const elsewhere = join.filter(id => byId.get(id).group);
+        if (elsewhere.length) await inUI('ungroup', {ids: elsewhere});
+        await inUI('stack', {first: into.tabs[0], others: join, expect: [...into.tabs, ...join], ...props(p)});
+        return {stack: into.id};
+      }
+      // Exactly these tabs become one stack. Their current stack is kept only if it holds nothing
+      // else; otherwise they leave their stacks, which keep their remaining tabs, title and color.
+      const groups = new Set(tabs.map(id => byId.get(id).group));
+      const own = groups.size === 1 ? [...groups][0] : undefined;
+      if (own && all.filter(t => t.group === own).length === tabs.length) {
+        await inUI('stack', {first: tabs[0], others: [], expect: tabs, ...props(p)});
+        return {stack: own};
+      }
+      const grouped = tabs.filter(id => byId.get(id).group);
+      if (grouped.length) await inUI('ungroup', {ids: grouped});
+      const group = await inUI('stack', {first: tabs[0], others: tabs.slice(1), expect: tabs, ...props(p)});
       return {stack: group};
     },
     title: async p => (await inUI('props', {group: (await resolveStack(p.stack)).id, title: asTitle(p.title)}), {}),
@@ -703,7 +750,7 @@ const HELP = `vivctl: manage Vivaldi tabs and tab stacks
   vivctl open URL... [--stack NAME] [--color C] [--focus]
                                       open tabs; --stack joins NAME, or creates it from 2+ URLs
   vivctl stack TABID... [--into STACK] [--title T] [--color C]
-                                      stack tabs (first tab defines the stack), or add to one
+                                      make exactly these tabs one stack, or add them to STACK
   vivctl title STACK TITLE            rename a stack
   vivctl color STACK COLOR            ${Object.keys(COLORS).join(' ')}
   vivctl unstack STACK                dissolve a stack, keep the tabs

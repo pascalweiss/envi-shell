@@ -61,6 +61,10 @@ STACK is a title (case-insensitive) or the first 8 or more characters of the sta
 
 - A stack needs two tabs. `open A B --stack Name` creates it; `open C --stack Name` joins it
   afterwards; `open C --stack Missing` with one URL fails on purpose.
+- Stacking is safe whatever tab is active: new tabs never end up in a foreign stack, and a stack
+  you did not name is never renamed. `stack ID...` makes exactly those tabs one stack (they
+  leave their old stacks, which stay as they were); `--into Name` adds them to an existing one.
+  No need to check or repair other stacks afterwards.
 - `close-stack`, `close` and `stop` throw away open pages. Run `vivctl stacks` or `tabs`
   first, name what you are about to close, and do it only when the user asked for exactly
   that. `unstack` is the harmless way to get rid of a stack.

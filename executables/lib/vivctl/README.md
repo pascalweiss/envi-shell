@@ -67,6 +67,21 @@ A stack is addressed by its title (case-insensitive) or by the first 8 or more c
 its id. A stack needs two tabs, so a stack is created by `open` with two or more URLs or by
 `stack` with two or more tab ids.
 
+Stacks only ever get the tabs that were asked for, and a stack nobody named is never renamed:
+
+- `open` takes its new tabs out of any stack right away. Vivaldi opens a tab next to the active
+  one and, when that one is in a stack, puts the new tab into it, so without this a plain
+  `open` would grow somebody else's stack, and `open --stack Name` would take over that stack
+  and rename it.
+- `open --stack Name` joins `Name` if it exists, otherwise it creates a stack of exactly the
+  new tabs.
+- `stack ID...` makes exactly these tabs one stack. Tabs that sit in another stack leave it,
+  and that stack keeps its other tabs, its id, title and color. If the tabs already are exactly
+  one stack, that stack is kept and only gets the new title or color. `stack ID... --into Name`
+  adds them to `Name` instead.
+- Before a title or color is set, the resulting stack is checked to hold exactly the expected
+  tabs. If it does not, the command fails and nothing is renamed.
+
 ## How it works
 
 Vivaldi's tab stacks live in the browser's own UI, which is a web page
@@ -84,6 +99,7 @@ Verified against Vivaldi 8.2 (Chromium 152). The calls it relies on:
 | create a stack, add a tab | `tabsPrivate.move({tabIds, target: <ext_id of a tab>, tweaks: ["target-is-tab","do-not-reparent","on"]})`, plus `"create-group"` for the first join only |
 | title, color | `tabsPrivate.setGroupProperties({groupExtId, groupTitle, groupColor})`, colors are `color1` to `color9` |
 | dissolve | `tabsPrivate.unstack(groupId)` |
+| take tabs out of their stack | `tabsPrivate.move({tabIds, target: <index after the last tab>, windowId, tweaks: ["untile","ungroup"]})`, which is what Vivaldi's own "Remove from stack" does; only the moved tabs change |
 | read | `vivExtData` of each tab: `group`, `fixedGroupTitle`, `groupColor` |
 
 These are undocumented. A Vivaldi update can change them; the symptom is an operation that
@@ -91,7 +107,8 @@ fails or silently does nothing, and the first place to look is `bundle.js` in
 `Vivaldi Framework.framework/Resources/vivaldi/`.
 
 Passing `"create-group"` for a tab that is already in a stack makes Vivaldi build a new stack
-and tear the old one apart, which is why only the first join carries it.
+and tear the old one apart, which is why only the first join carries it, and why a tab is taken
+out with `"ungroup"` before it starts a new stack.
 
 ## The profile
 
