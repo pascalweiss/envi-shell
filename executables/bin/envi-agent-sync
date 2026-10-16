@@ -22,13 +22,12 @@
 #   ~/.config/opencode/skills/<name>             -> <source>/<name>   (OpenCode)
 #   ~/.agents/skills/<name>                      -> <source>/<name>   (Codex)
 #   ~/.gemini/config/skills/<name>               -> <source>/<name>   (Antigravity)
-# Every agent auto-discovers skills from its dir (verified in agent-instructions/docs/
-# PROVIDERS.md), so nothing else is needed. None of them reads another's directory, which is
-# why each gets its own links. OpenCode also reads ~/.claude/skills and ~/.agents/skills and
-# deduplicates by name, so its own dir is redundant but harmless.
+# Every agent auto-discovers skills from its dir, so nothing else is needed. None of them reads
+# another's directory, which is why each gets its own links. OpenCode also reads ~/.claude/skills
+# and ~/.agents/skills and deduplicates by name, so its own dir is redundant but harmless.
 #
-# Names that agent-instructions compiles into these dirs are real directories, never symlinks.
-# They are skipped with a "keep" line (see below), so a link never overwrites one.
+# A real directory at a skill's name belongs to another tool and is left alone: it is skipped
+# with a "keep" line (see below), so a link never overwrites one.
 #
 # WHICH skills are exposed is per-machine, via ENVI_AGENT_SKILLS (set in config/envi_env):
 #   ENVI_AGENT_SKILLS="all"                 (default) expose every skill in every source
