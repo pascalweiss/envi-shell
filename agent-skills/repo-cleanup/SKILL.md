@@ -5,7 +5,7 @@ description: >-
   machine, one repo at a time, with the user deciding what to keep. Use when the
   user wants to clean up or review scattered changes ("go through my repos", "what
   did I forget to commit", "help me tidy up my working copies").
-# --- envi skill metadata (ignored by Claude, read by the envi installer) ---
+# --- envi skill metadata (informational: nothing reads it, agents ignore these keys) ---
 when: the user wants to review and clean up scattered uncommitted work across repos
 uses: [gitscan]
 agents: all

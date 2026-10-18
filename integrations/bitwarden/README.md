@@ -118,25 +118,13 @@ never being stored. The dedicated AI-only account keeps the blast radius bounded
 if you are not comfortable with the password at rest, do not run `--setup-touchid`.
 
 ## Teaching coding agents about `bw-run`
-So that every coding agent on a machine knows to use `bw-run` (instead of asking you
-to paste secrets), `bw-run` ships as an envi **skill**: `~/.envi/agent-skills/bw-run/SKILL.md`.
-`envi-agent-sync` symlinks it into each *installed* agent's skill auto-discovery dir
-(Claude Code `~/.claude/skills`, OpenCode `~/.config/opencode/skills`), where the agent
-picks it up on its own. It only ever creates/removes symlinks; it never edits an agent's
-instruction file (`CLAUDE.md` / `AGENTS.md`).
-
-```bash
-envi-agent-sync             # create/update/remove skill links to match the selection
-envi-agent-sync --list      # available skills, current selection, current links
-envi-agent-sync --dry-run   # preview, write nothing
-envi-agent-sync --uninstall # remove all envi-managed skill links
-```
-
-Which skills are exposed is per-machine via `ENVI_AGENT_SKILLS` (in `config/envi_env`):
-set it to `"all"` (default), a subset like `"erun gitscan"` (a work machine that must
-**not** use the secret broker just omits `bw-run`), or `"none"`. Editing the SKILL.md is
-live immediately, no re-sync needed; re-run `envi-agent-sync` only when changing the
-selection or adding an agent/machine.
+So that a coding agent knows to use `bw-run` (instead of asking you to paste secrets),
+`bw-run` ships as an envi **skill** in the open Agent Skills format:
+`agent-skills/bw-run/SKILL.md`. Envi only provides the file. Whoever integrates envi copies
+it into the skill directories of the coding agents on a machine, where each agent discovers
+it on its own. A machine that must **not** use the secret broker needs an integration that
+leaves this skill out. No agent's instruction file (`CLAUDE.md` / `AGENTS.md`) is edited for
+it. A change to the SKILL.md reaches the agents with the integrator's next copy.
 
 ## Trust model
 While the agent runs, any process under your UID can read the secrets from the
@@ -147,7 +135,7 @@ blast radius: the bw session key can only ever decrypt AI secrets.
 The bw CLI is single-account. Keep it logged into the AI account only; use the
 desktop app/browser for your main vault.
 
-## Servers (Forum 0 / Forum 1)
+## Remote hosts
 Same flow: SSH in, `bw-run <cmd>`, type the master password once per TTL.
 Note: this assumes an interactive session to type the password. Fully unattended
 cron jobs have no human to unlock, that case would need `bw`'s `--passwordfile`

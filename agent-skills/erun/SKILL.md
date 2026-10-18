@@ -33,7 +33,7 @@ erun <target> <cmd...>         # run a command, e.g. erun pweiss@10.1.2.3 'kubec
 - `<target>` is what you'd pass to ssh (`user@host`, `host`, or a `Host` alias). It must
   match how the session was opened, so copy the exact string from `erun --list`.
 - Quote the remote command so your local shell doesn't expand it:
-  `erun forumnode 'df -h /'`.
+  `erun host1 'df -h /'`.
 - `erun` passes the remote exit code through and never prompts for a password. If it says
   the host is not reachable, the user has no open session to it: ask them to run
   `ssh <target>` in a pane first, then retry.

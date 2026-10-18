@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# erun — run a command on a remote host that the USER already has an open,
+# erun: run a command on a remote host that the USER already has an open,
 # interactive ssh session to, by reusing that session's multiplexed master
 # connection (see ~/.envi/integrations/ssh/config).
 #
@@ -113,7 +113,7 @@ case "${1:-}" in
             if ssh -o BatchMode=yes -O check "$h" >/dev/null 2>&1; then
                 printf '  %-40s [master live, reusable]\n' "$h"
             else
-                printf '  %-40s [no master — reopen the session]\n' "$h"
+                printf '  %-40s [no master, reopen the session]\n' "$h"
             fi
         done
         exit 0
@@ -134,7 +134,7 @@ ssh -o BatchMode=yes -O check "$target" >/dev/null 2>&1 && have_master=true
 # Slow path: no master for the exact spelling. The session may have been opened
 # under a different spelling of the same host (an IP vs a DNS name or alias).
 # Match open sessions by canonical identity (resolved ip+user+port) and reuse
-# the one that points at the same host, so `erun forum0` finds a master that was
+# the one that points at the same host, so `erun host1` finds a master that was
 # opened as `ssh 10.0.0.5`. Only runs on a miss, so the fast path pays nothing.
 if [ "$have_master" = false ]; then
     want=$(_canon_id "$target")
