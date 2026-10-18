@@ -6,13 +6,13 @@
 #
 # All envi defaults now live next to their consumers (each integration's
 # init.sh, or enviinit for envi-wide settings). This file is purely for
-# per-machine overrides — set a variable here to deviate from the envi
+# per-machine overrides: set a variable here to deviate from the envi
 # default on THIS machine only.
 #
 # Loading order (see CLAUDE.md): defaults → this file → integrations.
 # Integrations use `: "${VAR:=default}"` so anything you set here wins.
 #
-# Common overrides — uncomment and edit as needed:
+# Common overrides (uncomment and edit as needed):
 
 # --- Envi core (enviinit) ---
 # export ENVI_256_COLORS=false              # disable 256-color terminal
@@ -43,23 +43,6 @@
 # export EZA_ENABLED=false                  # ls/ll/la/lt aliases via eza
 # export GHOSTTY_ENABLED=false              # symlink ghostty config from envi
 # export ITERM2_ENABLED=false               # source iTerm2's shell integration script
-
-# --- Agent skills (executables/bin/envi-agent-sync) ---
-# Which envi skills the coding agents on THIS machine can discover. Each skill is a
-# folder ~/.envi/agent-skills/<name>/SKILL.md; envi-agent-sync symlinks the selected
-# ones into each installed agent's skill dir (~/.claude/skills, ~/.config/opencode/skills).
-# It only manages symlinks, never edits an agent's instruction file. Re-run
-# `envi-agent-sync` after changing this.
-# export ENVI_AGENT_SKILLS="all"             # default: all skills (bw-run erun gitscan repo-cleanup ...)
-# export ENVI_AGENT_SKILLS="erun gitscan repo-cleanup"  # e.g. a work machine without the secret broker
-# export ENVI_AGENT_SKILLS="none"            # expose no envi skills to agents
-#
-# Extra skill sources beyond ~/.envi/agent-skills, as absolute dirs that each hold skill
-# folders. Use this to expose skills from a third-party git clone without copying them:
-# the links point into the clone, so `git pull` there is all an update takes. envi's own
-# dir always comes first; on a name clash the first source wins. Before removing a source
-# here, run `envi-agent-sync --uninstall` with it still set, else its links stay behind.
-# export ENVI_AGENT_SKILL_SOURCES="$HOME/dev/<skill-repo>/skills/engineering $HOME/dev/<skill-repo>/skills/productivity"
 
 # --- gitscan (executables/bin/gitscan) ---
 # Finds every git repo on this machine and reports uncommitted / unpushed /

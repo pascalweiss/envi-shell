@@ -60,38 +60,29 @@ git push
 - **`executables/`**: Custom commands organized by platform compatibility
 - **`defaults/`**: Default configurations and package lists
 - **`config/`**: User-specific configuration files
-- **`agent-skills/`**: Coding-agent skills shipped by envi, one folder per skill (`<name>/SKILL.md`, the Claude/OpenCode skill format). `envi-agent-sync` symlinks the per-machine selection (`ENVI_AGENT_SKILLS`) into each installed agent's skill dir. See "Coding-agent integration" below.
+- **`agent-skills/`**: Coding-agent skills shipped by envi as content, one folder per skill (`<name>/SKILL.md`, the open Agent Skills format). See "Coding-agent skills" below.
 
-## Coding-agent integration (agent-skills)
+## Coding-agent skills (agent-skills)
 
-Envi ships knowledge and workflows for coding agents (Claude Code, OpenCode, Codex, Antigravity) as
-**skills**: `agent-skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`).
-`description` is the discovery trigger, so it states *when* to use the skill. Every one
-of these agents auto-discovers skills from its own skill dir, so integration is done by
-**symlink only** (`executables/bin/envi-agent-sync`), never by editing an agent's
-instruction file (`CLAUDE.md` / `AGENTS.md`), which is deliberate: envi only touches files
-it owns plus isolated per-skill symlinks.
+Envi ships knowledge and workflows for coding agents as **skills** in the open Agent Skills
+format: `agent-skills/<name>/SKILL.md` plus any resources next to it. The YAML frontmatter
+holds `name`, equal to the folder name, and `description`, which is the discovery trigger and
+so states *when* to use the skill.
 
-- Selection is per machine via `ENVI_AGENT_SKILLS` (in `config/envi_env`): `all` (default),
-  a subset like `erun gitscan repo-cleanup` (e.g. a work machine that must not use `bw-run`),
-  or `none`.
-- `envi-agent-sync` links selected skills into `~/.claude/skills`,
-  `~/.config/opencode/skills`, `~/.agents/skills` (Codex) and
-  `~/.gemini/config/skills` (Antigravity), removes deselected envi links, and never clobbers a real
-  dir or a foreign symlink of the same name (ownership = symlink target points into
-  `agent-skills/`).
-- Add a skill: create `agent-skills/<name>/SKILL.md`, then run `envi-agent-sync`. A skill
-  may reference an envi tool (e.g. `repo-cleanup` uses `gitscan`).
-- **External sources**: `ENVI_AGENT_SKILL_SOURCES` (in `config/envi_env`) adds further skill
-  dirs, space-separated and absolute. Their skills are linked exactly like envi's own, so a
-  third-party skill repo can be exposed straight from its git clone (`git pull` in the clone
-  is the whole update path, no copying). `agent-skills/` always comes first; on a name clash
-  the first source wins and the duplicate is skipped with a warning. Ownership follows the
-  current sources, so remove a source only after `envi-agent-sync --uninstall`, otherwise its
-  links are orphaned. Which sources a given machine configures is a local decision and lives
-  in its `config/envi_env`, not here. Where a skill in `agent-skills/` came from elsewhere, a
-  `SOURCE.md` next to it records origin and licensing; that applies to skills whose upstream
-  dropped them, which are maintained here from then on.
+`agent-skills/` is content only. Envi does not install, link or select these skills, and it
+never edits an agent's instruction file (`CLAUDE.md` / `AGENTS.md`). Whoever integrates envi
+copies the skills into the skill directories of the coding agents it serves. Which skills a
+machine gets is the integrator's concern, not envi's.
+
+- Add a skill: create `agent-skills/<name>/SKILL.md`. It reaches the agents with the
+  integrator's next copy. A skill may reference an envi tool (e.g. `repo-cleanup` uses
+  `gitscan`).
+- Frontmatter beyond `name` and `description` (`metadata`, and `when`, `uses`, `agents` and
+  `invocable` on `repo-cleanup`) is informational. Nothing in envi reads it, and agents
+  ignore keys they do not define.
+- Where a skill in `agent-skills/` came from elsewhere, a `SOURCE.md` next to it records
+  origin and licensing; that applies to skills whose upstream dropped them, which are
+  maintained here from then on.
 
 ## Custom Commands Available After Installation
 
@@ -103,7 +94,6 @@ it owns plus isolated per-skill symlinks.
 - `docscan <files-or-dir>` - **macOS only.** Turn photos of paper documents into clean scans: Vision detects the sheet, Core Image dewarps it and removes the shadow gradient. Writes to `<input>/cleaned`, never touches the originals, `--pdf` collects the pages. The command in `macbin/` is a wrapper; the tool is `executables/lib/docscan/docscan.swift`, compiled on first use into `DOCSCAN_CACHE` and rebuilt whenever the source checksum changes. Needs the Xcode Command Line Tools, nothing else.
 - `mkletter <letter.md>` - Render a Markdown file into a DIN 5008 letter PDF. The YAML frontmatter carries the layout (sender, recipient, annotations, date, subject, signatures, enclosures), the Markdown below it is the letter text. The wrapper in `bin/` only glues existing tools together: pandoc converts the body to Typst markup, yq converts the frontmatter to JSON, typst renders, and the DIN 5008 geometry itself comes from `@preview/letter-pro:3.0.0`, pinned and fetched from the Typst registry on first use. The template is `executables/lib/mkletter/letter.typ`; `MKLETTER_TEMPLATE` points at a different one. Field reference and the reasoning are in `executables/lib/mkletter/README.md`, `example.md` next to it exercises every field.
 - `vivctl <command>` - **macOS only.** Manage Vivaldi tabs and tab stacks (create, name, color, add to, dissolve, close, move between windows) for scripts and agents. `vivctl start` runs Vivaldi on a profile of its own (`VIVCTL_PROFILE`, default `~/Library/Application Support/Vivaldi-Ctl`) under a small daemon that talks to the browser UI over a private CDP pipe, so no debug port is open, and exposes only a whitelist of operations on a `0600` unix socket. The daemon starts locked: `vivctl unlock` runs a Touch ID check (`touchid.swift`, compiled on first use) that opens it for 60 minutes, and `tabs` cuts query and fragment off URLs. It can also read pages and drive them like Playwright (`read`, `elements`, `navigate`, `click`, `type`, `select`, `press`, `scroll`, `focus`, `screenshot`) with fixed commands only, no `eval`. Page scripts run in an isolated world, reach into open shadow roots and same-origin iframes, and every input is verified with a scripted fallback for background tabs; `VIVCTL_DENY` blocks hosts. `vivctl install-app` builds `~/Applications/Vivaldi Ctl.app` from `launcher.swift`, the Dock icon and default browser that always lands in the Vivaldi vivctl runs. Live tests: `executables/lib/vivctl/test/run.sh`. The wrapper in `macbin/` finds Node; the tool is `executables/lib/vivctl/vivctl.mjs`. Design, the Vivaldi calls it relies on and the threat model are in `executables/lib/vivctl/README.md`; the agent skill is `agent-skills/vivctl`.
-- `envi-agent-sync` - Symlink agent skills (`agent-skills/*/SKILL.md` plus any dir in `ENVI_AGENT_SKILL_SOURCES`) into each installed agent's skill dir, per the `ENVI_AGENT_SKILLS` selection. `--list`/`--dry-run`/`--uninstall`. Only manages symlinks; never edits agent instruction files.
 
 ## Configuration Files
 
