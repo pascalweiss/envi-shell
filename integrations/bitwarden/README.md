@@ -135,7 +135,7 @@ blast radius: the bw session key can only ever decrypt AI secrets.
 The bw CLI is single-account. Keep it logged into the AI account only; use the
 desktop app/browser for your main vault.
 
-## Servers (Forum 0 / Forum 1)
+## Remote hosts
 Same flow: SSH in, `bw-run <cmd>`, type the master password once per TTL.
 Note: this assumes an interactive session to type the password. Fully unattended
 cron jobs have no human to unlock, that case would need `bw`'s `--passwordfile`

@@ -40,7 +40,7 @@ a secret is set, print its length, never its content.
   via an HTTPS remote + token). Single-quote so the CHILD shell expands the token, and it
   never lands in your output. This pushes the current HEAD once without changing the
   repo's configured remote:
-    bw-run bash -c 'git push https://oauth2:$GITLAB_TOKEN@git.pwlab.dev/<group>/<repo>.git HEAD:main'
+    bw-run bash -c 'git push https://oauth2:$GITLAB_TOKEN@git.example.com/<group>/<repo>.git HEAD:main'
     bw-run bash -c 'git push https://x-access-token:$GITHUB_TOKEN_NEO@github.com/<owner>/<repo>.git HEAD:main'
 - Interactive shell with secrets loaded, then use $VAR normally:
     bw-run --shell
