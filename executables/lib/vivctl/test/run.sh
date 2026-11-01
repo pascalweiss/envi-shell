@@ -175,6 +175,41 @@ check "navigate" "Page two" "$(v navigate "$T" "$URL/second.html")"
 v back "$T" >/dev/null
 check "back" "Test page" "$(v read "$T" | head -1)"
 
+echo "== script-driven controls"
+W="$(v open "$URL/widgets.html" | tabid)"; sleep 1
+EL="$(v elements "$W")"
+ref_of(){ echo "$EL" | grep "$1" | head -1 | grep -o '^\[[0-9]*\]' | tr -d '[]'; }
+check "pointer tile listed" "div Bestehendes Auto" "$EL"
+check "pointer tile listed once, its inner text not" "1" "$(echo "$EL" | grep -c 'Bestehendes Auto')"
+check "clickable table row listed" "tr Nachtrag" "$EL"
+check "hidden radio: its label is listed" "label Option B" "$EL"
+check_not "hidden radio itself is not listed" "input:radio" "$EL"
+check_not "plain text is not listed" "Plain text" "$EL"
+check_not "element without pointer or handler marker is not listed" "Fixed corner" "$EL"
+v click "$W" "$(ref_of 'Bestehendes Auto')" >/dev/null
+check "click a pointer tile by ref" "Tile A" "$(v read "$W")"
+v click "$W" "$(ref_of 'tr Nachtrag')" >/dev/null
+check "click a table row by ref" "Row 2" "$(v read "$W")"
+v click "$W" "$(ref_of 'label Option B')" >/dev/null
+check "click a hidden radio through its label" "Radio b true" "$(v read "$W")"
+v click "$W" --text "Neues Auto" >/dev/null
+check "click by text" "Tile B" "$(v read "$W")"
+v click "$W" --text "versicherung wechseln" >/dev/null
+check "click by text goes to the tile around the text" "Tile A" "$(v read "$W")"
+check "click by text: ambiguous text is an error" "matches 2 elements" "$(v click "$W" --text Mehr 2>&1)"
+check "click by text: no match" "no visible element" "$(v click "$W" --text "Gibt es nicht" 2>&1)"
+check "click --at in a background tab" "at: '80,20'" "$(v click "$W" --at 80,20)"
+check "click --at hit the element there" "Fixed hit" "$(v read "$W")"
+check "click --at outside the page" "outside the visible page" "$(v click "$W" --at 99999,5 2>&1)"
+check "click takes one target" "usage" "$(v click "$W" 1 --text x 2>&1)"
+v focus "$W" >/dev/null
+check "click --at in the front tab is real" "via: 'mouse'" "$(v click "$W" --at 80,20)"
+check "click by text in the front tab is real" "via: 'mouse'" "$(v click "$W" --text "Neues Auto")"
+f="$(v screenshot "$W")"; VW="$(v read "$W" | grep -o 'viewport [0-9]*x[0-9]*' | sed 's/viewport //')"
+check "page reports its viewport" "x" "$VW"
+check "screenshot is one pixel per CSS pixel" "${VW:-unknown}" \
+  "$(python3 -c "import struct,sys;d=open(sys.argv[1],'rb').read(24);print('%dx%d'%struct.unpack('>II',d[16:24]))" "$f")"
+
 echo "== windows and move"
 wins(){ v windows --json | jq_ "print(len(d))"; }
 win_of(){ v tabs --json | jq_ "print([t['windowId'] for t in d if t['id']==$1][0])"; }

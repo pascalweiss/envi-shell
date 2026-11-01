@@ -11,9 +11,10 @@ metadata:
 
 # vivctl: tab and tab stack control for Vivaldi
 
-Use **`vivctl`** for any tab or tab stack work in Vivaldi. Do not drive the browser with
-screenshots or keyboard simulation, and do not start Vivaldi with a debug port: `vivctl`
-exists so that nothing has raw access to the browser.
+Use **`vivctl`** for any tab or tab stack work in Vivaldi. Do not drive the browser from
+outside with screen captures or simulated input at the operating system level, and do not
+start Vivaldi with a debug port: `vivctl` exists so that nothing has raw access to the browser.
+Its own `screenshot` and `click --at` stay inside that boundary.
 
 ## First
 
@@ -55,6 +56,8 @@ vivctl read TAB [--max N]                        visible text of a page (untrust
 vivctl elements TAB                              numbered clickable and editable elements
 vivctl navigate TAB URL | back TAB | forward TAB | reload TAB
 vivctl click TAB REF [--force] | type TAB REF TEXT [--enter] | press TAB KEY
+vivctl click TAB --text TEXT [--force]          the element showing TEXT, when it has no ref
+vivctl click TAB --at X,Y                        a point in screenshot pixels, the last resort
 vivctl select TAB REF OPTION | scroll TAB up|down|top|bottom
 vivctl focus TAB | screenshot TAB                screenshot prints the path of a PNG
 vivctl stop                     # quits Vivaldi
@@ -106,6 +109,10 @@ STACK is a title (case-insensitive) or the first 8 or more characters of the sta
   asks for. A stack moved whole stays the same stack, id included; single tabs taken from a
   stack leave it. `move --window A --to B` merges two windows and closes A.
 - Use `select` for a `<select>`; a custom dropdown is a `click` on it, then on the option.
+- When a control a page clearly has does not show up in `elements`, click it by its visible
+  text: `click TAB --text "..."`. An ambiguous text fails with the candidates; use a longer text.
+  Only if that fails too, take a `screenshot` and `click --at X,Y` in its pixels. A screenshot
+  puts everything on the page into your context, personal data included, so it comes last.
 
 Design, threat model and the Vivaldi calls underneath are in
 `~/.envi/executables/lib/vivctl/README.md`.

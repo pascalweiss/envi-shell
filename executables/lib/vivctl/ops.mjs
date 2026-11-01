@@ -102,25 +102,49 @@ export function createOps({browser, pages, lock}) {
     // A real mouse click on the element's center, but only if the element is what is under that
     // point: a cookie banner or a modal on top is reported instead of clicked. If the browser does
     // not deliver the click (tab not in front), the element is clicked from the page.
+    // The element is a ref from `elements`, or found by its text (--text); --at clicks a point.
     click: p => onPage(tabArg(p), async ({send, run, tab}) => {
-      const ref = asInt(p.ref, 'ref');
+      const given = [p.ref !== undefined, p.text !== undefined, p.at !== undefined].filter(Boolean).length;
+      if (given !== 1) throw new UserError('click takes a REF, --text TEXT or --at X,Y, exactly one of them');
       const before = new Set((await listTabs()).map(t => t.id));
-      const f = await run(PAGE.aim, {ref});
-      if (f.error) throw new UserError('that element is gone, run `vivctl elements` again');
-      if (!f.ok && !p.force) throw new UserError(`"${f.label}" is covered by "${f.cover}"; deal with that first, or use --force`);
-      let via = 'script';
-      if (f.ok) {
+      const mouse = async (x, y) => {
         for (const [type, extra] of [['mouseMoved', {}], ['mousePressed', {button: 'left', clickCount: 1}], ['mouseReleased', {button: 'left', clickCount: 1}]]) {
-          await send('Input.dispatchMouseEvent', {type, x: f.x, y: f.y, ...extra});
+          await send('Input.dispatchMouseEvent', {type, x, y, ...extra});
         }
-        if (await run(PAGE.clicked)) via = 'mouse';
+        return run(PAGE.clicked);
+      };
+      let label, via = 'script', at;
+      if (p.at !== undefined) {
+        const m = /^(\d{1,5}),(\d{1,5})$/.exec(String(p.at));
+        if (!m) throw new UserError('--at takes X,Y in pixels of the visible page, as in a screenshot, e.g. --at 120,340');
+        const [x, y] = [Number(m[1]), Number(m[2])];
+        const f = await run(PAGE.atpoint, {x, y});
+        if (f.error === 'outside') throw new UserError(`${x},${y} is outside the visible page (${Math.round(f.w)}x${Math.round(f.h)})`);
+        if (f.error) throw new UserError(`there is nothing at ${x},${y}`);
+        if (await mouse(x, y)) via = 'mouse';
+        else if (!await run(PAGE.jsclickat, {x, y})) throw new UserError(`there is nothing at ${x},${y}`);
+        label = f.label; at = `${x},${y}`;
+      } else {
+        let ref;
+        if (p.text !== undefined) {
+          if (typeof p.text !== 'string' || !p.text.trim() || p.text.length > 200) throw new UserError('--text takes the visible text of the element, at most 200 characters');
+          const t = await run(PAGE.findtext, {text: p.text});
+          if (t.error === 'ambiguous') throw new UserError(`"${p.text}" matches ${t.candidates.length} elements: ${t.candidates.join(' | ')}; use a longer text, or \`vivctl elements\` and a ref`);
+          if (t.error) throw new UserError(`no visible element shows "${p.text}"`);
+          ref = t.ref;
+        } else ref = asInt(p.ref, 'ref');
+        const f = await run(PAGE.aim, {ref});
+        if (f.error) throw new UserError('that element is gone, run `vivctl elements` again');
+        if (!f.ok && !p.force) throw new UserError(`"${f.label}" is covered by "${f.cover}"; deal with that first, or use --force`);
+        if (f.ok && await mouse(f.x, f.y)) via = 'mouse';
+        if (via === 'script' && !await run(PAGE.jsclick, {ref})) throw new UserError('that element is gone, run `vivctl elements` again');
+        label = f.label;
       }
-      if (via === 'script' && !await run(PAGE.jsclick, {ref})) throw new UserError('that element is gone, run `vivctl elements` again');
       await settle(tab.id, 300);
       const after = await listTabs();
       const self = after.find(t => t.id === tab.id);
       const opened = after.filter(t => !before.has(t.id)).map(t => t.id);
-      return {clicked: f.label, via, ...(opened.length && {newTabs: opened}),
+      return {clicked: label, via, ...(at && {at}), ...(opened.length && {newTabs: opened}),
         ...(self && self.url !== tab.url && {navigated: stripUrl(self.url)})};
     }),
     type: p => onPage(tabArg(p), async ({send, run, tab}) => {
@@ -166,8 +190,12 @@ export function createOps({browser, pages, lock}) {
       await settle(tab.id, 100);
       return r;
     }),
-    screenshot: p => onPage(tabArg(p), async ({sessionId}) => {
-      const r = await cdp('Page.captureScreenshot', {format: 'png'}, sessionId, 6000).catch(() => {
+    // The visible part of the page at one image pixel per CSS pixel, also on a Retina display, so
+    // that a point in the picture is the point `click --at` takes.
+    screenshot: p => onPage(tabArg(p), async ({sessionId, run}) => {
+      const v = await run(PAGE.viewport);
+      const clip = {x: v.x, y: v.y, width: v.w, height: v.h, scale: 1 / v.dpr};
+      const r = await cdp('Page.captureScreenshot', {format: 'png', clip}, sessionId, 6000).catch(() => {
         throw new UserError(`could not capture the tab: a tab in the background has no picture, run \`vivctl focus ${tabArg(p)}\` first`);
       });
       const dir = path.join(STATE, 'shots');

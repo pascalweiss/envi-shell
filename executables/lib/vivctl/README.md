@@ -30,12 +30,15 @@ vivctl read TAB [--max N]            title, url and visible text, default 20000 
 vivctl elements TAB                  clickable and editable elements, numbered
 vivctl navigate TAB URL              also: back, forward, reload (reload also loads a hibernated tab)
 vivctl click TAB REF [--force]       REF is a number from the last `elements`
+vivctl click TAB --text TEXT [--force]  the element showing TEXT; an ambiguous text is an error
+vivctl click TAB --at X,Y            a point of the visible page, in screenshot pixels
 vivctl type TAB REF TEXT [--enter]   replaces the text of an element, never a password field
 vivctl select TAB REF OPTION         choose an option of a <select> by its text or value
 vivctl press TAB KEY                 Enter Tab Escape Backspace Space arrows PageUp PageDown Home End
 vivctl scroll TAB up|down|top|bottom
 vivctl focus TAB                     make it the active tab
-vivctl screenshot TAB                PNG under ~/.vivctl/shots, the path is printed
+vivctl screenshot TAB                PNG of the visible page under ~/.vivctl/shots, one pixel per
+                                     CSS pixel (also on Retina), the path is printed
 ```
 
 There is no `eval`: the page operations are fixed commands like the rest. What they do and why:
@@ -61,6 +64,23 @@ There is no `eval`: the page operations are fixed commands like the rest. What t
   result says which path was taken (`via: keyboard`, `mouse` or `script`). Scripted keys are
   untrusted events: the page's handlers see them, but browser defaults such as moving focus with
   Tab or scrolling with PageDown do not happen; `focus` the tab first when that matters.
+- **What counts as clickable.** `elements` lists what announces itself (links, buttons, form
+  fields, the usual ARIA roles, `onclick`), and also what many pages build instead: plain
+  elements with a script handler, which only their pointer cursor gives away. So the outermost
+  element of a `cursor: pointer` area counts, as do labels, `tabindex >= 0` and the roles
+  `radio`, `switch`, `combobox`, `row`, `gridcell` and `treeitem`. An element that wraps a listed
+  control or another candidate gives way to it, so a tile and its text, or a label and its
+  checkbox, never both get a ref. A checkbox or radio styled away (smaller than 4 pixels or fully
+  transparent) is left out, and its label or tile takes the click.
+- **Clicking by text.** `click --text` takes the innermost visible elements whose text (or
+  `aria-label`, or button value) contains TEXT, exact matches before partial ones, and lifts
+  each to the control around it: the nearest announced control or label above it, else the
+  outermost pointer area it sits in. Exactly one target is clicked like a ref, aimed and
+  verified; two or more are an error that lists them, never a guess.
+- **Clicking a point.** `click --at X,Y` is the last resort for what neither of the above
+  reaches. The coordinates are CSS pixels of the visible page, the pixels of a `screenshot`,
+  which is why screenshots are taken at that scale. The result names what was hit. Mind that a
+  screenshot shows everything on the page, personal data included.
 - **Clicks are aimed.** Before a click, the element is scrolled into view and the point is hit
   tested: if something else is on top (a cookie banner, a modal), the command names it and does
   not click; `--force` clicks the element from the page anyway. The result reports tabs the
