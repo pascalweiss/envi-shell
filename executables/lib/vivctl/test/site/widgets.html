@@ -1,0 +1,29 @@
+<!doctype html><title>Widgets</title>
+<style>
+.tile{cursor:pointer;display:inline-block;border:1px solid #888;padding:8px;margin:4px}
+tr.doc{cursor:pointer} td{padding:4px 12px}
+label.opt{cursor:pointer;display:inline-block;border:1px solid #888;padding:8px;position:relative}
+label.opt input{position:absolute;opacity:0;width:1px;height:1px}
+#fixed{position:fixed;left:0;top:0;width:160px;height:40px;background:#cde}
+</style>
+<body style="padding-top:60px">
+<div id=fixed>Fixed corner</div>
+<div class=tile id=ta><span>Bestehendes Auto</span><br><small>Versicherung wechseln</small></div>
+<div class=tile id=tb><span>Neues Auto</span></div>
+<table><tr class=doc data-n=1><td>Rechnung</td><td>20.01.</td></tr><tr class=doc data-n=2><td>Nachtrag</td><td>05.05.</td></tr></table>
+<label class=opt><input type=radio name=o value=b> Option B</label>
+<div class=tile id=m1>Mehr</div><div class=tile id=m2>Mehr</div>
+<p>Plain text without a handler</p>
+<p id=vw></p>
+<p id=out>nothing</p>
+<script>
+const out=t=>document.getElementById('out').textContent=t;
+document.getElementById('ta').addEventListener('click',()=>out('Tile A'));
+document.getElementById('tb').addEventListener('click',()=>out('Tile B'));
+document.querySelectorAll('tr.doc').forEach(r=>r.addEventListener('click',()=>out('Row '+r.dataset.n)));
+document.querySelector('label.opt input').addEventListener('change',e=>out('Radio '+e.target.value+' '+e.target.checked));
+document.getElementById('fixed').addEventListener('click',()=>out('Fixed hit'));
+const vv=()=>document.getElementById('vw').textContent='viewport '+Math.round(visualViewport.width)+'x'+Math.round(visualViewport.height);
+vv(); addEventListener('resize',vv);
+</script>
+</body>

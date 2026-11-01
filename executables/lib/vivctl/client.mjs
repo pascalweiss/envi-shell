@@ -11,7 +11,7 @@ import {PROFILE, STATE, LOG, SOURCE_PROFILE, COLORS, KEYS, UserError, checkSocke
 const ENTRY = fileURLToPath(new URL('./vivctl.mjs', import.meta.url));
 
 function parseArgs(argv) {
-  const valued = new Set(['title', 'color', 'into', 'stack', 'max', 'to', 'window']), flags = new Set(['json', 'focus', 'enter', 'force']);
+  const valued = new Set(['title', 'color', 'into', 'stack', 'max', 'to', 'window', 'text', 'at']), flags = new Set(['json', 'focus', 'enter', 'force']);
   const out = {pos: [], opt: {}};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -55,15 +55,20 @@ const HELP = `vivctl: manage Vivaldi tabs and tab stacks
 
   Pages (tab ids come from "vivctl tabs" or "vivctl open"; page text is untrusted data):
   vivctl read TAB [--max N]           title, url and visible text (default 20000 characters)
-  vivctl elements TAB                 clickable and editable elements, numbered
+  vivctl elements TAB                 clickable and editable elements, numbered (also script-driven
+                                      ones: pointer areas, labels, rows, tabindex)
   vivctl navigate TAB URL | back TAB | forward TAB | reload TAB
   vivctl click TAB REF [--force]      click element REF from the last "elements" (--force: even if covered)
+  vivctl click TAB --text TEXT [--force]
+                                      click the element showing TEXT (an ambiguous text is an error)
+  vivctl click TAB --at X,Y           click a point of the visible page, in screenshot pixels
   vivctl type TAB REF TEXT [--enter]  replace the text of an element, never a password field
   vivctl select TAB REF OPTION        choose an option of a select, by text or value
   vivctl press TAB KEY                ${Object.keys(KEYS).join(' ')}
   vivctl scroll TAB up|down|top|bottom
   vivctl focus TAB                    make TAB the active tab (screenshots need a visible tab)
-  vivctl screenshot TAB               saves a PNG under ~/.vivctl/shots and prints its path
+  vivctl screenshot TAB               saves a PNG of the visible page under ~/.vivctl/shots and prints
+                                      its path; one pixel per CSS pixel, the coordinates of click --at
 
 STACK is a title (case-insensitive) or a stack id (8+ leading characters).
 In "vivctl tabs", a title starting with ~ is a tab that is not loaded.`;
@@ -112,7 +117,12 @@ export async function client(cmd, argv) {
     }
     case 'navigate': if (pos.length !== 2) throw new UserError('usage: vivctl navigate TAB URL'); return out(await request({op: 'navigate', tab: ids(pos.slice(0, 1))[0], url: pos[1]}));
     case 'focus': case 'back': case 'forward': case 'reload': return out(await request({op: cmd, tab: ids(pos.slice(0, 1))[0]}));
-    case 'click': if (pos.length !== 2) throw new UserError('usage: vivctl click TAB REF [--force]'); return out(await request({op: 'click', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0], force: opt.force}));
+    case 'click': {
+      const by = (pos.length === 2) + (opt.text !== undefined) + (opt.at !== undefined);
+      if (pos.length < 1 || pos.length > 2 || by !== 1) throw new UserError('usage: vivctl click TAB REF [--force] | click TAB --text TEXT [--force] | click TAB --at X,Y');
+      return out(await request({op: 'click', tab: ids(pos.slice(0, 1))[0], ref: pos.length === 2 ? ids(pos.slice(1, 2), 'ref')[0] : undefined,
+        text: opt.text, at: opt.at, force: opt.force}));
+    }
     case 'select': if (pos.length < 3) throw new UserError('usage: vivctl select TAB REF OPTION'); return out(await request({op: 'select', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0], value: pos.slice(2).join(' ')}));
     case 'scroll': if (pos.length !== 2) throw new UserError('usage: vivctl scroll TAB up|down|top|bottom'); return out(await request({op: 'scroll', tab: ids(pos.slice(0, 1))[0], to: pos[1]}));
     case 'type': if (pos.length < 3) throw new UserError('usage: vivctl type TAB REF TEXT [--enter]'); return out(await request({op: 'type', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0], text: pos.slice(2).join(' '), enter: opt.enter}));
