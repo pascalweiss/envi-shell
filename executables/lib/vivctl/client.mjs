@@ -5,7 +5,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {PROFILE, STATE, LOG, SOURCE_PROFILE, COLORS, KEYS, UserError, checkSocketPath, checkAuthSetup, request} from './common.mjs';
+import {PROFILE, STATE, LOG, SOURCE_PROFILE, COLORS, KEYS, UserError, NotRunning, checkSocketPath, checkAuthSetup, request, sleep} from './common.mjs';
 
 // `start` runs the daemon as `node vivctl.mjs daemon`.
 const ENTRY = fileURLToPath(new URL('./vivctl.mjs', import.meta.url));
@@ -137,7 +137,15 @@ export async function client(cmd, argv) {
     case 'screenshot': { const r = await request({op: 'screenshot', tab: ids(pos.slice(0, 1))[0]}); return opt.json ? out(r) : console.log(r.file); }
     case 'unlock': { const r = await request({op: 'unlock'}); return out(opt.json ? r : lockLine(r)); }
     case 'lock': { const r = await request({op: 'lock'}); return out(opt.json ? r : lockLine(r)); }
-    case 'stop': await request({op: 'quit'}); return console.log('Vivaldi is closing');
+    case 'stop': {
+      await request({op: 'quit'});
+      // The daemon exits once Vivaldi has. Waiting for that makes `vivctl stop && vivctl start` work.
+      for (let i = 0; i < 60; i++) {
+        await sleep(250);
+        if (await request({op: 'ping'}).then(() => false, e => e instanceof NotRunning)) return console.log('Vivaldi closed');
+      }
+      return console.log(`Vivaldi is still closing after 15 seconds, see ${LOG}`);
+    }
     case 'start': return start();
     case 'init': return initProfile();
     default: throw new UserError(cmd ? `unknown command "${cmd}"\n\n${HELP}` : HELP);

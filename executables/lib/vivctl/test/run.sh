@@ -280,7 +280,7 @@ check "open brings a window back" "tabs:" "$(v open "$URL/second.html?t=back")"
 check "status ready again" "ready" "$(v status)"
 
 echo "== lock, and tabs restored after a restart"
-v stop >/dev/null; for _ in $(seq 1 20); do v status >/dev/null 2>&1 || break; sleep 0.5; done
+check "stop returns once the daemon is gone" "not running" "$(v stop >/dev/null; v status 2>&1)"
 printf '#!/bin/sh\nexit "$(cat "%s")"\n' "$TMP/auth-answer" > "$TMP/auth.sh"; chmod +x "$TMP/auth.sh"
 echo 1 > "$TMP/auth-answer"
 VIVCTL_AUTH= VIVCTL_AUTH_BIN="$TMP/auth.sh" v start >/dev/null

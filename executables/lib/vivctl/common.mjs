@@ -30,6 +30,8 @@ export const DENY = (process.env.VIVCTL_DENY || '').split(',').map(x => x.trim()
 export const OPEN_OPS = new Set(['ping', 'unlock', 'lock', 'stack-step']);
 
 export class UserError extends Error {}
+// Nothing listens on the socket: the daemon is not running, or has just exited.
+export class NotRunning extends UserError {}
 // Vivaldi is up, but every window is closed (on macOS it keeps running like that).
 export class NoWindow extends UserError {}
 
@@ -134,11 +136,13 @@ export function request(req) {
     const c = net.connect(SOCK);
     let data = '';
     c.on('error', e => reject(e.code === 'ENOENT' || e.code === 'ECONNREFUSED'
-      ? new UserError('daemon is not running, start it with: vivctl start') : e));
+      ? new NotRunning('daemon is not running, start it with: vivctl start') : e));
     c.on('connect', () => c.write(JSON.stringify(req) + '\n'));
     c.on('data', d => { data += d; });
     c.on('end', () => {
-      const m = JSON.parse(data);
+      // A daemon that exits while a request is open (right after `stop`) closes it without a word.
+      let m;
+      try { m = JSON.parse(data); } catch { return reject(new UserError('the daemon closed the connection without an answer; is it stopping?')); }
       m.ok ? resolve(m.result) : reject(m.user ? new UserError(m.error) : new Error(m.error));
     });
   });
