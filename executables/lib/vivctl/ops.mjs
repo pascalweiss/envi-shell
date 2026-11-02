@@ -3,7 +3,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import {PROFILE, STATE, KEYS, UserError, asInt, asTitle, asColor, asUrl, stripUrl, hostDenied, stacksOf} from './common.mjs';
+import {PROFILE, STATE, KEYS, UserError, asInt, asTitle, asColor, asUrl, stripUrl, hostDenied, stacksOf, stepTarget} from './common.mjs';
 import {PAGE} from './page-scripts.mjs';
 
 export function createOps({browser, pages, lock}) {
@@ -252,6 +252,19 @@ export function createOps({browser, pages, lock}) {
           ...(s.title && {title: s.title}), ...(s.color && {color: asColor(s.color)})}));
       }
       return {moved: ids, window: windowId, ...(restacked.length && {stacks: restacked}), ...(leaving.length && {leftStack: leaving})};
+    },
+    // The stack keys: activate the next or previous stack of a window, by default the last focused
+    // one. Meant for keyboard shortcuts, so it works while locked (OPEN_OPS in common.mjs) and
+    // answers only whether it switched, never which tab.
+    'stack-step': async p => {
+      if (p.direction !== 'next' && p.direction !== 'previous') throw new UserError('direction is next or previous');
+      const windowId = p.window !== undefined ? asInt(p.window, 'window') : await inUI('lastFocused', {}, {bg: true});
+      if (windowId === null) throw new UserError('Vivaldi has no open window');
+      const tabs = (await listTabs()).filter(t => t.windowId === windowId);
+      if (!tabs.length) throw new UserError(`no window ${windowId}`);
+      const id = stepTarget(tabs, p.direction);
+      if (id !== null) await inUI('focus', {id});
+      return {switched: id !== null};
     },
     quit: async () => { await cdp('Browser.close'); return {}; },
   };

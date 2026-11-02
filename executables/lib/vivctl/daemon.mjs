@@ -10,6 +10,10 @@ import {pageAccess} from './pages.mjs';
 import {createLock} from './lock.mjs';
 import {createOps} from './ops.mjs';
 
+// Not every operation that works while locked may skip the queue: `stack-step` changes the active
+// tab, so it waits its turn like any other tab operation.
+const UNQUEUED = new Set(['ping', 'unlock', 'lock']);
+
 export async function daemon() {
   checkSocketPath();
   fs.mkdirSync(STATE, {recursive: true, mode: 0o700});
@@ -53,7 +57,7 @@ export async function daemon() {
         conn.end(JSON.stringify(reply) + '\n');
       };
       // ping, unlock and lock must not wait behind a tab operation (or a Touch ID sheet).
-      if (OPEN_OPS.has(req.op)) run(); else queue = queue.then(run);
+      if (UNQUEUED.has(req.op)) run(); else queue = queue.then(run);
     });
   });
   server.listen(SOCK, () => { fs.chmodSync(SOCK, 0o600); log('listening'); });

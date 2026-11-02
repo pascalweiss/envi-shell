@@ -31,7 +31,8 @@ user, and do not close it yourself: it holds their tabs.
 opens a window by itself.
 
 **The daemon is locked until the user has used Touch ID.** Every command except `status`,
-`unlock` and `lock` fails with "locked" until then. When you see that, run `vivctl unlock`:
+`unlock`, `lock` and the user's stack keys (`next-stack`, `previous-stack`) fails with "locked"
+until then. When you see that, run `vivctl unlock`:
 a Touch ID sheet opens on the Mac, tell the user to tap the sensor, and access then lasts an
 hour. If the unlock fails or times out, stop and say so; never work around the lock (no
 `VIVCTL_AUTH=off`, no second daemon, no raw access to the browser). The lock is the user's

@@ -9,7 +9,7 @@ const TW=["target-is-tab","do-not-reparent","on"];
 
 export const UI = {
   tabs: `
-    return (await q()).map(t=>{const e=ext(t);return {id:t.id,windowId:t.windowId,active:t.active,pinned:t.pinned,
+    return (await q()).map(t=>{const e=ext(t);return {id:t.id,windowId:t.windowId,index:t.index,active:t.active,lastAccessed:t.lastAccessed,pinned:t.pinned,
       status:t.status,title:t.title||"",url:t.url||t.pendingUrl||"",group:e.group,groupTitle:e.fixedGroupTitle,groupColor:e.groupColor}})`,
   open: `
     const t=await new Promise(r=>chrome.tabs.create({url:P.url,active:P.focus,windowId:P.windowId},r));
@@ -78,6 +78,7 @@ export const UI = {
     if(left.length) throw new Error("tabs did not arrive in the window: "+left.join(" "));
     if(P.focus&&P.to!=="new") await new Promise(r=>chrome.windows.update(w,{focused:true},r));
     return w`,
+  lastFocused: `const w=await new Promise(r=>chrome.windows.getLastFocused({windowTypes:["normal"]},r)); return w?w.id:null`,
   newWindow: `await new Promise(r=>chrome.windows.create({focused:true},()=>r(true))); return true`,
   status: `const t=await new Promise(r=>chrome.tabs.get(P.id,r)); return t?{status:t.status,title:t.title||"",discarded:!!t.discarded}:null`,
   navigate: `await new Promise(r=>chrome.tabs.update(P.id,{url:P.url},r)); return true`,

@@ -20,6 +20,8 @@ vivctl windows [--json]                       every window: id, number of tabs a
 vivctl move 123 456 --to <window>|new         move tabs to another window, or a new one
 vivctl move --stack research --to new         move a whole stack; it stays a stack
 vivctl move --window <a> --to <b>             move every tab of window a into b, which closes a
+vivctl next-stack [--window <w>]              activate the next stack, in the last focused window by default
+vivctl previous-stack [--window <w>]          the previous one; both work while locked (see Stack keys)
 vivctl stop                                   close Vivaldi
 ```
 
@@ -178,8 +180,8 @@ every logged-in session, every cookie. That is why this tool does not use the us
   reaches it.
 - **A lock with a lease.** The daemon starts locked. Until `vivctl unlock` has passed a Touch ID
   check (password as the fallback on a Mac without the sensor), it answers only `status`,
-  `unlock` and `lock`, so neither a script nor an agent can touch the browser unnoticed: the
-  sheet is the consent. A pass opens the daemon for `VIVCTL_LEASE_MINUTES` (default 60) and it
+  `unlock`, `lock` and the two stack keys, so neither a script nor an agent can touch the
+  browser unnoticed: the sheet is the consent. A pass opens the daemon for `VIVCTL_LEASE_MINUTES` (default 60) and it
   locks again by itself. The check is run by the daemon, which spawns `touchid.swift`
   (compiled on first use, cached by checksum like `docscan`), so a client cannot claim a
   success it did not get. `VIVCTL_AUTH=off` removes the lock; a daemon without the helper
@@ -208,6 +210,23 @@ control. Nothing here defends against an attacker who already runs as you. A Viv
 pipe and cannot be controlled; start it with `vivctl start` instead. Vivaldi launched a
 second time on the same profile hands over to the running instance and exits, which leaves a
 daemon without a browser (see `~/.vivctl/daemon.log`).
+
+## Stack keys
+
+`vivctl next-stack` and `previous-stack` activate the next or previous stack of a window in tab
+bar order, wrapping around at both ends. Loose tabs are skipped: from a tab outside every stack
+the step goes to the nearest stack on that side. A stack is entered at the tab last active in it
+(Chromium's `lastAccessed`).
+
+They exist for keyboard shortcuts, which Vivaldi has none of for stacks. A browser extension
+cannot provide them on its own, because Vivaldi hands a tab's stack (`vivExtData`) only to its
+own UI and never to an extension. So an extension takes the key press and relays it through a
+native messaging host to the socket, and the daemon, which sees the stacks, does the step.
+
+**Both work while locked.** A shortcut that stops working whenever the lease runs out is no
+shortcut, and the exposure is small: the answer is only whether the step switched, never which
+tab, so the most a caller can do is change which stack is active. They still queue behind other
+tab operations, unlike `ping`, `unlock` and `lock`.
 
 ## The Vivaldi Ctl app
 
@@ -277,8 +296,8 @@ The suite starts its own daemon on a throwaway profile in a temp directory and s
 in `test/site/` from its own local web server, so it needs no network and never touches a real
 profile. It covers stacks (including the cases where the active tab sits in another stack),
 every page command in background and front tabs, shadow DOM, iframes, a hostile page that
-patches globals, the windowless state, the lock (answered by a script instead of Touch ID) and
-tabs that are restored but not loaded. Run it after every Vivaldi update: the calls vivctl
+patches globals, the windowless state, the stack keys, the lock (answered by a script instead of
+Touch ID) and tabs that are restored but not loaded. Run it after every Vivaldi update: the calls vivctl
 relies on are undocumented, and a changed one shows up there as a failure.
 
 ## Files

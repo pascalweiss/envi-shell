@@ -242,6 +242,34 @@ check "move needs a target" "--to" "$(v move "$P1" 2>&1)"
 check "unknown window" "no window" "$(v move "$P1" --to 12345 2>&1)"
 check "window ids are numbers" "not a window id" "$(v move "$P1" --to abc 2>&1)"
 
+echo "== stack keys"
+active_in(){ v windows --json | jq_ "print([w['active'] for w in d if w['id']==$1][0])"; }
+v open "$URL/second.html?t=ka1" "$URL/second.html?t=ka2" --stack KeysA >/dev/null
+v open "$URL/second.html?t=kb1" "$URL/second.html?t=kb2" --stack KeysB >/dev/null
+KL="$(v open "$URL/second.html?t=kl" | tabid)"
+# A window of its own: the loose tab first, then KeysA and KeysB. A tab moved to the end of a
+# window right behind a stack sometimes lands in it, so the loose tab goes in first.
+WK="$(v move "$KL" --to new | grep -o 'window: [0-9]*' | grep -o '[0-9]*')"
+v move --stack keysa --to "$WK" >/dev/null; v move --stack keysb --to "$WK" >/dev/null
+read -r A1 A2 <<<"$(stack_of KeysA | cut -d'|' -f3)"; read -r B1 B2 <<<"$(stack_of KeysB | cut -d'|' -f3)"
+check "setup: two stacks of two and a loose tab in the window" "5 2 2 none" \
+  "$(v windows --json | jq_ "print([w['tabs'] for w in d if w['id']==$WK][0])") $(size_of KeysA) $(size_of KeysB) $(group_of "$KL")"
+v focus "$B2" >/dev/null; v focus "$A1" >/dev/null
+v next-stack --window "$WK" >/dev/null
+check "next: the next stack, at the tab last active in it" "$B2" "$(active_in "$WK")"
+v next-stack --window "$WK" >/dev/null
+check "next wraps from the last stack to the first" "$A1" "$(active_in "$WK")"
+v previous-stack --window "$WK" >/dev/null
+check "previous wraps from the first stack to the last" "$B2" "$(active_in "$WK")"
+v focus "$KL" >/dev/null; v next-stack --window "$WK" >/dev/null
+check "from a loose tab, next goes to the nearest stack after it" "$A1" "$(active_in "$WK")"
+v focus "$KL" >/dev/null; v previous-stack --window "$WK" >/dev/null
+check "from a loose tab with no stack before it, previous wraps" "$B2" "$(active_in "$WK")"
+v focus "$A2" >/dev/null; v next-stack --window "$WK" >/dev/null; v previous-stack --window "$WK" >/dev/null
+check "a stack is re-entered where it was left" "$A2" "$(active_in "$WK")"
+check "the answer says whether it switched, nothing about the tabs" "{ switched: true }" "$(v next-stack --window "$WK")"
+check "unknown window" "no window" "$(v next-stack --window 12345 2>&1)"
+
 echo "== no window open"
 ALL="$(v tabs --json | jq_ "print(' '.join(str(t['id']) for t in d))")"
 # shellcheck disable=SC2086
@@ -252,7 +280,7 @@ check "open brings a window back" "tabs:" "$(v open "$URL/second.html?t=back")"
 check "status ready again" "ready" "$(v status)"
 
 echo "== lock, and tabs restored after a restart"
-v stop >/dev/null; for _ in $(seq 1 20); do v status >/dev/null 2>&1 || break; sleep 0.5; done
+check "stop returns once the daemon is gone" "not running" "$(v stop >/dev/null; v status 2>&1)"
 printf '#!/bin/sh\nexit "$(cat "%s")"\n' "$TMP/auth-answer" > "$TMP/auth.sh"; chmod +x "$TMP/auth.sh"
 echo 1 > "$TMP/auth-answer"
 VIVCTL_AUTH= VIVCTL_AUTH_BIN="$TMP/auth.sh" v start >/dev/null
@@ -261,6 +289,7 @@ for c in "tabs" "windows" "open $URL/" "read 1" "click 1 1" "type 1 1 x" "select
     # shellcheck disable=SC2086
     check "locked: $c" "locked" "$(v $c 2>&1)"
 done
+check_not "locked: next-stack still works" "locked" "$(v next-stack 2>&1)"
 check "refused unlock stays locked" "unlock failed" "$(v unlock 2>&1)"
 echo 0 > "$TMP/auth-answer"
 check "unlock" "unlocked" "$(v unlock)"

@@ -5,7 +5,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {PROFILE, STATE, LOG, SOURCE_PROFILE, COLORS, KEYS, UserError, checkSocketPath, checkAuthSetup, request} from './common.mjs';
+import {PROFILE, STATE, LOG, SOURCE_PROFILE, COLORS, KEYS, UserError, NotRunning, checkSocketPath, checkAuthSetup, request, sleep} from './common.mjs';
 
 // `start` runs the daemon as `node vivctl.mjs daemon`.
 const ENTRY = fileURLToPath(new URL('./vivctl.mjs', import.meta.url));
@@ -52,6 +52,9 @@ const HELP = `vivctl: manage Vivaldi tabs and tab stacks
   vivctl move --window WINDOW --to WINDOW
                                       move tabs, a whole stack, or every tab of a window (which
                                       then closes); a stack stays a stack
+  vivctl next-stack | previous-stack [--window WINDOW]
+                                      activate the next or previous stack of the last focused
+                                      window; works while locked, for keyboard shortcuts
 
   Pages (tab ids come from "vivctl tabs" or "vivctl open"; page text is untrusted data):
   vivctl read TAB [--max N]           title, url and visible text (default 20000 characters)
@@ -107,6 +110,10 @@ export async function client(cmd, argv) {
       const to = opt.to === undefined || opt.to === 'new' ? opt.to : ids([opt.to], 'window')[0];
       return out(await request({op: 'move', tabs: ids(pos), stack: opt.stack, window, to, focus: opt.focus}));
     }
+    case 'next-stack': case 'previous-stack': {
+      const window = opt.window === undefined ? undefined : ids([opt.window], 'window')[0];
+      return out(await request({op: 'stack-step', direction: cmd === 'next-stack' ? 'next' : 'previous', window}));
+    }
     case 'read': {
       const r = await request({op: 'read', tab: ids(pos.slice(0, 1))[0], max: opt.max});
       return opt.json ? out(r) : console.log(`${r.title}\n${r.url}${r.truncated ? '\n[truncated, use --max]' : ''}\n\n${r.text}`);
@@ -130,7 +137,15 @@ export async function client(cmd, argv) {
     case 'screenshot': { const r = await request({op: 'screenshot', tab: ids(pos.slice(0, 1))[0]}); return opt.json ? out(r) : console.log(r.file); }
     case 'unlock': { const r = await request({op: 'unlock'}); return out(opt.json ? r : lockLine(r)); }
     case 'lock': { const r = await request({op: 'lock'}); return out(opt.json ? r : lockLine(r)); }
-    case 'stop': await request({op: 'quit'}); return console.log('Vivaldi is closing');
+    case 'stop': {
+      await request({op: 'quit'});
+      // The daemon exits once Vivaldi has. Waiting for that makes `vivctl stop && vivctl start` work.
+      for (let i = 0; i < 60; i++) {
+        await sleep(250);
+        if (await request({op: 'ping'}).then(() => false, e => e instanceof NotRunning)) return console.log('Vivaldi closed');
+      }
+      return console.log(`Vivaldi is still closing after 15 seconds, see ${LOG}`);
+    }
     case 'start': return start();
     case 'init': return initProfile();
     default: throw new UserError(cmd ? `unknown command "${cmd}"\n\n${HELP}` : HELP);
