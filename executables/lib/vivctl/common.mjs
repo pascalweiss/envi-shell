@@ -25,7 +25,9 @@ export const AUTH_BIN = process.env.VIVCTL_AUTH_BIN || '';
 export const LEASE_MS = (Number(process.env.VIVCTL_LEASE_MINUTES) || 60) * 60000;
 // Hosts whose pages the page operations refuse (comma separated suffixes). Empty by default.
 export const DENY = (process.env.VIVCTL_DENY || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
-export const OPEN_OPS = new Set(['ping', 'unlock', 'lock']); // the only operations that work while locked
+// The only operations that work while locked. The stack keys are among them because a keyboard
+// shortcut that dies with every lease is useless, and they return nothing about the tabs.
+export const OPEN_OPS = new Set(['ping', 'unlock', 'lock', 'stack-step']);
 
 export class UserError extends Error {}
 // Vivaldi is up, but every window is closed (on macOS it keeps running like that).
@@ -101,6 +103,28 @@ export function stacksOf(tabs) {
     s.tabs.push(t.id); m.set(t.group, s);
   }
   return [...m.values()];
+}
+
+// The tab `stack-step` activates among the tabs of one window: the next or previous stack in tab
+// bar order, wrapping around at both ends. Loose tabs are skipped, so from a loose tab the step
+// goes to the nearest stack on that side. A stack is entered at the tab last active in it. Null
+// when there is nowhere to go: no stack, or only the one that is already active.
+export function stepTarget(tabs, direction) {
+  const byId = new Map(tabs.map(t => [t.id, t]));
+  const active = tabs.find(t => t.active);
+  const stacks = stacksOf([...tabs].sort((a, b) => a.index - b.index));
+  if (!active || !stacks.length) return null;
+  const first = s => byId.get(s.tabs[0]).index;
+  const step = direction === 'next' ? 1 : -1;
+  let i;
+  if (active.group) i = stacks.findIndex(s => s.id === active.group) + step;
+  else {
+    i = step > 0 ? stacks.findIndex(s => first(s) > active.index) : stacks.findLastIndex(s => first(s) < active.index);
+    if (i === -1) i = step > 0 ? 0 : stacks.length - 1;
+  }
+  const target = stacks[(i + stacks.length) % stacks.length];
+  if (target.id === active.group) return null;
+  return target.tabs.map(id => byId.get(id)).reduce((a, b) => ((b.lastAccessed || 0) > (a.lastAccessed || 0) ? b : a)).id;
 }
 
 // One request to the daemon, one answer.
