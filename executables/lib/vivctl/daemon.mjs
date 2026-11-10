@@ -22,7 +22,10 @@ export async function daemon() {
   if (await request({op: 'ping'}).then(() => true, () => false)) throw new UserError('daemon is already running');
   fs.rmSync(SOCK, {force: true});
 
-  const proc = spawn(BROWSER, ['--remote-debugging-pipe', `--user-data-dir=${PROFILE}`, '--no-first-run'],
+  // The pipe alone makes Chromium set navigator.webdriver on every page, which captchas and bot
+  // managers (Akamai, Cloudflare) treat as a bot. Turning AutomationControlled off clears it.
+  const proc = spawn(BROWSER, ['--remote-debugging-pipe', '--disable-blink-features=AutomationControlled',
+    `--user-data-dir=${PROFILE}`, '--no-first-run'],
     {stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe']});
   const [toB, fromB] = [proc.stdio[3], proc.stdio[4]];
   toB.on('error', () => {});

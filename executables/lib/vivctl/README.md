@@ -119,6 +119,13 @@ the Chrome Extensions API, so the only way in from outside is the Chrome DevTool
 `--remote-debugging-pipe`, attaches to the UI page over that pipe, and serves a fixed set of
 operations on a unix socket. Every other `vivctl` command is a client of that socket.
 
+The pipe alone counts as automation to Chromium: every page then sees `navigator.webdriver`
+set to `true`, and captchas and bot managers (reCAPTCHA, Cloudflare, Akamai) refuse such a
+browser or answer "Access Denied". The daemon therefore also passes
+`--disable-blink-features=AutomationControlled`, which keeps the pipe and clears the flag.
+While a page command (`click`, `read`, ...) runs, a debugger session is attached to that tab,
+which very aggressive detection could still notice; between commands nothing is attached.
+
 Verified against Vivaldi 8.2 (Chromium 152). The calls it relies on:
 
 | Purpose | Call |
