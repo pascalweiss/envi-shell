@@ -7,6 +7,8 @@ agents can organise a browser without anybody clicking.
 vivctl init                                   once per Mac: create the profile the daemon runs
 vivctl start                                  run Vivaldi under the control daemon (locked)
 vivctl unlock | lock                          Touch ID opens everything below for 60 minutes
+vivctl unlock --password                      the same with the vivctl password, for SSH (see Password over SSH)
+vivctl set-password [--remove]                set, change or remove that password, confirmed by Touch ID
 vivctl install-app                            the Vivaldi Ctl app for the Dock and as default browser
 vivctl open https://a.example https://b.example --stack Research --color blue
 vivctl open https://c.example --stack research     add a tab to an existing stack
@@ -193,9 +195,37 @@ every logged-in session, every cookie. That is why this tool does not use the us
   (compiled on first use, cached by checksum like `docscan`), so a client cannot claim a
   success it did not get. `VIVCTL_AUTH=off` removes the lock; a daemon without the helper
   refuses to start rather than run unlocked.
+- **A password for SSH, of its own.** The Touch ID sheet appears on the Mac's screen, which a
+  session over SSH cannot see, so `vivctl unlock --password` opens the same lease with a
+  password. It is vivctl's own, not the login password: that one also opens `sudo` and the
+  keychain and should not pass through a Node daemon. Details below.
 - **URLs without secrets.** `tabs` returns the origin and path only; a query or fragment shows
   as `?...` and `#...`. Magic links and reset tokens usually live there. A token in the path
   (`/reset/<token>`) and a revealing page title are not caught.
+
+### Password over SSH
+
+`vivctl set-password` asks for a password twice (at least 10 characters) and then for Touch ID,
+so it is set at the Mac. The daemon keeps only an scrypt hash (random salt, N=2^15, r=8, p=1)
+in `~/.vivctl/password`, mode `0600`. `vivctl unlock --password` then opens the lease from any
+terminal, an SSH session included:
+
+- **Typed, never passed.** The client reads the password from the controlling terminal with the
+  echo off, never from an argument (`ps` would show it), an environment variable or stdin. A
+  caller without a terminal, which is how a coding agent runs commands, is refused before
+  anything is sent.
+- **Checked by the daemon.** The client sends the password over the `0600` socket and the
+  daemon compares the hash in constant time, so, as with Touch ID, a client cannot claim a
+  success. Neither the password nor the hash reaches the log.
+- **Guessing is slow.** Checks run one at a time. After 3 wrong passwords in a row the daemon
+  refuses every password, the right one too, for 5 minutes; Touch ID keeps working.
+- **Changing it takes Touch ID.** `set-password` and `set-password --remove` always run a fresh
+  Touch ID check, also during a lease, so whoever holds a lease cannot set a password of their
+  own and keep the browser.
+
+What it does not change: a process running as you can replace the hash file, just as it can set
+`VIVCTL_AUTH=off`. The password is the consent of the person typing it, so an agent never asks
+for it and never takes it in a chat.
 
 **Pages are the largest exposure.** `read` and `screenshot` put the content of any open tab,
 logged-in ones included, into whoever called them, and with `navigate`, `click` and `type` an
@@ -314,7 +344,7 @@ relies on are undocumented, and a changed one shows up there as a failure.
   - `common.mjs`: configuration, errors, input validation, the socket request
   - `client.mjs`: the command line, `start` and `init`
   - `daemon.mjs`: starts Vivaldi on the pipe and serves the socket
-  - `lock.mjs`: the Touch ID lock and its lease
+  - `lock.mjs`: the lock and its lease: Touch ID, or the vivctl password
   - `ops.mjs`: the whitelist of operations, the only way anything reaches the browser
   - `browser.mjs`: CDP over the pipe, calls into Vivaldi's UI pages
   - `pages.mjs`: the web page behind a tab, and input that is verified to arrive

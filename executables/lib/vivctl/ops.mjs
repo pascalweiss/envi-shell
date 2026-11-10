@@ -19,6 +19,7 @@ export function createOps({browser, pages, lock}) {
       return {profile: PROFILE, pid: process.pid, ready: !!win, windowless: !win && !!bg, ...lockState()};
     },
     unlock: lock.unlock,
+    'set-password': lock.setPassword,
     lock: async () => lock.lock(),
     tabs: async () => (await listTabs()).map(t => ({...t, url: stripUrl(t.url)})),
     stacks: async () => stacksOf(await listTabs()),

@@ -34,7 +34,10 @@ opens a window by itself.
 `unlock`, `lock` and the user's stack keys (`next-stack`, `previous-stack`) fails with "locked"
 until then. When you see that, run `vivctl unlock`:
 a Touch ID sheet opens on the Mac, tell the user to tap the sensor, and access then lasts an
-hour. If the unlock fails or times out, stop and say so; never work around the lock (no
+hour. If the user works over SSH they cannot see the sheet: ask them to run
+`vivctl unlock --password` in their own terminal instead. It needs a terminal, so you cannot run
+it for them, and never ask for the password or accept it in the chat. If the unlock fails or
+times out, stop and say so; never work around the lock (no
 `VIVCTL_AUTH=off`, no second daemon, no raw access to the browser). The lock is the user's
 consent for you to touch their browser.
 
@@ -42,6 +45,7 @@ consent for you to touch their browser.
 
 ```
 vivctl unlock | lock                             Touch ID, opens the commands below for an hour
+vivctl unlock --password                         the user's alternative over SSH; only they can run it
 vivctl tabs [--json]                             id, stack, title, url of every tab
 vivctl stacks [--json]                           stack id, color, title, tab ids
 vivctl open URL... [--stack NAME] [--color C] [--focus]

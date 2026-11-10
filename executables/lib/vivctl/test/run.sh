@@ -293,6 +293,33 @@ check_not "locked: next-stack still works" "locked" "$(v next-stack 2>&1)"
 check "refused unlock stays locked" "unlock failed" "$(v unlock 2>&1)"
 echo 0 > "$TMP/auth-answer"
 check "unlock" "unlocked" "$(v unlock)"
+
+echo "== password unlock"
+# The password is read from the terminal only, so these calls get a pseudo terminal from script(1).
+vt(){ local input="$1"; shift; { sleep 0.5; printf "$input"; sleep 1; } | script -q /dev/null node "$MJS" "$@" 2>&1 | tr -d '\r'; }
+v lock >/dev/null
+check "no password set yet" "no vivctl password is set" "$(vt 'x\n' unlock --password)"
+check "too short password refused" "at least 10" "$(vt 'short\nshort\n' set-password)"
+check "mismatch refused" "differ" "$(vt 'correct horse 1\ncorrect horse 2\n' set-password)"
+echo 1 > "$TMP/auth-answer"
+check "set-password needs Touch ID" "unlock failed" "$(vt 'correct horse 1\ncorrect horse 1\n' set-password)"
+check "refused Touch ID stores nothing" "no vivctl password is set" "$(vt 'x\n' unlock --password)"
+echo 0 > "$TMP/auth-answer"
+check "set-password" "vivctl password set" "$(vt 'correct horse 1\ncorrect horse 1\n' set-password)"
+check "password file is private" "600" "$(stat -f %Lp "$VIVCTL_HOME/password")"
+check_not "password not stored in plain" "correct horse" "$(cat "$VIVCTL_HOME/password")"
+check "wrong password" "wrong password" "$(vt 'nope nope nope\n' unlock --password)"
+check "still locked after a wrong password" "locked" "$(v tabs 2>&1)"
+check "right password unlocks" "unlocked" "$(vt 'correct horse 1\n' unlock --password)"
+check_not "unlocked by password" "locked" "$(v tabs 2>&1)"
+v lock >/dev/null
+vt 'nope 1 nope 1\n' unlock --password >/dev/null; vt 'nope 2 nope 2\n' unlock --password >/dev/null
+check "third wrong password blocks" "wrong password" "$(vt 'nope 3 nope 3\n' unlock --password)"
+check "blocked: even the right password is refused" "too many wrong passwords" "$(vt 'correct horse 1\n' unlock --password)"
+check "blocked: Touch ID still unlocks" "unlocked" "$(v unlock)"
+check "set-password --remove" "vivctl password removed" "$(v set-password --remove)"
+check_not "password file gone" "password" "$(ls "$VIVCTL_HOME")"
+check_not "log holds no password" "correct horse" "$(cat "$VIVCTL_HOME/daemon.log")"
 U="$(v tabs --json | jq_ "l=[t['id'] for t in d if t['status']=='unloaded'];print(l[0] if l else '')")"
 if [ -n "$U" ]; then
     check "restored tab that is not loaded is reported" "not loaded" "$(v read "$U" 2>&1)"
