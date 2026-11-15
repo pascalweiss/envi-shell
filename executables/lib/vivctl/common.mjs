@@ -19,7 +19,8 @@ export const BROWSER = process.env.VIVALDI_BIN || '/Applications/Vivaldi.app/Con
 export const COLORS = {grey: 'color1', blue: 'color2', red: 'color3', yellow: 'color4', green: 'color5',
   pink: 'color6', purple: 'color7', teal: 'color8', orange: 'color9'};
 export const COLOR_NAME = Object.fromEntries(Object.entries(COLORS).map(([k, v]) => [v, k]));
-// Access control: the daemon starts locked and a Touch ID check opens it for a lease.
+// Access control: the daemon starts locked and a Touch ID check (or the vivctl password) opens it
+// for a lease.
 export const AUTH_OFF = process.env.VIVCTL_AUTH === 'off';
 export const AUTH_BIN = process.env.VIVCTL_AUTH_BIN || '';
 export const LEASE_MS = (Number(process.env.VIVCTL_LEASE_MINUTES) || 60) * 60000;
@@ -27,7 +28,8 @@ export const LEASE_MS = (Number(process.env.VIVCTL_LEASE_MINUTES) || 60) * 60000
 export const DENY = (process.env.VIVCTL_DENY || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
 // The only operations that work while locked. The stack keys are among them because a keyboard
 // shortcut that dies with every lease is useless, and they return nothing about the tabs.
-export const OPEN_OPS = new Set(['ping', 'unlock', 'lock', 'stack-step']);
+// `set-password` runs a Touch ID check of its own.
+export const OPEN_OPS = new Set(['ping', 'unlock', 'lock', 'stack-step', 'set-password']);
 
 export class UserError extends Error {}
 // Nothing listens on the socket: the daemon is not running, or has just exited.

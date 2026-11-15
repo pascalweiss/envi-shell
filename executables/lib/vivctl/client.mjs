@@ -6,12 +6,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {PROFILE, STATE, LOG, SOURCE_PROFILE, COLORS, KEYS, UserError, NotRunning, checkSocketPath, checkAuthSetup, request, sleep} from './common.mjs';
+import {PASSWORD_MIN} from './lock.mjs';
 
 // `start` runs the daemon as `node vivctl.mjs daemon`.
 const ENTRY = fileURLToPath(new URL('./vivctl.mjs', import.meta.url));
 
 function parseArgs(argv) {
-  const valued = new Set(['title', 'color', 'into', 'stack', 'max', 'to', 'window', 'text', 'at']), flags = new Set(['json', 'focus', 'enter', 'force']);
+  const valued = new Set(['title', 'color', 'into', 'stack', 'max', 'to', 'window', 'text', 'at']), flags = new Set(['json', 'focus', 'enter', 'force', 'password', 'remove']);
   const out = {pos: [], opt: {}};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -26,7 +27,7 @@ function parseArgs(argv) {
 }
 const ids = (pos, what = 'tab') => pos.map(s => { if (!/^\d+$/.test(s)) throw new UserError(`not a ${what} id: ${s}`); return Number(s); });
 const lockLine = r => r.authOff ? 'lock: off (VIVCTL_AUTH=off)'
-  : r.locked ? 'locked, run `vivctl unlock` (Touch ID)' : `unlocked, ${r.minutesLeft} min left`;
+  : r.locked ? `locked, run \`vivctl unlock\` (Touch ID)${r.password ? ' or `vivctl unlock --password`' : ''}` : `unlocked, ${r.minutesLeft} min left`;
 const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '~' : s);
 
 const HELP = `vivctl: manage Vivaldi tabs and tab stacks
@@ -34,6 +35,8 @@ const HELP = `vivctl: manage Vivaldi tabs and tab stacks
   vivctl init                         once per Mac: copy Vivaldi's profile for the daemon to run
   vivctl start | stop | status        run Vivaldi under the control daemon
   vivctl unlock | lock                Touch ID opens every other command for a while (default 60 min)
+  vivctl unlock --password            the same with the vivctl password, typed in a terminal (for SSH)
+  vivctl set-password [--remove]      set, change or remove the vivctl password (needs Touch ID)
   vivctl install-app                  build the Vivaldi Ctl app (Dock icon, default browser) into ~/Applications
   vivctl tabs [--json]                list tabs with their stack (query and fragment of URLs are cut off)
   vivctl stacks [--json]              list stacks
@@ -135,7 +138,19 @@ export async function client(cmd, argv) {
     case 'type': if (pos.length < 3) throw new UserError('usage: vivctl type TAB REF TEXT [--enter]'); return out(await request({op: 'type', tab: ids(pos.slice(0, 1))[0], ref: ids(pos.slice(1, 2))[0], text: pos.slice(2).join(' '), enter: opt.enter}));
     case 'press': if (pos.length !== 2) throw new UserError('usage: vivctl press TAB KEY'); return out(await request({op: 'press', tab: ids(pos.slice(0, 1))[0], key: pos[1]}));
     case 'screenshot': { const r = await request({op: 'screenshot', tab: ids(pos.slice(0, 1))[0]}); return opt.json ? out(r) : console.log(r.file); }
-    case 'unlock': { const r = await request({op: 'unlock'}); return out(opt.json ? r : lockLine(r)); }
+    case 'unlock': {
+      const r = await request(opt.password ? {op: 'unlock', password: readSecret('vivctl password: ')} : {op: 'unlock'});
+      return out(opt.json ? r : lockLine(r));
+    }
+    case 'set-password': {
+      const said = r => out(opt.json ? r : r.password ? 'vivctl password set' : 'vivctl password removed');
+      if (opt.remove) return said(await request({op: 'set-password', remove: true}));
+      const pw = readSecret('new vivctl password: ');
+      if (pw.length < PASSWORD_MIN) throw new UserError(`the password needs at least ${PASSWORD_MIN} characters`);
+      if (readSecret('again: ') !== pw) throw new UserError('the two passwords differ, nothing changed');
+      console.log('confirm with Touch ID on the Mac');
+      return said(await request({op: 'set-password', password: pw}));
+    }
     case 'lock': { const r = await request({op: 'lock'}); return out(opt.json ? r : lockLine(r)); }
     case 'stop': {
       await request({op: 'quit'});
@@ -150,6 +165,37 @@ export async function client(cmd, argv) {
     case 'init': return initProfile();
     default: throw new UserError(cmd ? `unknown command "${cmd}"\n\n${HELP}` : HELP);
   }
+}
+
+// Reads a secret from the controlling terminal, never from stdin or an argument: a caller without a
+// terminal (a script, a coding agent) cannot answer, and nothing typed is echoed. The terminal
+// keeps its line editing; Ctrl-C arrives as a character (isig is off, so an interrupted read
+// cannot leave the echo off) and aborts, as does Ctrl-D.
+function readSecret(prompt) {
+  let fd;
+  try { fd = fs.openSync('/dev/tty', 'r+'); } catch { throw new UserError('the password has to be typed in a terminal, and there is none'); }
+  const stty = (...args) => spawnSync('stty', args, {stdio: [fd, 'pipe', 'ignore']});
+  const saved = stty('-g').stdout.toString().trim();
+  if (!saved) { fs.closeSync(fd); throw new UserError('the password has to be typed in a terminal, and there is none'); }
+  const chunks = [];
+  try {
+    stty('-echo', '-isig');
+    fs.writeSync(fd, prompt);
+    const buf = Buffer.alloc(1024);
+    for (;;) {
+      const n = fs.readSync(fd, buf, 0, buf.length, null);
+      if (n === 0) throw new UserError('aborted');
+      chunks.push(Buffer.from(buf.subarray(0, n)));
+      if (buf[n - 1] === 10) break;
+    }
+  } finally {
+    stty(saved);
+    fs.writeSync(fd, '\n');
+    fs.closeSync(fd);
+  }
+  const line = Buffer.concat(chunks).toString('utf8').replace(/\r?\n$/, '');
+  if (line.includes('\x03') || line.includes('\x04')) throw new UserError('aborted');
+  return line;
 }
 
 // `vivctl init`: copy Vivaldi's own profile into the profile the daemon runs. Chromium

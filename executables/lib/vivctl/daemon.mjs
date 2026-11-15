@@ -12,7 +12,7 @@ import {createOps} from './ops.mjs';
 
 // Not every operation that works while locked may skip the queue: `stack-step` changes the active
 // tab, so it waits its turn like any other tab operation.
-const UNQUEUED = new Set(['ping', 'unlock', 'lock']);
+const UNQUEUED = new Set(['ping', 'unlock', 'lock', 'set-password']);
 
 export async function daemon() {
   checkSocketPath();
@@ -51,7 +51,7 @@ export async function daemon() {
         try {
           if (!Object.hasOwn(OPS, req.op)) throw new UserError(`unknown operation "${req.op}"`);
           if (!OPEN_OPS.has(req.op) && lock.isLocked()) {
-            throw new UserError(`locked: ask the user to run \`vivctl unlock\` (Touch ID), access then lasts ${LEASE_MS / 60000} minutes`);
+            throw new UserError(`locked: ask the user to run \`vivctl unlock\` (Touch ID), or over SSH \`vivctl unlock --password\` in their own terminal; access then lasts ${LEASE_MS / 60000} minutes`);
           }
           reply = {ok: true, result: await OPS[req.op](req)};
         } catch (e) {
@@ -59,7 +59,7 @@ export async function daemon() {
         }
         conn.end(JSON.stringify(reply) + '\n');
       };
-      // ping, unlock and lock must not wait behind a tab operation (or a Touch ID sheet).
+      // ping, unlock, lock and set-password must not wait behind a tab operation (or a Touch ID sheet).
       if (UNQUEUED.has(req.op)) run(); else queue = queue.then(run);
     });
   });
