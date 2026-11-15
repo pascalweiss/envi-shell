@@ -128,14 +128,15 @@ browser or answer "Access Denied". The daemon therefore also passes
 While a page command (`click`, `read`, ...) runs, a debugger session is attached to that tab,
 which very aggressive detection could still notice; between commands nothing is attached.
 
-Verified against Vivaldi 8.2 (Chromium 152). The calls it relies on:
+Verified against Vivaldi 8.3 (8.3.4191.44). 8.3 dropped the `target-is-tab` tweak; the calls below are the ones Vivaldi's own UI makes since then. The calls it relies on:
 
 | Purpose | Call |
 |---|---|
-| create a stack, add a tab | `tabsPrivate.move({tabIds, target: <ext_id of a tab>, tweaks: ["target-is-tab","do-not-reparent","on"]})`, plus `"create-group"` for the first join only |
+| create a stack | `tabsPrivate.move({tabIds: [first, ...others], target: <id of the first tab>, tweaks: ["do-not-reparent","create-new-group"]})`, which returns the new `group` |
+| add a tab | `tabsPrivate.move({tabIds, target: <stack id>, windowId, tweaks: ["do-not-reparent","on","create-group","below"]})`, as a drop onto the stack |
 | title, color | `tabsPrivate.setGroupProperties({groupExtId, groupTitle, groupColor})`, colors are `color1` to `color9` |
 | dissolve | `tabsPrivate.unstack(groupId)` |
-| take tabs out of their stack | `tabsPrivate.move({tabIds, target: <index after the last tab>, windowId, tweaks: ["untile","ungroup"]})`, which is what Vivaldi's own "Remove from stack" does; only the moved tabs change |
+| take tabs out of their stack | `tabsPrivate.move({tabIds, target: "last", tweaks: ["ungroup","untile"]})`, which is what Vivaldi's own "Remove from stack" does; only the moved tabs change |
 | read | `vivExtData` of each tab: `group`, `fixedGroupTitle`, `groupColor` |
 
 These are undocumented. A Vivaldi update can change them; the symptom is an operation that

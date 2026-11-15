@@ -4,7 +4,6 @@ export const PRE = `
 const q=()=>new Promise(r=>chrome.tabs.query({},r));
 const ext=t=>{try{return JSON.parse(t.vivExtData||"{}")}catch{return {}}};
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-const TW=["target-is-tab","do-not-reparent","on"];
 `;
 
 export const UI = {
@@ -21,13 +20,21 @@ export const UI = {
     let all=await q(); const first=all.find(t=>t.id===P.first);
     if(!first) throw new Error("[user] no such tab: "+P.first);
     let group=ext(first).group;
-    for(const id of P.others){
-      if(!all.find(t=>t.id===id)) throw new Error("[user] no such tab: "+id);
-      const r=await vivaldi.tabsPrivate.move({tabIds:[id],target:ext(first).ext_id,windowId:first.windowId,
-        tweaks:group?TW:[...TW,"create-group"],debug:"vivctl"});
-      if(!r.success) throw new Error("Vivaldi refused to move tab "+id);
-      await wait(300);
-      all=await q(); group=ext(all.find(t=>t.id===P.first)).group||r.group||group;
+    for(const id of P.others) if(!all.find(t=>t.id===id)) throw new Error("[user] no such tab: "+id);
+    // The calls Vivaldi 8.3 makes itself: "Create tab stack" moves every tab onto the first one
+    // with create-new-group, a drop onto a stack targets its id with on and create-group.
+    if(!group&&P.others.length){
+      const r=await vivaldi.tabsPrivate.move({tabIds:[P.first,...P.others],target:P.first,
+        tweaks:["do-not-reparent","create-new-group"],debug:"vivctl"});
+      if(!r||!r.group) throw new Error("Vivaldi refused to create the stack");
+      group=r.group; await wait(300);
+    } else {
+      for(const id of P.others){
+        const r=await vivaldi.tabsPrivate.move({tabIds:[id],target:group,windowId:first.windowId,
+          tweaks:["do-not-reparent","on","create-group","below"],debug:"vivctl"});
+        if(r&&r.success===false) throw new Error("Vivaldi refused to move tab "+id);
+        await wait(300);
+      }
     }
     if(!group) throw new Error("[user] tab "+P.first+" is not in a stack");
     const num=(a,b)=>a-b, got=(await q()).filter(t=>ext(t).group===group).map(t=>t.id).sort(num), want=[...P.expect].sort(num);
@@ -42,14 +49,13 @@ export const UI = {
     await vivaldi.tabsPrivate.setGroupProperties(pr); return true`,
   unstack: `await vivaldi.tabsPrivate.unstack(P.group); return true`,
   // Takes tabs out of whatever stack they are in, the way Vivaldi's own "Remove from stack" does:
-  // a move to the end of the window with the "ungroup" tweak. Only these tabs move; their old
+  // a move to the end of the window with the "ungroup" and "untile" tweaks. Only these tabs move; their old
   // stack keeps its other tabs, its id, title and color. Returns the ids that had to leave a stack.
   ungroup: `
     const all=await q(); const hit=all.filter(t=>P.ids.includes(t.id)&&ext(t).group);
     for(const w of [...new Set(hit.map(t=>t.windowId))]){
-      const end=Math.max(...all.filter(t=>t.windowId===w).map(t=>t.index))+1;
-      const r=await vivaldi.tabsPrivate.move({tabIds:hit.filter(t=>t.windowId===w).map(t=>t.id),target:end,windowId:w,
-        tweaks:["untile","ungroup"],debug:"vivctl"});
+      const r=await vivaldi.tabsPrivate.move({tabIds:hit.filter(t=>t.windowId===w).map(t=>t.id),target:"last",
+        tweaks:["ungroup","untile"],debug:"vivctl"});
       if(r&&r.success===false) throw new Error("Vivaldi refused to take tabs out of their stack");
     }
     if(hit.length) await wait(300);
