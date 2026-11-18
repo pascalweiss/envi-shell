@@ -15,6 +15,8 @@ export const LOG = path.join(STATE, 'daemon.log');
 export const SOCK_MAX = 103;
 export const SOURCE_PROFILE = process.env.VIVCTL_SOURCE_PROFILE || path.join(HOME, 'Library/Application Support/Vivaldi');
 export const BROWSER = process.env.VIVALDI_BIN || '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi';
+// The own-responsibility helper the wrapper builds; empty means Vivaldi is started directly.
+export const SPAWN_BIN = process.env.VIVCTL_SPAWN_BIN || '';
 
 export const COLORS = {grey: 'color1', blue: 'color2', red: 'color3', yellow: 'color4', green: 'color5',
   pink: 'color6', purple: 'color7', teal: 'color8', orange: 'color9'};

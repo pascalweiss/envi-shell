@@ -295,6 +295,20 @@ was built from an older `launcher.swift`; run `install-app` again then. `VIVCTL_
 `VIVCTL_APP_NAME` and `VIVCTL_APP_ID` change where it goes and what it is called, which the tests
 use to build a variant that cannot be mistaken for the real one.
 
+## Local network
+
+macOS asks every app for permission before it reaches devices on the home network (Privacy &
+Security, Local Network), and decides for the "responsible" process, which a child inherits from
+its parent. Started by the daemon, Vivaldi would answer to node, and macOS can block node while
+Vivaldi itself is allowed: pages on the home network then fail with `ERR_ADDRESS_UNREACHABLE`,
+only the router stays reachable, and no switch in System Settings changes it.
+
+So the daemon starts Vivaldi through `own-responsibility.swift`, which disclaims responsibility
+and execs Vivaldi in place (same pid, same pipe). Vivaldi then answers for itself, and its own
+switch under Local Network is the one that counts. The wrapper builds the helper next to the
+Touch ID helper; if that fails, it says so and Vivaldi starts directly, which works everywhere
+except on the local network. `daemon.log` notes a direct start.
+
 ## Moving between windows
 
 `move` uses the call behind Vivaldi's own "Move to window" (`tabsPrivate.move` with target `-1`,
@@ -353,6 +367,7 @@ relies on are undocumented, and a changed one shows up there as a failure.
     web pages
 - `touchid.swift`: the Touch ID check, exit code 0 only if the owner authenticated
 - `launcher.swift`: the Vivaldi Ctl app, built by `vivctl install-app`
+- `own-responsibility.swift`: starts Vivaldi as its own responsible process (Local Network)
 - `../../macbin/vivctl`: the wrapper that finds Node (also through nvm) and runs it
 - `test/run.sh`, `test/site/`: the live test suite and its pages
 - `~/.vivctl/`: socket and `daemon.log`

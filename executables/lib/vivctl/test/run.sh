@@ -24,6 +24,9 @@ KEEP=false; [ "${1:-}" = "--keep" ] && KEEP=true
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/vivctl-test.XXXXXX")"
 export VIVCTL_PROFILE="$TMP/profile" VIVCTL_HOME="$TMP/home" VIVCTL_AUTH=off
 unset VIVCTL_AUTH_BIN VIVCTL_DENY VIVCTL_LEASE_MINUTES
+# Start Vivaldi the way the wrapper does, through the responsibility helper.
+swiftc -O "$HERE/../own-responsibility.swift" -o "$TMP/own-responsibility" || { echo "build of own-responsibility failed" >&2; exit 1; }
+export VIVCTL_SPAWN_BIN="$TMP/own-responsibility"
 ERR="$TMP/client-errors.log"
 mkdir -p "$VIVCTL_PROFILE" "$TMP/site"; : > "$ERR"
 

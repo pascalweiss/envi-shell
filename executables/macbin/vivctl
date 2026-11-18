@@ -31,12 +31,13 @@
 #   VIVCTL_APP_DIR, VIVCTL_APP_NAME, VIVCTL_APP_ID
 #                   Where `vivctl install-app` puts the Vivaldi Ctl app, its name and bundle id.
 #                   default: ~/Applications, "Vivaldi Ctl", dev.pwlab.vivctl.launcher
-#   VIVCTL_CACHE    Where the compiled Touch ID helper is kept.
+#   VIVCTL_CACHE    Where the compiled Swift helpers are kept.
 #                   default: ${XDG_CACHE_HOME:-$HOME/.cache}/envi/vivctl
 #
-# The lock needs a small Swift helper (executables/lib/vivctl/touchid.swift). Like
-# docscan it is compiled on first use and rebuilt when the source checksum changes,
-# which needs the Xcode Command Line Tools. Only `start` and `daemon` build it.
+# Two small Swift helpers, compiled on first use and rebuilt when the source checksum
+# changes (like docscan), which needs the Xcode Command Line Tools. Only `start` and
+# `daemon` build them: touchid.swift for the lock, and own-responsibility.swift, which
+# starts Vivaldi as its own responsible process so its Local Network permission applies.
 # =============================================================================
 
 set -uo pipefail
@@ -151,39 +152,49 @@ if ! command -v node >/dev/null 2>&1; then
     exit 1
 fi
 
-# --- the Touch ID helper, only where a daemon is going to be started ------------
-if [ "${1:-}" = "start" ] || [ "${1:-}" = "daemon" ]; then
-    if [ "${VIVCTL_AUTH:-}" != "off" ]; then
-        AUTH_SRC="$SELF_DIR/../lib/vivctl/touchid.swift"
-        : "${VIVCTL_CACHE:=${XDG_CACHE_HOME:-$HOME/.cache}/envi/vivctl}"
-        AUTH_BIN="$VIVCTL_CACHE/touchid"
-        AUTH_STAMP="$VIVCTL_CACHE/touchid.source-sha"
+# --- the Swift helpers, only where a daemon is going to be started ---------------
+# build_helper NAME DESCRIPTION: compiles executables/lib/vivctl/NAME.swift into the cache and
+# prints the binary's path. Like docscan it rebuilds when the source checksum changes (checksum,
+# not mtime: see the same reasoning in docscan), which needs the Xcode Command Line Tools.
+build_helper() {
+    local name="$1" what="$2"
+    local src="$SELF_DIR/../lib/vivctl/$name.swift"
+    : "${VIVCTL_CACHE:=${XDG_CACHE_HOME:-$HOME/.cache}/envi/vivctl}"
+    local bin="$VIVCTL_CACHE/$name" stamp="$VIVCTL_CACHE/$name.source-sha"
+    [ -f "$src" ] || { echo "vivctl: $what source not found at $src" >&2; return 1; }
+    local source_sha; source_sha="$(shasum -a 256 "$src" | cut -d' ' -f1)"
+    if [ ! -x "$bin" ] || [ "$source_sha" != "$(cat "$stamp" 2>/dev/null)" ]; then
+        command -v swiftc >/dev/null 2>&1 || { echo "vivctl: swiftc not found, so the $what cannot be built." >&2; return 1; }
+        mkdir -p "$VIVCTL_CACHE" || { echo "vivctl: cannot create $VIVCTL_CACHE" >&2; return 1; }
+        echo "vivctl: building the $what (first run after a change, a few seconds)..." >&2
+        local staging="$bin.building.$$"
+        if ! swiftc -O "$src" -o "$staging"; then
+            rm -f "$staging"
+            echo "vivctl: build of the $what failed" >&2
+            return 1
+        fi
+        mv -f "$staging" "$bin"
+        printf '%s\n' "$source_sha" > "$stamp"
+    fi
+    printf '%s\n' "$bin"
+}
 
-        if [ ! -f "$AUTH_SRC" ]; then
-            echo "vivctl: Touch ID helper source not found at $AUTH_SRC" >&2
+if [ "${1:-}" = "start" ] || [ "${1:-}" = "daemon" ]; then
+    # The lock needs Touch ID; without its helper there is no daemon unless the lock is off.
+    if [ "${VIVCTL_AUTH:-}" != "off" ]; then
+        if ! VIVCTL_AUTH_BIN="$(build_helper touchid "Touch ID helper")"; then
+            echo "vivctl: install the Xcode Command Line Tools (xcode-select --install)," >&2
+            echo "vivctl: or run without the lock: VIVCTL_AUTH=off vivctl start" >&2
             exit 1
         fi
-        # Checksum, not mtime: see the same reasoning in docscan.
-        source_sha="$(shasum -a 256 "$AUTH_SRC" | cut -d' ' -f1)"
-        if [ ! -x "$AUTH_BIN" ] || [ "$source_sha" != "$(cat "$AUTH_STAMP" 2>/dev/null)" ]; then
-            if ! command -v swiftc >/dev/null 2>&1; then
-                echo "vivctl: swiftc not found, so the Touch ID helper cannot be built." >&2
-                echo "vivctl: install the Xcode Command Line Tools (xcode-select --install)," >&2
-                echo "vivctl: or run without the lock: VIVCTL_AUTH=off vivctl start" >&2
-                exit 1
-            fi
-            mkdir -p "$VIVCTL_CACHE" || { echo "vivctl: cannot create $VIVCTL_CACHE" >&2; exit 1; }
-            echo "vivctl: building the Touch ID helper (first run after a change, a few seconds)..." >&2
-            staging="$AUTH_BIN.building.$$"
-            if ! swiftc -O "$AUTH_SRC" -o "$staging"; then
-                rm -f "$staging"
-                echo "vivctl: build of the Touch ID helper failed" >&2
-                exit 1
-            fi
-            mv -f "$staging" "$AUTH_BIN"
-            printf '%s\n' "$source_sha" > "$AUTH_STAMP"
-        fi
-        export VIVCTL_AUTH_BIN="$AUTH_BIN"
+        export VIVCTL_AUTH_BIN
+    fi
+    # Vivaldi as its own responsible process, so its Local Network permission applies (see
+    # own-responsibility.swift). Without it Vivaldi still runs, but may not reach the home network.
+    if VIVCTL_SPAWN_BIN="$(build_helper own-responsibility "responsibility helper")"; then
+        export VIVCTL_SPAWN_BIN
+    else
+        echo "vivctl: starting Vivaldi directly; pages on the local network may be unreachable" >&2
     fi
 fi
 
