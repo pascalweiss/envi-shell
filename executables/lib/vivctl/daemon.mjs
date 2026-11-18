@@ -4,7 +4,7 @@
 import {spawn} from 'node:child_process';
 import net from 'node:net';
 import fs from 'node:fs';
-import {PROFILE, STATE, SOCK, BROWSER, OPEN_OPS, LEASE_MS, UserError, checkSocketPath, checkAuthSetup, log, request} from './common.mjs';
+import {PROFILE, STATE, SOCK, BROWSER, SPAWN_BIN, OPEN_OPS, LEASE_MS, UserError, checkSocketPath, checkAuthSetup, log, request} from './common.mjs';
 import {connect} from './browser.mjs';
 import {pageAccess} from './pages.mjs';
 import {createLock} from './lock.mjs';
@@ -24,12 +24,15 @@ export async function daemon() {
 
   // The pipe alone makes Chromium set navigator.webdriver on every page, which captchas and bot
   // managers (Akamai, Cloudflare) treat as a bot. Turning AutomationControlled off clears it.
-  const proc = spawn(BROWSER, ['--remote-debugging-pipe', '--disable-blink-features=AutomationControlled',
-    `--user-data-dir=${PROFILE}`, '--no-first-run'],
-    {stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe']});
+  const flags = ['--remote-debugging-pipe', '--disable-blink-features=AutomationControlled',
+    `--user-data-dir=${PROFILE}`, '--no-first-run'];
+  // Through the helper Vivaldi answers for itself to macOS, so its own Local Network permission
+  // applies rather than node's (own-responsibility.swift). It execs in place: same pid, same pipe.
+  const [cmd, args] = SPAWN_BIN ? [SPAWN_BIN, [BROWSER, ...flags]] : [BROWSER, flags];
+  const proc = spawn(cmd, args, {stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe']});
   const [toB, fromB] = [proc.stdio[3], proc.stdio[4]];
   toB.on('error', () => {});
-  log(`started Vivaldi pid ${proc.pid} on profile ${PROFILE}`);
+  log(`started Vivaldi pid ${proc.pid} on profile ${PROFILE}${SPAWN_BIN ? '' : ' (directly, without the responsibility helper)'}`);
 
   const browser = connect(toB, fromB);
   const lock = createLock();
