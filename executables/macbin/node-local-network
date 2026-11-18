@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+#
+# node-local-network: let Homebrew's node reach the local network on macOS.
+# =============================================================================
+#   node-local-network                    sign every Homebrew node as org.nodejs.node
+#   node-local-network --grant HOST:PORT  once per machine: ask macOS for the permission
+#   node-local-network --check HOST:PORT  does node reach HOST:PORT?
+#   node-local-network --quiet            like the first, silent unless something changed
+#
+# macOS decides Local Network access for a command line tool by its code signing identifier
+# and never asks for one: without a decision it blocks every host on the local network except
+# the router (connect fails with EHOSTUNREACH). Homebrew signs node ad hoc with an identifier
+# that contains a hash, node-5555494467..., which changes with every node version, so even a
+# granted permission would be lost on the next upgrade.
+#
+# This script re-signs node (ad hoc, as Homebrew does) with the fixed identifier
+# org.nodejs.node. --grant then builds a throwaway app carrying the same identifier and opens
+# it, because macOS does ask an app: allow it once, and node is allowed from then on. HOST must
+# be a device on the local network other than the router, which is never blocked.
+#
+# The Homebrew integration runs `node-local-network --quiet` after `brew install`, `upgrade`
+# and `reinstall`, so a new node is signed before it is first used. Needs the Xcode Command
+# Line Tools (codesign, and swiftc for --grant).
+# =============================================================================
+
+set -uo pipefail
+
+IDENTIFIER=org.nodejs.node
+SELF_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROBE_SRC="$SELF_DIR/../lib/node-local-network/probe.swift"
+
+die() { echo "node-local-network: $*" >&2; exit 1; }
+
+[ "$(uname -s)" = Darwin ] || die "macOS only"
+prefix="$(brew --prefix 2>/dev/null)" || die "Homebrew not found"
+
+# Every node binary in the Cellar, node@24 and the like included.
+node_binaries() { find "$prefix/Cellar" -maxdepth 4 -path "$prefix/Cellar/node*/*/bin/node" -type f 2>/dev/null; }
+
+sign_all() {
+    local quiet="$1" bin changed=0
+    while IFS= read -r bin; do
+        [ -n "$bin" ] || continue
+        if codesign -dv "$bin" 2>&1 | grep -qx "Identifier=$IDENTIFIER"; then
+            [ "$quiet" = true ] || echo "already signed: $bin"
+            continue
+        fi
+        codesign --force --sign - --identifier "$IDENTIFIER" "$bin" 2>/dev/null || die "signing failed: $bin"
+        echo "node-local-network: signed $bin as $IDENTIFIER"
+        changed=1
+    done < <(node_binaries)
+    [ "$quiet" = true ] || [ "$changed" = 1 ] || echo "nothing to sign"
+}
+
+split_target() {
+    [[ "${1:-}" =~ ^([0-9.]+):([0-9]+)$ ]] || die "expected HOST:PORT with an IPv4 address, e.g. 192.168.1.20:443"
+    HOST="${BASH_REMATCH[1]}"; PORT="${BASH_REMATCH[2]}"
+}
+
+check() {
+    split_target "${1:-}"
+    command -v node >/dev/null 2>&1 || die "node not on PATH"
+    node -e "require('net').connect($PORT,'$HOST').on('connect',function(){console.log('node reaches $HOST:$PORT');this.destroy()}).on('error',e=>{console.log('node does not reach $HOST:$PORT: '+e.code);process.exitCode=1})"
+}
+
+grant() {
+    split_target "${1:-}"
+    command -v swiftc >/dev/null 2>&1 || die "swiftc not found; install the Xcode Command Line Tools (xcode-select --install)"
+    sign_all true
+    local tmp app result
+    tmp="$(mktemp -d)"; app="$tmp/node.app"; result="$tmp/result"
+    mkdir -p "$app/Contents/MacOS"
+    swiftc -O "$PROBE_SRC" -o "$app/Contents/MacOS/probe" || die "build of the probe failed"
+    cat > "$app/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleIdentifier</key><string>$IDENTIFIER</string>
+  <key>CFBundleName</key><string>node</string>
+  <key>CFBundleExecutable</key><string>probe</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>LSUIElement</key><true/>
+  <key>NSLocalNetworkUsageDescription</key><string>node reaches services on the local network.</string>
+</dict></plist>
+PLIST
+    codesign --force --sign - --identifier "$IDENTIFIER" "$app" 2>/dev/null || die "signing the probe failed"
+    echo "macOS asks whether \"node\" may find devices on the local network: choose Allow."
+    open -W -a "$app" --args "$HOST" "$PORT" "$result"
+    local outcome; outcome="$(cat "$result" 2>/dev/null)"
+    rm -rf "$tmp"
+    [ "$outcome" = ok ] || die "no access (${outcome:-no result}); allow \"node\" under System Settings, Privacy & Security, Local Network"
+    check "$HOST:$PORT"
+}
+
+case "${1:-}" in
+    "") sign_all false ;;
+    --quiet) sign_all true ;;
+    --grant) grant "${2:-}" ;;
+    --check) check "${2:-}" ;;
+    -h|--help) sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *) die "unknown option $1 (see --help)" ;;
+esac
