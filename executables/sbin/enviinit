@@ -114,6 +114,12 @@ if [ "$ENVI_256_COLORS" = "true" ]; then 256colors true; else 256colors false; f
 # Set UTF-8 locale for proper character encoding
 if [ "$ENVI_UTF_8" = "true" ]; then export LC_ALL="en_US.UTF-8"; fi
 
+# Disable Antigravity CLI's US-layout macOS Option-key translation, which
+# otherwise maps German 'ß' (U+00DF, produced by Option+S on a US keyboard)
+# to Alt+S (/swarm board).
+: "${AGY_CLI_MAC_OPTION_AS_ALT:=0}"
+export AGY_CLI_MAC_OPTION_AS_ALT
+
 # Tmux runtime settings (bind-key block, TMUX_SPLIT_FOLLOW_PWD etc.) moved to
 # integrations/tmux/init.sh — they're tmux-specific and belong with the rest
 # of the tmux integration logic.

@@ -81,6 +81,13 @@ config.window_padding = { left = 4, right = 4, top = 2, bottom = 2 }
 config.initial_cols = 200
 config.initial_rows = 50
 
+-- macOS: both Option keys act as the system modifier so DE-layout characters
+-- and dead keys work with either Option key: @ (Opt+L), | (Opt+7), \ (Opt+Shift+7),
+-- {} (Opt+8/9), [] (Opt+5/6), ~ (Opt+N). WezTerm defaults send_composed_key_when_left_alt_is_pressed
+-- to false (sending Esc+key instead of the composed character).
+config.send_composed_key_when_left_alt_is_pressed = true
+config.send_composed_key_when_right_alt_is_pressed = true
+
 -- Tab bar: pill-shaped tabs in the title bar, next to the macOS window buttons.
 -- The fancy bar takes its height from window_frame.font_size; the pills are
 -- drawn by format-tab-title with the rounded Nerd Font caps, so the tab's own
