@@ -1,0 +1,15 @@
+{
+  "name": "markdown-colors",
+  "displayName": "Markdown Preview Colors",
+  "description": "Custom color stylesheet for VS Code's built-in Markdown preview",
+  "version": "1.0.0",
+  "publisher": "pweiss",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "contributes": {
+    "markdown.previewStyles": [
+      "./markdown.css"
+    ]
+  }
+}

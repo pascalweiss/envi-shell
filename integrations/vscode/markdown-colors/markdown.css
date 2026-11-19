@@ -1,0 +1,48 @@
+/* Headings: each level its own color, plus a rule under h1/h2 */
+.markdown-body h1, body h1 { color: #e06c75 !important; border-bottom: 2px solid #e06c75 !important; padding-bottom: .2em; }
+.markdown-body h2, body h2 { color: #d19a66 !important; border-bottom: 1px solid #d19a6688 !important; padding-bottom: .15em; }
+.markdown-body h3, body h3 { color: #e5c07b !important; }
+.markdown-body h4, body h4 { color: #98c379 !important; }
+.markdown-body h5, .markdown-body h6, body h5, body h6 { color: #56b6c2 !important; }
+
+/* Emphasis */
+.markdown-body strong, body strong { color: #c678dd !important; }
+.markdown-body em, body em         { color: #61afef !important; }
+
+/* Links and wikilinks */
+.markdown-body a, body a { color: #56b6c2 !important; }
+
+/* Lists: colored bullets and numbers */
+.markdown-body li::marker, body li::marker { color: #d19a66 !important; font-weight: bold; }
+
+/* Blockquotes as a colored box */
+.markdown-body blockquote, body blockquote {
+  border-left: 4px solid #61afef !important;
+  background: #61afef14 !important;
+  padding: .3em 1em;
+}
+
+/* Inline code */
+.markdown-body :not(pre) > code, body :not(pre) > code {
+  color: #e5c07b !important;
+  background: #e5c07b1f !important;
+  padding: 0 .3em;
+  border-radius: 3px;
+}
+
+/* Tables: tinted header row */
+.markdown-body th, body th { background: #61afef22 !important; border-color: #61afef66 !important; }
+
+/* Frontmatter table */
+table.frontmatter th { color: #c678dd !important; background: #c678dd1a !important; }
+
+/* Darker shades for a light theme */
+body.vscode-light h1 { color: #c0392b !important; border-color: #c0392b !important; }
+body.vscode-light h2 { color: #b9770e !important; border-color: #b9770e88 !important; }
+body.vscode-light h3 { color: #9a7d0a !important; }
+body.vscode-light h4 { color: #1e8449 !important; }
+body.vscode-light strong { color: #8e44ad !important; }
+body.vscode-light em { color: #2471a3 !important; }
+body.vscode-light a { color: #117a8b !important; }
+body.vscode-light li::marker { color: #b9770e !important; }
+body.vscode-light :not(pre) > code { color: #9a7d0a !important; background: #9a7d0a1a !important; }

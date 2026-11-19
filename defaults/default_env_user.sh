@@ -43,6 +43,7 @@
 # export EZA_ENABLED=false                  # ls/ll/la/lt aliases via eza
 # export GHOSTTY_ENABLED=false              # symlink ghostty config from envi
 # export WEZTERM_ENABLED=false              # symlink wezterm config from envi, tabcolor command
+# export VSCODE_ENABLED=false               # install VS Code markdown preview colors extension
 # export ITERM2_ENABLED=false               # source iTerm2's shell integration script
 
 # --- gitscan (executables/bin/gitscan) ---
