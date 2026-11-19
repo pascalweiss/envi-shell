@@ -103,6 +103,12 @@ When connecting to a remote machine via SSH, you can automatically get a session
 - `tmux-help` — Quick reference for tmux key bindings
 - `Ctrl+b w` — Native tmux session/window chooser (customized with color theme)
 
+**WezTerm shortcuts:** `Cmd+Alt+K` shows every binding in the terminal (Enter runs one),
+`wezterm-help` prints the same list in the shell. Tabs are colored and named with
+`tabcolor <1-9|name> [title]` and `tabname [title]`, from inside tmux too. Bindings are
+defined once in `integrations/wezterm/wezterm.lua` through `bind()`, which also feeds both
+help views.
+
 A plain `exit` ends the session and leaves tmux in this terminal. Killing your own
 session from the chooser (`Ctrl+b w`, then `x`) is the exception: the client moves to the
 most recent remaining session and the chooser reopens there, so picking where to go next
