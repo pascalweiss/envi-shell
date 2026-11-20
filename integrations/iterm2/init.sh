@@ -25,7 +25,7 @@ if [ "$ITERM2_ENABLED" != "true" ]; then
 fi
 
 # iTerm2 is macOS-only.
-if [ "$(uname)" != "Darwin" ]; then
+if [[ "${OSTYPE:-$(uname)}" != [Dd]arwin* ]]; then
     return 0 2>/dev/null || exit 0
 fi
 

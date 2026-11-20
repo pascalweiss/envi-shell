@@ -38,9 +38,9 @@
 ENVI_PATHS="$ENVI_HOME/executables/bin"
 
 # Add platform-specific CLI tools
-if [[ "$(uname)" = *Darwin* ]]; then 
+if [[ "${OSTYPE:-$(uname)}" == [Dd]arwin* ]]; then 
     ENVI_PATHS="$ENVI_PATHS:$ENVI_HOME/executables/macbin"
-elif [[ "$(uname)" = *Linux* ]]; then 
+elif [[ "${OSTYPE:-$(uname)}" == [Ll]inux* ]]; then 
     ENVI_PATHS="$ENVI_PATHS:$ENVI_HOME/executables/linuxbin"
 fi
 

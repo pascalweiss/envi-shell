@@ -25,7 +25,10 @@ function link_with_backup () {
     local dst="$2"
     local backup_dir="$HOME/dotfiles_backup"
 
-    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
+    # Fast path: in bash/zsh, `-ef` checks via stat() whether $dst and $src
+    # resolve to the same device and inode, avoiding a `readlink` fork on every
+    # shell startup.
+    if [ -L "$dst" ] && { [ "$dst" -ef "$src" ] || [ "$(readlink "$dst")" = "$src" ]; }; then
         return 0
     fi
 

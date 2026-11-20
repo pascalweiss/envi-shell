@@ -62,11 +62,11 @@ _check_ssh_add() {
 
 # Platform-specific shortcuts
 
-if [[ "$(uname)" = *Linux* ]]; then
+if [[ "${OSTYPE:-$(uname)}" == [Ll]inux* ]]; then
     # Linux-specific aliases
     alias o='open'
     alias o.='open .'
-elif [[ "$(uname)" = *Darwin* ]]; then
+elif [[ "${OSTYPE:-$(uname)}" == [Dd]arwin* ]]; then
     # macOS-specific aliases and functions
     openFile() {
             open $1

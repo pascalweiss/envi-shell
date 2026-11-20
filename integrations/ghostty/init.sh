@@ -18,7 +18,7 @@ if [ "$GHOSTTY_ENABLED" != "true" ]; then
 fi
 
 # Ghostty is macOS-only at the moment.
-if [ "$(uname)" != "Darwin" ]; then
+if [[ "${OSTYPE:-$(uname)}" != [Dd]arwin* ]]; then
     return 0 2>/dev/null || exit 0
 fi
 

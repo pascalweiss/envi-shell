@@ -34,9 +34,22 @@ _envi_sync_vscode_markdown_colors() {
     local ext_rel="pweiss.markdown-colors-1.0.0"
     local dst_dir="$ext_root/$ext_rel"
     local manifest="$ext_root/extensions.json"
+    local stamp="$dst_dir/.envi-registered"
     local f entry
 
     [ -d "$src_dir" ] || return 0
+
+    # Fast path: if all copied files and the manifest registration stamp are
+    # present, regular files (not symlinks), and at least as new as the source
+    # files and manifest, skip all subprocess forks (mkdir, cmp, grep).
+    if [ -f "$dst_dir/package.json" ] && [ ! -L "$dst_dir/package.json" ] \
+        && [ ! "$src_dir/package.json" -nt "$dst_dir/package.json" ] \
+        && [ -f "$dst_dir/markdown.css" ] && [ ! -L "$dst_dir/markdown.css" ] \
+        && [ ! "$src_dir/markdown.css" -nt "$dst_dir/markdown.css" ] \
+        && [ -f "$manifest" ] && [ -f "$stamp" ] \
+        && [ ! "$manifest" -nt "$stamp" ]; then
+        return 0
+    fi
 
     # Only install if VS Code has been used on this machine (~/.vscode exists)
     # or the `code` CLI is on PATH.
@@ -50,6 +63,8 @@ _envi_sync_vscode_markdown_colors() {
             if [ -L "$dst_dir/$f" ] || [ ! -f "$dst_dir/$f" ] || ! cmp -s "$src_dir/$f" "$dst_dir/$f"; then
                 rm -f "$dst_dir/$f"
                 cp "$src_dir/$f" "$dst_dir/$f"
+            elif [ "$src_dir/$f" -nt "$dst_dir/$f" ]; then
+                touch "$dst_dir/$f"
             fi
         fi
     done
@@ -73,6 +88,8 @@ with open(path, "w", encoding="utf-8") as f:
 ' "$manifest" "$entry"
         fi
     fi
+
+    [ -f "$manifest" ] && : > "$stamp"
 }
 
 _envi_vscode_manifest_entry() {

@@ -5,7 +5,7 @@
 # Configures and loads Oh-My-Zsh framework with envi customizations
 # Called from enviinit when OHMYZSH_ENABLED=true
 
-# Defaults — overridden only if user sets them in config/envi_env.
+# Defaults -- overridden only if user sets them in config/envi_env.
 # fzf-tab must be last so it wraps completion-related widgets registered
 # by earlier plugins.
 : "${OHMYZSH_ENABLED:=true}"
@@ -16,7 +16,7 @@
 export OHMYZSH_ENABLED OHMYZSH_THEME_LINKING OHMYZSH_PLUGINS OHMYZSH_GIT_PROMPT_CACHE ZSH_THEME
 
 # Oh-My-Zsh framework loading and configuration (zsh only)
-if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
+if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "${ZSH_VERSION:-}" ] && [ -n "$ZSH" ]; then
     # Set custom directory for Oh-My-Zsh plugins and themes BEFORE configuring plugins
     export ZSH_CUSTOM="$ZSH/custom"
     
@@ -45,7 +45,24 @@ if [ "$OHMYZSH_ENABLED" = "true" ] && [ -n "$ZSH" ]; then
         # Set default theme if not defined
         export ZSH_THEME="robbyrussell"
     fi
-    
+
+    # Normalize fpath before Oh-My-Zsh runs compinit:
+    # 1. Un-export FPATH (`brew shellenv` in ~/.zprofile exports it). When FPATH
+    #    is exported, tmux inherits post-compinit additions (such as fzf-tab/lib)
+    #    and passes them into every new pane BEFORE compinit, causing Oh-My-Zsh's
+    #    `_omz_compdump_has_metadata` check to fail and rebuild zcompdump (~385ms)
+    #    on every single pane split. Note: `-g` is required because this file is
+    #    sourced from inside `envi_full_init()`, where `typeset` without `-g`
+    #    would shadow `path` / `fpath` as empty function-local variables!
+    # 2. Strip any pre-existing $ZSH/* entries inherited from a parent shell or
+    #    tmux server so oh-my-zsh.sh builds the exact same pre-compinit fpath on
+    #    every invocation, and deduplicate `fpath` and `path`.
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        typeset -g +x FPATH 2>/dev/null || true
+        fpath=(${fpath:#$ZSH/*})
+        typeset -gU path fpath
+    fi
+
     # Load Oh-My-Zsh framework (replaces source $ZSH/oh-my-zsh.sh from .zshrc)
     if [ -f "$ZSH/oh-my-zsh.sh" ]; then
         source "$ZSH/oh-my-zsh.sh"

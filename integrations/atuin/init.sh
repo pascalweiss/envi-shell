@@ -21,20 +21,25 @@ if [ "$ATUIN_ENABLED" != "true" ]; then
 fi
 
 # Only meaningful in zsh (envi mandates zsh) and when the binary is present.
-if [ -z "$ZSH_VERSION" ] || ! command -v atuin >/dev/null 2>&1; then
+_envi_atuin_bin="$(command -v atuin 2>/dev/null)"
+if [ -z "$ZSH_VERSION" ] || [ -z "$_envi_atuin_bin" ]; then
+    unset _envi_atuin_bin
     return 0 2>/dev/null || exit 0
 fi
 
 # Atuin's widgets need ZLE, which only exists in interactive shells.
 case "$-" in
     *i*) ;;
-    *) return 0 2>/dev/null || exit 0 ;;
+    *)
+        unset _envi_atuin_bin
+        return 0 2>/dev/null || exit 0
+        ;;
 esac
 
 # One-time import of the existing zsh history into atuin's DB.
 ATUIN_DB="${XDG_DATA_HOME:-$HOME/.local/share}/atuin/history.db"
 if [ ! -f "$ATUIN_DB" ]; then
-    atuin import auto >/dev/null 2>&1 || true
+    "$_envi_atuin_bin" import auto >/dev/null 2>&1 || true
 fi
 
 # Symlink envi's tracked config into atuin's expected location. Idempotent:
@@ -46,4 +51,17 @@ if [ -f "$ENVI_HOME/integrations/atuin/config.toml" ]; then
 fi
 
 # Binds Up-arrow and Ctrl+R to the atuin search TUI.
-eval "$(atuin init zsh)"
+# Cache `atuin init zsh` output and refresh only when the binary changes.
+_envi_atuin_cache="${XDG_CACHE_HOME:-$HOME/.cache}/envi/atuin-init.zsh"
+if [ ! -s "$_envi_atuin_cache" ] || [ "$_envi_atuin_bin" -nt "$_envi_atuin_cache" ]; then
+    mkdir -p "${_envi_atuin_cache%/*}"
+    "$_envi_atuin_bin" init zsh >"$_envi_atuin_cache.tmp.$$" 2>/dev/null \
+        && mv "$_envi_atuin_cache.tmp.$$" "$_envi_atuin_cache" \
+        || rm -f "$_envi_atuin_cache.tmp.$$"
+fi
+if [ -s "$_envi_atuin_cache" ]; then
+    source "$_envi_atuin_cache"
+else
+    eval "$("$_envi_atuin_bin" init zsh)"
+fi
+unset _envi_atuin_bin _envi_atuin_cache
