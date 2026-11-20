@@ -128,9 +128,14 @@ wezterm.on('format-tab-title', function(tab, tabs, panes, cfg, hover, max_width)
   local bg, fg
   -- Active: full color and white bold text; inactive: dark and muted.
   -- Nothing is added to the label, so a tab keeps its width either way.
+  -- Note: `hover` is only used when `use_fancy_tab_bar` is false; with the fancy
+  -- tab bar WezTerm computes `hover` from terminal-grid columns instead of the
+  -- fancy tab bar's pixel positions (offset by the 70px macOS traffic lights,
+  -- window_frame.font_size, and 1.0-cell per-tab padding), which highlights the
+  -- wrong tab (upstream wezterm#5164).
   if tab.is_active then
     bg, fg = base:lighten(0.05), '#ffffff'
-  elseif hover then
+  elseif hover and not cfg.use_fancy_tab_bar then
     bg, fg = base:darken(0.3), '#e0e0e0'
   else
     bg, fg = base:desaturate(0.4):darken(0.6), '#8a8a8a'
